@@ -3,11 +3,13 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  editHarnessLine,
   editStubAssistantCopy,
   GATEWAY_REQUIRED_SURFACES,
   gatewayRequiredMessage,
   outputLanguageRule,
   withOutputLanguage,
+  type EditHarnessLineKey,
 } from "./output-language";
 
 const localesDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../../apps/web/locales");
@@ -34,7 +36,12 @@ describe("output language", () => {
       const data = loadJson(locale, "data.json");
       const videos = loadJson(locale, "videos.json");
       const edit = loadJson(locale, "edit.json") as {
-        pipeline: { languageInstruction: string; stubHelp: string; stubUndo: string };
+        pipeline: {
+          languageInstruction: string;
+          stubHelp: string;
+          stubUndo: string;
+          harness: Record<EditHarnessLineKey, string>;
+        };
       };
       const knowledge = loadJson(locale, "knowledge.json");
       expect(outputLanguageRule("documents", locale)).toBe(documents.outputTextLanguage);
@@ -48,6 +55,9 @@ describe("output language", () => {
         help: edit.pipeline.stubHelp,
         undo: edit.pipeline.stubUndo,
       });
+      for (const key of Object.keys(edit.pipeline.harness) as EditHarnessLineKey[]) {
+        expect(editHarnessLine(key, locale)).toBe(edit.pipeline.harness[key]);
+      }
     }
   });
 });

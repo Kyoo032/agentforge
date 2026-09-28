@@ -13,6 +13,11 @@ describe("mode harnesses", () => {
   it("wires only the skills the list marked new", () => {
     expect(wiredSkillIds()).toEqual([
       "documents:check-against-source",
+      "edit:lift-dead-air",
+      "edit:cut-on-shots",
+      "edit:words-on-picture",
+      "edit:place-made-shot",
+      "edit:hand-back-file",
       "presentations:edit-text",
       "presentations:add-shapes",
       "education:teaching-deck",

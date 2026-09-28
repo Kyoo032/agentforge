@@ -33,12 +33,36 @@ export {
 } from "./ops";
 export type { OpType, EditOp, ApplyableOp, InverseOp } from "./ops";
 export { foldOps, validateDoc } from "./fold";
-export { hex8ToAssColor, assColorToHex8, layoutTitle, titleToAssDialogue, buildAssDocument, framesToAssTime } from "./ass-subset";
+export {
+  hex8ToAssColor,
+  assColorToHex8,
+  layoutTitle,
+  titleToAssDialogue,
+  buildAssDocument,
+  framesToAssTime,
+} from "./ass-subset";
 export type { TitleLayout } from "./ass-subset";
 export { EDIT_TIERS, CAMERA_CHIPS, routeEditModel } from "./tiers";
 export type { EditTier } from "./tiers";
 export { PRICE_TABLE, estimateJobUsd } from "./price-table";
 export type { PriceRow } from "./price-table";
+export {
+  EDIT_HARNESS_SKILLS,
+  matchEditHarnessSkill,
+  silenceProbeArgs,
+  sceneProbeArgs,
+  rangesInsideClip,
+  assetFramesToTimeline,
+  framesInsideClip,
+  planSilenceRanges,
+  planSceneFrames,
+  extractPictureWords,
+  pictureWordsAreCaptions,
+  wordsLanded,
+  extractMadeShot,
+  harnessTargetClip,
+} from "./harness";
+export type { EditHarnessSkill, HarnessClipSpan, SilenceRange } from "./harness";
 export { RECIPES, STARTER_PROJECTS } from "./recipes";
 export type { Recipe, StarterProject } from "./recipes";
 export {

@@ -148,11 +148,11 @@ export const MODE_HARNESSES: readonly ModeHarness[] = [
     id: "edit",
     route: "/edit",
     skills: [
-      { id: "cut-timeline", name: "Cut the timeline", status: "has" },
-      { id: "clean-sound", name: "Clean the sound", status: "has" },
-      { id: "title-and-caption", name: "Title and caption", status: "has" },
-      { id: "generate-onto-timeline", name: "Generate onto the timeline", status: "has" },
-      { id: "export", name: "Export", status: "has" },
+      { id: "lift-dead-air", name: "Lift the dead air", status: "new" },
+      { id: "cut-on-shots", name: "Cut where the picture changes", status: "new" },
+      { id: "words-on-picture", name: "Put the words on the picture", status: "new" },
+      { id: "place-made-shot", name: "Place a made shot", status: "new" },
+      { id: "hand-back-file", name: "Hand back the file", status: "new" },
     ],
   },
   {
