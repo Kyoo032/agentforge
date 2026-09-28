@@ -2,14 +2,20 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { imageGenerateFailedMessage, imageOutputLanguageHint, withImageOutputLanguage } from "./image-output-locale";
+import {
+  imageGenerateFailedMessage,
+  imageModelRejectedMessage,
+  imageOutputLanguageHint,
+  withImageOutputLanguage,
+} from "./image-output-locale";
 
 const localesDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../../apps/web/locales");
 
-function loadImages(locale: "en" | "id"): { outputTextLanguage: string; generateError: string } {
+function loadImages(locale: "en" | "id"): { outputTextLanguage: string; generateError: string; modelRejected: string } {
   return JSON.parse(readFileSync(resolve(localesDir, locale, "images.json"), "utf8")) as {
     outputTextLanguage: string;
     generateError: string;
+    modelRejected: string;
   };
 }
 
@@ -50,6 +56,7 @@ describe("image output locale", () => {
       const json = loadImages(locale);
       expect(imageOutputLanguageHint(locale)).toBe(json.outputTextLanguage);
       expect(imageGenerateFailedMessage(locale)).toBe(json.generateError);
+      expect(imageModelRejectedMessage(locale)).toBe(json.modelRejected);
     }
   });
 });

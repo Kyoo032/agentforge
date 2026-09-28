@@ -9,6 +9,12 @@ const GENERATE_ERROR: Record<ImageStudioLocale, string> = {
   id: "Pembuatan gambar gagal",
 };
 
+/** Keep in sync with `apps/web/locales/{en,id}/images.json` `modelRejected`. */
+const MODEL_REJECTED: Record<ImageStudioLocale, string> = {
+  en: "That model does not make images.",
+  id: "Model itu tidak membuat gambar.",
+};
+
 /** Keep in sync with `apps/web/locales/{en,id}/images.json` `outputTextLanguage`. */
 const OUTPUT_TEXT_LANGUAGE: Record<ImageStudioLocale, string> = {
   en: "If this image includes any readable text (captions, labels, signs, or on-image UI), write that text in English.",
@@ -21,6 +27,10 @@ export function imageOutputLanguageHint(locale: ImageStudioLocale): string {
 
 export function imageGenerateFailedMessage(locale: ImageStudioLocale): string {
   return GENERATE_ERROR[parseAppLocale(locale)];
+}
+
+export function imageModelRejectedMessage(locale: ImageStudioLocale): string {
+  return MODEL_REJECTED[parseAppLocale(locale)];
 }
 
 /** Instruct the image model to render on-image text in the run locale. Does not rewrite the stored prompt. */

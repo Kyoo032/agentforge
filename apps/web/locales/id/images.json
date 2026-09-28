@@ -5,6 +5,7 @@
   "settingsLink": "Pengaturan",
   "loadError": "Studio gambar tidak dapat dimuat",
   "generateError": "Pembuatan gambar gagal",
+  "modelRejected": "Model itu tidak membuat gambar.",
   "aspect": {
     "square": "Persegi",
     "landscape": "Lanskap",
