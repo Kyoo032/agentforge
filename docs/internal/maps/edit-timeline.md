@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-27 for agent cards: `applyAgentOps` sets `status: "applied"` after `appendOps` succeeds, and the card offers Keep only while `proposed`. A new project name comes from `edit.defaultProjectName` (`Untitled edit` / `Suntingan baru`). Before that: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
+Last verified: 2026-09-27 for the preview transport and the timeline hint, which read `edit.preview.*` and `edit.timeline.*`. Before that, 2026-09-27 for agent cards: `applyAgentOps` sets `status: "applied"` after `appendOps` succeeds, and the card offers Keep only while `proposed`. A new project name comes from `edit.defaultProjectName` (`Untitled edit` / `Suntingan baru`). Before that: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
 scope), § 6 (keyboard guard, drag release), § 10 (review gate, and `render` refused on `/jobs`), § 11 (generate,
 the worker's tenant, the still check), § 12 (export, the desktop save dialog) and the gateway-gate failure row —
 two passes that day, the Edit security fixes and the docs pass that reconciled them. Not driven. Everything else
@@ -502,10 +502,11 @@ A's `workerWorkspaceId`.
   branch (`:687-741`); switching projects needs a reload.
 - **`sourcePath` import is IPC-only** (`packages/host/src/handlers/edit.ts:211-240`). Do not try the
   packaged path against `:3000`.
-- **The Edit UI below the header is hardcoded English.** Only `edit-studio.tsx` calls `t`; the agent
-  panel, cards, preview, timeline, generate tab, recipes and templates ship literal English while the
-  matching `edit.*` keys sit unused in both locale catalogs. Testids are still locale-invariant, but
-  "only the visible strings change" is not true here yet. **Finding.**
+- **Most of the Edit UI below the header is still hardcoded English.** The preview transport
+  (`edit-play`, frame steps, scrub) and the timeline hint, zoom label, and trim names read the
+  `edit` catalog. The agent panel, cards, generate tab, recipes and templates still ship literal
+  English while matching `edit.*` keys sit unused. Testids stay locale-invariant. **Finding** for
+  what is left.
 - **`edit-recipes` does not exist.** Assert `edit-recipe-<id>`; there are exactly two,
   `edit-recipe-podcast-clean-up` and `edit-recipe-reels-cutdown`.
 - **`edit-generate-storyboard` exists** (the sub-tab button). `edit-storyboard-generate` and

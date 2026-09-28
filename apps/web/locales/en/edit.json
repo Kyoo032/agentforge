@@ -36,6 +36,7 @@
     "scrub": "Scrub"
   },
   "timeline": {
+    "zoom": "Zoom",
     "hints": "snap: frame · S split · Del delete",
     "trimStart": "Trim start",
     "trimEnd": "Trim end",

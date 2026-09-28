@@ -36,6 +36,7 @@
     "scrub": "Geser"
   },
   "timeline": {
+    "zoom": "Perbesar",
     "hints": "snap: bingkai · S potong · Del hapus",
     "trimStart": "Pangkas awal",
     "trimEnd": "Pangkas akhir",
