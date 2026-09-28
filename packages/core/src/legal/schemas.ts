@@ -38,6 +38,11 @@ export type FindingDraft = z.infer<typeof findingDraftSchema>;
 export const clauseOkSchema = z.object({ kind: z.literal("ok"), clause: z.string().max(SHORT_MAX).optional() });
 
 /** Review stage response: either one finding, several findings, or ok. */
+/** Second ask when the first quote is not verbatim in the clause. */
+export const quoteRetrySchema = z.object({
+  quote: z.string().max(QUOTE_MAX),
+});
+
 export const reviewResponseSchema = z.union([
   clauseOkSchema,
   findingDraftSchema,
@@ -61,7 +66,10 @@ export const missingConfirmSchema = z.object({
   itemId: z.string().min(1).max(SHORT_MAX),
   absent: z.boolean(),
   /** When not absent: the clause id and anchor where the model found it. */
-  foundIn: z.object({ clause: z.string().max(SHORT_MAX), anchor: anchorSchema }).nullable().default(null),
+  foundIn: z
+    .object({ clause: z.string().max(SHORT_MAX), anchor: anchorSchema })
+    .nullable()
+    .default(null),
   reason: z.string().max(PROSE_MAX).default(""),
 });
 

@@ -6,3 +6,6 @@ export * from "./ledger";
 export * from "./verify";
 export * from "./locale";
 export * from "./output-copy";
+export * from "./papers";
+export * from "./position";
+export * from "./clause-reading";

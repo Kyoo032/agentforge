@@ -24,9 +24,9 @@ describe("legalOutputCopy", () => {
     expect(legalOutputCopy("en").stubError).toMatch(/live gateway/);
     expect(legalOutputCopy("id").stubError).toMatch(/gerbang yang aktif/);
     expect(legalOutputCopy("id").phase.classify).toBe("Mengklasifikasi dokumen");
-    expect(
-      fillCopy(legalOutputCopy("id").roundOf, { round: 2, total: 3 }),
-    ).toBe("Putaran 2 dari 3");
+    expect(legalOutputCopy("id").phase.position).toBe("Memilih kedudukan");
+    expect(legalOutputCopy("en").usingPlaybook).toContain("{title}");
+    expect(fillCopy(legalOutputCopy("id").roundOf, { round: 2, total: 3 })).toBe("Putaran 2 dari 3");
   });
 });
 

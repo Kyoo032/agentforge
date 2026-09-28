@@ -23,6 +23,9 @@ export type LegalOutputCopy = {
   noClauses: string;
   allMapped: string;
   noPlaybook: string;
+  usingPlaybook: string;
+  assumedDraft: string;
+  droppedQuote: string;
   noHighSeverity: string;
   noRedlineBytes: string;
   droppedOutput: string;
@@ -83,6 +86,9 @@ const EN: LegalOutputCopy = {
   noClauses: "No clauses to review",
   allMapped: "All checklist items mapped",
   noPlaybook: "No playbook",
+  usingPlaybook: "Position: {title}",
+  assumedDraft: "Treating {name} as the counterparty draft",
+  droppedQuote: "Quote was not in the clause; dropped",
   noHighSeverity: "No high-severity findings",
   noRedlineBytes: "No original bytes for redline",
   droppedOutput: "Dropped invalid model output after retry",
@@ -146,6 +152,7 @@ const EN: LegalOutputCopy = {
     classify: "Classifying documents",
     diff: "Comparing with the prior turn",
     review: "Reviewing provisions",
+    position: "Choosing a position",
     missing: "Checking required provisions",
     interactions: "Checking interactions",
     draft: "Drafting deliverables",
@@ -158,7 +165,8 @@ const EN: LegalOutputCopy = {
 const ID: LegalOutputCopy = {
   stubError: "Legal memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
   unsupportedFile: "Hanya berkas .docx yang diterima pada v1. Ubah PDF atau format lain ke .docx terlebih dahulu.",
-  closingLine: "Draf hasil kerja yang disusun dengan bantuan otomatis untuk ditinjau oleh pengacara yang berkualifikasi.",
+  closingLine:
+    "Draf hasil kerja yang disusun dengan bantuan otomatis untuk ditinjau oleh pengacara yang berkualifikasi.",
   memoTitle: "MEMORANDUM",
   privilegeLine: "RAHASIA DAN ISTIMEWA — HASIL KERJA PENGACARA",
   headerTo: "Kepada",
@@ -177,6 +185,9 @@ const ID: LegalOutputCopy = {
   noClauses: "Tidak ada klausul untuk ditelaah",
   allMapped: "Semua butir daftar periksa terpetakan",
   noPlaybook: "Tanpa playbook",
+  usingPlaybook: "Kedudukan: {title}",
+  assumedDraft: "Memperlakukan {name} sebagai draf pihak lawan",
+  droppedQuote: "Kutipan tidak ada dalam klausul; diabaikan",
   noHighSeverity: "Tidak ada temuan berkeparahan tinggi",
   noRedlineBytes: "Tidak ada bita asli untuk redline",
   droppedOutput: "Keluaran model yang tidak sah diabaikan setelah dicoba ulang",
@@ -240,6 +251,7 @@ const ID: LegalOutputCopy = {
     classify: "Mengklasifikasi dokumen",
     diff: "Membandingkan dengan giliran sebelumnya",
     review: "Menelaah ketentuan",
+    position: "Memilih kedudukan",
     missing: "Memeriksa ketentuan wajib",
     interactions: "Memeriksa interaksi",
     draft: "Menyusun hasil kerja",

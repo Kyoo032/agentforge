@@ -12,6 +12,7 @@ export const TOTAL_STAGES = 9;
 export type StageCardInput =
   | { stage: "classify"; fileCount: number }
   | { stage: "review"; clauseId: string; unmarkedChanges: number; checklistItems: readonly ChecklistItem[] }
+  | { stage: "review-quote"; clauseId: string }
   | { stage: "missing"; item: ChecklistItem }
   | { stage: "interaction"; findingTitle: string; clauseId: string }
   | { stage: "draft"; deliverable: DeliverableKind; manual: string }
@@ -25,6 +26,7 @@ type StageName = StageCardInput["stage"];
 const STAGE_NUMBER: Readonly<Record<StageName, number>> = {
   classify: 2,
   review: 4,
+  "review-quote": 4,
   missing: 4,
   interaction: 4,
   draft: 5,
@@ -83,6 +85,18 @@ function reviewCard(clauseId: string, unmarkedChanges: number, items: readonly C
     doNot:
       "review other clauses here; summarise the document; propose language for reserved points; quote anything other than the clause text supplied.",
     returns: `one ${FINDING_SHAPE}; or {"kind": "ok"} if the clause is acceptable as drafted; or {"findings": [...]} with at most 8 Finding objects when the clause raises several distinct points.`,
+  });
+}
+
+function reviewQuoteCard(clauseId: string): string {
+  return renderCard("review-quote", {
+    header: `REVIEW (quote), clause ${clauseId}`,
+    before:
+      "code compared your quotation with the clause text and did not find those words. The clause text is in the payload.",
+    feeds: "the finding's quote field. Code keeps the quote only when it appears verbatim in that clause.",
+    doNot: "paraphrase; add words that are not in the clause; return a quotation from a different clause.",
+    returns:
+      '{"quote"} copied from the clause text, or {"quote": ""} when the clause does not contain a usable quotation.',
   });
 }
 
@@ -176,6 +190,8 @@ export function buildStageCard(stage: StageCardInput): string {
       return classifyCard(stage.fileCount);
     case "review":
       return reviewCard(stage.clauseId, stage.unmarkedChanges, stage.checklistItems);
+    case "review-quote":
+      return reviewQuoteCard(stage.clauseId);
     case "missing":
       return missingCard(stage.item);
     case "interaction":
