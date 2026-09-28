@@ -5,6 +5,7 @@
   "settingsLink": "Pengaturan",
   "loadError": "Studio video tidak dapat dimuat",
   "generateError": "Pembuatan video gagal",
+  "clipRejected": "Render tidak mengembalikan berkas video.",
   "modelNotOnKey": "{model} tidak tersedia pada kunci ini. Coba {suggestion}.",
   "modelNotOnKeyNoAlt": "{model} tidak tersedia pada kunci ini. Segarkan model di Pengaturan dan pilih salah satu yang tercantum pada kunci ini.",
   "stillUnsupported": "Model ini tidak menerima gambar diam",

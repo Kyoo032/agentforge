@@ -17,6 +17,7 @@ export const MODE_MESSAGE_KEYS = [
   "emptySlide",
   "videoGenerateFailed",
   "videoStillUnsupported",
+  "videoClipRejected",
   "musicGenerateFailed",
   "musicPromptRequired",
   "musicLyricsRequired",
@@ -70,6 +71,10 @@ const MODE_MESSAGES: Record<ModeMessageKey, Record<AppLocale, string>> = {
   videoStillUnsupported: {
     en: "This model does not accept a still image",
     id: "Model ini tidak menerima gambar diam",
+  },
+  videoClipRejected: {
+    en: "The render did not return a video file.",
+    id: "Render tidak mengembalikan berkas video.",
   },
   musicGenerateFailed: {
     en: "Music generation failed",

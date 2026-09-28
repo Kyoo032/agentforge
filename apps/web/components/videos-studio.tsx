@@ -181,7 +181,9 @@ export function VideosStudio() {
             ? suggestion
               ? t("videos.modelNotOnKey", { model: rejected, suggestion })
               : t("videos.modelNotOnKeyNoAlt", { model: rejected })
-            : (data.error?.message ?? t("videos.generateError"));
+            : data.error?.code === "video_clip_rejected"
+              ? t("videos.clipRejected")
+              : (data.error?.message ?? t("videos.generateError"));
         setError(message);
         return;
       }

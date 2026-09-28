@@ -5,6 +5,7 @@
   "settingsLink": "Settings",
   "loadError": "Could not load video studio",
   "generateError": "Video generation failed",
+  "clipRejected": "The render did not return a video file.",
   "modelNotOnKey": "{model} is not available on this key. Try {suggestion}.",
   "modelNotOnKeyNoAlt": "{model} is not available on this key. Refresh models in Settings and pick one this key lists.",
   "stillUnsupported": "This model does not accept a still image",
