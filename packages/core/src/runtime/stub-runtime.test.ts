@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
+import { defineTool } from "../tools/define-tool";
 import { registerPlatformTools } from "../tools/platform/register";
+import { registerTool } from "../tools/registry";
 import { StubRuntime } from "./stub-runtime";
 import type { AgentVersionRecord, ToolBindingRecord } from "../agents/service";
 import type { TenantContext } from "../tenancy/types";
@@ -127,6 +130,83 @@ describe("StubRuntime answers", () => {
     expect(answer).toMatch(/Pengaturan/);
     expect(answer).not.toMatch(/I need a Toko Token/);
     expect(thought).toMatch(/Meja ini/);
+  });
+
+  it("looks up an earlier chat and says what it found", async () => {
+    registerTool(
+      defineTool({
+        key: "past_sessions",
+        name: "Past chats",
+        description: "Earlier chats",
+        schema: z.object({
+          action: z.enum(["list", "read"]),
+          session_id: z.string().optional(),
+          search: z.string().optional(),
+        }),
+        execute: async () => ({
+          success: true,
+          sessions: [{ title: "Budget decision" }],
+        }),
+      }),
+    );
+    const seen = await run("what did we decide last time", ["past_sessions"]);
+    expect(seen.tools).toEqual(["past_sessions"]);
+    expect(seen.thinking).toMatch(/earlier chats/i);
+    expect(seen.answer).toBe('The earlier chat is "Budget decision".');
+    expect(seen.answer).not.toMatch(/gateway key/i);
+  });
+
+  it("does not read the clock when the question is about an earlier chat", async () => {
+    const seen = await run("what did we decide last time", ["datetime", "past_sessions"]);
+    expect(seen.tools).toEqual(["past_sessions"]);
+    expect(seen.answer).not.toMatch(/T\d{2}:/);
+    expect(seen.thinking).toMatch(/earlier chats/i);
+  });
+
+  it("cites the desk note and includes a number the check can drop", async () => {
+    const runtime = new StubRuntime();
+    let answer = "";
+    await runtime.execute({
+      tenant,
+      runId: "run-desk",
+      modality: "text",
+      version: {
+        ...version,
+        systemPrompt: `${version.systemPrompt}\n\n## Retrieved sources\n[1] Desk note\nbody`,
+      },
+      bindings: [],
+      history: [{ role: "user", parts: [{ type: "text", text: "what does the desk say about the note" }] }],
+      onEvent: (event) => {
+        if (event.type === "assistant.delta") {
+          answer += event.text;
+        }
+      },
+    });
+    expect(answer).toBe("From the desk [1] [99].");
+  });
+
+  it("looks at an attachment and does not start a generate tool", async () => {
+    const runtime = new StubRuntime();
+    let thought = "";
+    const tools: string[] = [];
+    await runtime.execute({
+      tenant,
+      runId: "run-look",
+      modality: "image",
+      version,
+      bindings: [binding("image_generate"), binding("video_generate")],
+      history: [{ role: "user", parts: [{ type: "text", text: "What is in this image?" }] }],
+      onEvent: (event) => {
+        if (event.type === "assistant.thinking") {
+          thought += event.text;
+        }
+        if (event.type === "tool.started") {
+          tools.push(event.toolKey);
+        }
+      },
+    });
+    expect(thought).toMatch(/Looking at what you attached/);
+    expect(tools).toEqual([]);
   });
 });
 

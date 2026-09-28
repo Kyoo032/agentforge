@@ -53,6 +53,7 @@ Nothing below is closed by 0.14.27. Carried forward as-is.
 
 ## Log
 
+- **2026-09-28** — Chat checks a turn before saving it: a source number the desk did not offer is dropped, a tool that returned with no sentence is written out, an earlier chat is looked up, and an attached picture or clip is looked at rather than generated. No new button. Not packed. Map: [`maps/chat-send.md`](maps/chat-send.md).
 - **2026-09-27** — A PDF or Word extract budget of zero fails before the parse can win. The fallback path, the PDF worker, and the docx deadline used to wait at least 1ms, so a warm parse of a tiny file could finish first. Not packed.
 - **2026-09-27** — Education’s first screen is a lesson topic and Create. Quiz, a page, show, save, and shape tools sit in More (`education-more`). The lesson uses the same simple slide stage as Presentation: no permanent shape bar, and a toolbar only while a shape is selected. The quiz and the show view each have one primary action. The presenting mascot stays on the empty lesson. Not packed. Map: [`maps/education.md`](maps/education.md).
 - **2026-09-27** — Presentation’s first screen is a topic, length and style chips, and Create. Download is the only primary button once the slides are up. Builder, model, starters, templates, source, movement, save, notes, and shape tools sit in More (`presentations-more`). A selected shape or Open Slide block gets a small toolbar on the slide. The default builder is Open Slide, so a stub desk can Create without a key. Education still uses the full Nultron stage. Not packed.

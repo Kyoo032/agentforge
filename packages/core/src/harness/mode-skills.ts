@@ -27,11 +27,11 @@ export const MODE_HARNESSES: readonly ModeHarness[] = [
     id: "chat",
     route: "/chat",
     skills: [
-      { id: "reply-on-a-thread", name: "Reply on a thread", status: "has" },
-      { id: "use-desk-knowledge", name: "Use the desk's knowledge", status: "has" },
-      { id: "call-bound-tools", name: "Call the bound tools, then stop", status: "has" },
-      { id: "refuse-wrong-attachment", name: "Refuse the wrong attachment", status: "has" },
-      { id: "keep-the-session", name: "Keep the session", status: "has" },
+      { id: "answer-this-turn", name: "Answer this turn", status: "has" },
+      { id: "ground-in-desk", name: "Use the desk, and only sources it offered", status: "new" },
+      { id: "say-the-result", name: "Do the small job and say the result", status: "new" },
+      { id: "look-not-make", name: "Look at an attachment, and refuse the wrong kind", status: "new" },
+      { id: "keep-the-turn", name: "Leave the turn where they can find it", status: "has" },
     ],
   },
   {

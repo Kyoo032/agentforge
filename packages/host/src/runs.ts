@@ -25,6 +25,9 @@ import {
   type ToolBindingRecord,
   type ToolCallPart,
   withChatOutputLanguage,
+  bindingsForChatModality,
+  chatTurnCopy,
+  settleChatTurn,
 } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
@@ -51,7 +54,7 @@ import { defaultSelectableModel, listSelectableModels } from "./selectable-model
 import { collectToolMediaParts } from "./tool-media";
 import { inlineLocalMediaParts, shouldInlineLocalMediaForProvider } from "./inline-local-media";
 import { saveGeneratedImage, saveGeneratedVideo } from "./media";
-import { withRunContext } from "./run-context";
+import { getRunContext, localeForRun, withRunContext } from "./run-context";
 import { formatPastSessionsHint } from "./session-recall";
 import { log } from "./log";
 
@@ -226,6 +229,20 @@ export async function* startModalityRun(options: {
     let persisted = false;
     let runUsage: Record<string, unknown> | null = null;
     const persistAssistant = async () => {
+      if (persisted) {
+        return true;
+      }
+      const replyLocale = getRunContext() ? localeForRun() : locale;
+      const settled = settleChatTurn({
+        text: assistantText,
+        offeredSources: knowledge.chunks.length,
+        tools: toolTrace,
+        locale: replyLocale,
+      });
+      if (settled.appended) {
+        send({ type: "assistant.delta", text: settled.appended });
+      }
+      assistantText = settled.text;
       const assistantParts: ContentPart[] = [];
       if (thinkingText.trim()) {
         assistantParts.push({ type: "thinking", text: thinkingText.trim() });
@@ -237,9 +254,6 @@ export async function* startModalityRun(options: {
         assistantParts.push({ type: "text", text: assistantText.trim() });
       }
       assistantParts.push(...mediaParts);
-      if (persisted) {
-        return true;
-      }
       if (assistantParts.length === 0) {
         return false;
       }
@@ -283,12 +297,17 @@ export async function* startModalityRun(options: {
       send({ type: "run.started", runId: run.id });
 
       await withRunContext({ threadId: thread.id, agentId: thread.agentId, locale }, async () => {
+        if (options.modality !== "text" && thinkingEnabled) {
+          const line = `${chatTurnCopy(localeForRun()).lookingAttached}\n`;
+          thinkingText += line;
+          send({ type: "assistant.thinking", text: line });
+        }
         await runtime.execute({
           tenant: options.tenant,
           runId: run.id,
           modality: options.modality,
           version,
-          bindings: withPastSessionsBinding(published.bindings),
+          bindings: bindingsForChatModality(withPastSessionsBinding(published.bindings), options.modality),
           history,
           thinking: thinkingEnabled,
           reasoningEffort,
