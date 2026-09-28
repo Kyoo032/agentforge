@@ -8,7 +8,10 @@ import {
   updateVersionLine,
 } from "@/lib/app-updates-copy";
 
-/** Only the public DPSBuddy flavor reads the GitHub release feed; Kemenkeu / Metranet never do. */
+/**
+ * Installer `productName` for the public desktop flavor. The updater matches this string.
+ * The name on screen is `DEFAULT_PRODUCT_NAME` (Nultron). Kemenkeu / Metranet never read the feed.
+ */
 export const PUBLIC_PRODUCT_NAME = "DPSBuddy";
 const CHECK_FAILED_MESSAGE = "Could not check for updates.";
 const INSTALL_FAILED_MESSAGE = "Could not install the update.";

@@ -69,7 +69,7 @@ describe("isHostedBuild", () => {
 });
 
 describe("injectHostedMarker", () => {
-  const HTML = "<!doctype html>\n<html>\n  <head>\n    <title>DPSBuddy</title>\n  </head>\n  <body></body>\n</html>\n";
+  const HTML = "<!doctype html>\n<html>\n  <head>\n    <title>Nultron</title>\n  </head>\n  <body></body>\n</html>\n";
 
   it("returns the html untouched when this is not the hosted build", () => {
     expect(injectHostedMarker(HTML, false)).toBe(HTML);
@@ -79,7 +79,7 @@ describe("injectHostedMarker", () => {
     const out = injectHostedMarker(HTML, true);
     expect(out).toContain(HOSTED_MARKER_TAG);
     expect(out.indexOf(HOSTED_MARKER_TAG)).toBeLessThan(out.indexOf("</head>"));
-    expect(out).toContain("<title>DPSBuddy</title>");
+    expect(out).toContain("<title>Nultron</title>");
   });
 
   it("produces a page `isHostedBuild` then reads as hosted", () => {

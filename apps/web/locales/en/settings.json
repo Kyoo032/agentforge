@@ -25,7 +25,7 @@
   "localeFailed": "Could not change the language. Try again in a moment.",
   "privacy": "Prompts leave this machine only over HTTPS to {gatewayHost}. {productName} does not log prompts. Keys and threads are encrypted on disk. {gatewayName} retention is the gateway's policy.",
   "languageLabel": "Language",
-  "languageHelp": "Applies after you restart DPSBuddy. Chat and job modes follow this language.",
+  "languageHelp": "Applies after you restart Nultron. Chat and job modes follow this language.",
   "gateway.status.ok": "Key verified",
   "gateway.status.invalid_key": "Key rejected by gateway",
   "gateway.status.unreachable": "Gateway unreachable",

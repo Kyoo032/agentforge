@@ -1,6 +1,6 @@
 # Closed beta checklist
 
-For invited testers. DPSBuddy is a **hosted web app**: you use it in your browser. There is nothing to install, and you do not clone this repo or run a local server.
+For invited testers. Nultron is a **hosted web app**: you use it in your browser. There is nothing to install, and you do not clone this repo or run a local server.
 
 ## Before you start
 

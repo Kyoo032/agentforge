@@ -45,7 +45,7 @@ describe("onboarding screen", () => {
     expect(markup).toContain("hero-aurora");
     expect(markup).toContain('data-testid="onboarding-next"');
     expect(markup).not.toContain('data-testid="onboarding-form"');
-    expect(markup).not.toContain("Nultron");
+    expect(markup).not.toContain("DPSBuddy");
     expect(markup).not.toMatch(/tokotokenai|https?:\/\//);
   });
 
@@ -68,6 +68,6 @@ describe("onboarding screen", () => {
     const markup = render(null);
     expect(markup).toContain(`Selamat datang di ${DEFAULT_PRODUCT_NAME}`);
     expect(markup).toContain(t("onboarding.intro", { productName: DEFAULT_PRODUCT_NAME }));
-    expect(markup).not.toContain("Nultron");
+    expect(markup).not.toContain("DPSBuddy");
   });
 });

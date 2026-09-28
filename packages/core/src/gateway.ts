@@ -1,12 +1,13 @@
 import { gatewayUrlOverrideAllowed, PINNED_GATEWAY_BASE_URL } from "./gateway/pinned";
 import { assertAllowedEndpointUrl } from "./security/tls";
 
-/** Toko Token OpenAI-compatible gateway. Public DPSBuddy’s home inference path. */
+/** Toko Token OpenAI-compatible gateway. Public Nultron’s home inference path. */
 export const GATEWAY_NAME = "Toko Token";
 export const GATEWAY_HOST = "api.tokotokenai.com";
 /** Pinned: see `gateway/pinned.ts`. Settings cannot change it. */
 export const GATEWAY_BASE_URL = PINNED_GATEWAY_BASE_URL;
-export const DEFAULT_PRODUCT_NAME = "DPSBuddy";
+/** In-app name. The desktop installer `productName` stays DPSBuddy so the updater keeps matching. */
+export const DEFAULT_PRODUCT_NAME = "Nultron";
 
 function envTrim(name: string): string {
   const value = process.env[name];

@@ -24,7 +24,7 @@
   "localeFailed": "Bahasa tidak dapat diubah. Coba lagi sebentar lagi.",
   "privacy": "Prompt meninggalkan mesin ini hanya melalui HTTPS ke {gatewayHost}. {productName} tidak mencatat prompt. Kunci dan utas dienkripsi di disk. Retensi {gatewayName} mengikuti kebijakan gateway.",
   "languageLabel": "Bahasa",
-  "languageHelp": "Berlaku setelah Anda mulai ulang DPSBuddy. Chat dan mode kerja mengikuti bahasa ini.",
+  "languageHelp": "Berlaku setelah Anda mulai ulang Nultron. Chat dan mode kerja mengikuti bahasa ini.",
   "gateway.status.ok": "Key terverifikasi",
   "gateway.status.invalid_key": "Key ditolak gateway",
   "gateway.status.unreachable": "Gateway tidak terjangkau",

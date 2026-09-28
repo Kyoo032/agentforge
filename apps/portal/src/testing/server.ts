@@ -78,7 +78,7 @@ export function testConfig(overrides: Partial<PortalConfig> = {}): PortalConfig 
       ignoreTls: true,
       user: null,
       pass: null,
-      from: "DPSBuddy <no-reply@portal.test>",
+      from: "Nultron <no-reply@portal.test>",
     },
     ...overrides,
   });

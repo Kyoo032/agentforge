@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_PRODUCT_NAME } from "@agentforge/core/gateway";
 import { DEFAULT_PRODUCT_BRAND, WEB_LOGO_SRC, brandFromUnknown, mergePingBrand } from "./product-brand";
 
 describe("brandFromUnknown", () => {
@@ -31,7 +32,7 @@ describe("brandFromUnknown", () => {
 });
 
 describe("mergePingBrand", () => {
-  it("does not let a late DPSBuddy ping clobber a preload flavor", () => {
+  it("does not let a late default-name ping clobber a preload flavor", () => {
     const current = {
       productName: "Kemenkeu AI",
       gatewayName: "AIHub",
@@ -39,7 +40,7 @@ describe("mergePingBrand", () => {
       logoSrc: "data:image/png;base64,abc",
     };
     const merged = mergePingBrand(current, {
-      productName: "DPSBuddy",
+      productName: DEFAULT_PRODUCT_NAME,
       gatewayName: "Toko Token",
       gatewayBaseUrl: "https://api.tokotokenai.com/v1",
     });
@@ -50,14 +51,14 @@ describe("mergePingBrand", () => {
 
   /**
    * The web preload and the host now say the SAME name, so there is nothing for this merge to
-   * arbitrate: the ping confirms DPSBuddy and the mark the web preloaded survives untouched. The
+   * arbitrate: the ping confirms Nultron and the mark the web preloaded survives untouched. The
    * old version of this case asserted a second web-only name here, and that second name is exactly
    * what the 2026-09-21 ruling deleted.
    */
   it("leaves the name alone and keeps the web logo when the ping agrees", () => {
     const current = { ...DEFAULT_PRODUCT_BRAND, logoSrc: WEB_LOGO_SRC };
     const merged = mergePingBrand(current, {
-      productName: "DPSBuddy",
+      productName: DEFAULT_PRODUCT_NAME,
       gatewayName: "Toko Token",
       gatewayBaseUrl: "https://api.tokotokenai.com/v1",
     });

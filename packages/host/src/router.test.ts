@@ -41,7 +41,7 @@ describe("host router", () => {
       body: {
         ok: true,
         transport: "host",
-        productName: "DPSBuddy",
+        productName: "Nultron",
         gatewayName: "Toko Token",
         gatewayBaseUrl: "https://api.tokotokenai.com/v1",
         locale: expect.stringMatching(/^(en|id)$/),

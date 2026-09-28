@@ -2,7 +2,7 @@
 
 > Target host: **Tencent Cloud CVM, Jakarta**. Storage placement: [`docs/internal/web-data-placement-tencent.md`](../docs/internal/web-data-placement-tencent.md). Security requirements and the before-traffic acceptance list: [`docs/internal/web-security-spec.md`](../docs/internal/web-security-spec.md).
 
-The full structure for running DPSBuddy as a hosted web app on Kyo's server: image,
+The full structure for running Nultron as a hosted web app on Kyo's server: image,
 compose stack, reverse proxy, env template, and the scripts for build / deploy / backup
 / restore / logs.
 
@@ -466,7 +466,7 @@ the two lines under *Incident response*:
 
 ```caddyfile
 @mutating not method GET HEAD OPTIONS
-respond @mutating "DPSBuddy is temporarily read-only." 503
+respond @mutating "Nultron is temporarily read-only." 503
 ```
 
 ```sh

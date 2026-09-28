@@ -210,7 +210,7 @@ export function KnowledgePage() {
   const [tab, setTab] = useState<KnowledgeTab>("sources");
   const [sources, setSources] = useState<SourceRow[]>([]);
   // Placeholder only, until GET /api/v1/knowledge lands the desk's real Soul. It follows the brand
-  // (DPSBuddy, or the flavor name the packaged shell preloaded) — never a persona the host has no
+  // (Nultron, or the flavor name the packaged shell preloaded) — never a persona the host has no
   // row for.
   const [soul, setSoul] = useState({ name: productName, role: "", voice: "", rules: [] as string[] });
   const [memories, setMemories] = useState<Memory[]>([]);
