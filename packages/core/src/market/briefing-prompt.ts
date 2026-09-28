@@ -194,3 +194,54 @@ export function packetToPromptBlock(
     packet.positionContext.trim() === "" ? [] : [POSITION_CONTEXT_HEADING, packet.positionContext.trim()];
   return [clock, "", ...body, ...position].join("\n").trimEnd();
 }
+
+export type FigureRepairPromptInput = {
+  language: MarketWatchRequest["language"];
+  /** `packetToPromptBlock` for this desk. The rewrite may use only these figures. */
+  packetBlock: string;
+  /** The draft JSON the model already returned. */
+  draft: string;
+  /** Figure tokens the number guard would mark. */
+  flagged: readonly string[];
+};
+
+/**
+ * One rewrite of a draft that stated figures the packet does not carry.
+ * The system text stays `buildWatchSystemPrompt` (language, no directive, JSON).
+ * This block is the user turn: the packet, the draft, and the figures to drop.
+ * Directive language is not rewritten here — the advice guard replaces it.
+ */
+export function buildFigureRepairPrompt(input: FigureRepairPromptInput): string {
+  const figures = input.flagged.join(", ");
+  const instruction =
+    input.language === "en"
+      ? [
+          "Rewrite this briefing. The figures listed below are not in the DATA PACKET.",
+          "Keep every heading. Change only the sentences that use those figures: use a number from the DATA PACKET, or say the data is not available.",
+          "Do not tell the reader to buy or sell.",
+          "",
+          `Figures to remove: ${figures}`,
+        ]
+      : [
+          "Tulis ulang briefing ini. Angka di bawah tidak ada di DATA PACKET.",
+          "Pertahankan setiap judul. Ubah hanya kalimat yang memakai angka itu: pakai angka dari DATA PACKET, atau tulis bahwa datanya tidak tersedia.",
+          "Jangan menyuruh pembaca membeli atau menjual.",
+          "",
+          `Angka yang harus dihapus: ${figures}`,
+        ];
+  const closing =
+    input.language === "en"
+      ? 'Output ONLY JSON, no markdown fence: {"title": string, "sections": [{"heading": string, "body": string}]}.'
+      : 'Keluaran HANYA JSON, tanpa pagar markdown: {"title": string, "sections": [{"heading": string, "body": string}]}.';
+  return [
+    "DATA PACKET:",
+    input.packetBlock.trimEnd(),
+    "",
+    ...instruction,
+    "",
+    "DRAFT:",
+    input.draft.trim(),
+    "",
+    closing,
+  ].join("\n");
+}

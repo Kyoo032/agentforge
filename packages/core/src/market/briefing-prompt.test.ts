@@ -6,6 +6,7 @@ import {
   DEFAULT_WATCH_PROMPT_ID,
   POSITION_CONTEXT_HEADING,
   PROMPT_HEADLINES_MAX,
+  buildFigureRepairPrompt,
   buildWatchSystemPrompt,
   packetNumbers,
   packetToPromptBlock,
@@ -328,6 +329,34 @@ describe("packetToPromptBlock swings", () => {
   it("says so when the wave counter has no swings to cite", () => {
     const bare = makePacket({ tickers: [makeTickerPacket("MU", { swings: [] })] });
     expect(packetToPromptBlock(bare, "elliott-wave")).toContain("- swings: none");
+  });
+});
+
+describe("buildFigureRepairPrompt", () => {
+  const packet = makePacket();
+  const block = packetToPromptBlock(packet, "saham");
+
+  it("names the invented figures in the briefing language and stays inside the packet", () => {
+    const en = buildFigureRepairPrompt({
+      language: "en",
+      packetBlock: block,
+      draft: '{"title":"T","sections":[]}',
+      flagged: ["424242"],
+    });
+    const id = buildFigureRepairPrompt({
+      language: "id",
+      packetBlock: block,
+      draft: '{"title":"T","sections":[]}',
+      flagged: ["424242"],
+    });
+    expect(en).toContain("DATA PACKET:");
+    expect(en).toContain(block);
+    expect(en).toContain("Figures to remove: 424242");
+    expect(en).toContain("Do not tell the reader to buy or sell.");
+    expect(id).toContain("Angka yang harus dihapus: 424242");
+    expect(id).toContain("Jangan menyuruh pembaca membeli atau menjual.");
+    expect(en).not.toMatch(ADVICE_PATTERN);
+    expect(id).not.toMatch(ADVICE_PATTERN);
   });
 });
 

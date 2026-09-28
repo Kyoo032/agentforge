@@ -39,7 +39,13 @@ import {
 } from "./market-generate";
 
 const KEY = wrappingKeyFromSecret("b".repeat(64));
-const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = {
+  tenantId: "local-tenant",
+  organizationId: "org",
+  workspaceId: "ws-1",
+  userId: "local",
+  role: "owner",
+};
 const now = () => FIXTURE_NOW;
 
 const DRAFT = {
@@ -160,7 +166,19 @@ describe("generateMarketBriefing", () => {
 
     expect(
       events.filter((event) => event.type === "job.phase").map((event) => (event as { phase: string }).phase),
-    ).toEqual(["resolving", "quotes", "technicals", "charts", "news", "macro", "drafting", "verifying", "saving"]);
+    ).toEqual([
+      "resolving",
+      "quotes",
+      "technicals",
+      "charts",
+      "news",
+      "macro",
+      "drafting",
+      "verifying",
+      "repairing",
+      "verifying",
+      "saving",
+    ]);
     expect(events).toContainEqual({ type: "job.phase", phase: "resolving", label: "Resolving tickers" });
     expect(events).toContainEqual({ type: "job.phase", phase: "drafting", label: "Drafting the briefing" });
     expect(events).toContainEqual({
@@ -176,7 +194,7 @@ describe("generateMarketBriefing", () => {
       maxChars: 5000,
       positionContext: "MU target 1100",
     });
-    expect(asked).toHaveLength(1);
+    expect(asked.map((call) => call.versionId)).toEqual(["market-briefing", "market-figure-repair"]);
     const ask = asked[0] as AskOptions;
     const packet = result.briefing.packet;
     expect(ask.systemPrompt).toBe(
@@ -326,7 +344,8 @@ describe("generateMarketBriefing", () => {
   it("gives two agents two different system prompts and refuses an unknown one", async () => {
     await generateMarketBriefing(tenant, { ...REQUEST, specialist: "forex" }, emit, undefined, deps());
     await generateMarketBriefing(tenant, { ...REQUEST, specialist: "news" }, emit, undefined, deps());
-    expect(asked[0]?.systemPrompt).not.toBe(asked[1]?.systemPrompt);
+    const drafts = asked.filter((call) => call.versionId === "market-briefing");
+    expect(drafts[0]?.systemPrompt).not.toBe(drafts[1]?.systemPrompt);
     await expect(
       generateMarketBriefing(tenant, { ...REQUEST, specialist: "stocks" }, emit, undefined, deps()),
     ).rejects.toMatchObject({ code: "invalid_request", status: 400 });
@@ -352,6 +371,148 @@ describe("generateMarketBriefing", () => {
     });
     const saved = artifacts.get(tenant, result.artifactId as string);
     expect(saved?.meta.failures).toEqual(["ZZZZ: unknown symbol", "MU: tradingview: america: HTTP 429"]);
+    expect(built).toHaveLength(2);
+    expect(events).toContainEqual({
+      type: "job.step",
+      phase: "retrying",
+      label: "That source was still quiet",
+    });
+  });
+
+  it("tries a quiet source once and keeps the reading that filled the hole", async () => {
+    const quiet = packetFixture({ tickers: [tickerMu({ failures: ["news: ECONNRESET"], news: [] })] });
+    const filled = packetFixture();
+    let calls = 0;
+    const result = await generateMarketBriefing(
+      tenant,
+      REQUEST,
+      emit,
+      undefined,
+      deps({
+        buildPacket: async (_db, request, opts) => {
+          built.push({ request, signal: opts?.signal });
+          calls += 1;
+          opts?.onProgress?.("quotes", "quotes done");
+          return { packet: calls === 1 ? quiet : filled, failures: [] };
+        },
+        ask: async (options) => {
+          asked.push(options);
+          return JSON.stringify({
+            title: "Memory names lead the open",
+            sections: [{ heading: "TL;DR + confidence", body: "MU at 1000.26." }],
+          });
+        },
+      }),
+    );
+    expect(built).toHaveLength(2);
+    expect(events).toContainEqual({
+      type: "job.phase",
+      phase: "retrying",
+      label: "Trying that reading once more",
+    });
+    expect(events).toContainEqual({
+      type: "job.step",
+      phase: "retrying",
+      label: "The second reading filled a hole",
+    });
+    expect(result.briefing.packet.tickers[0]?.failures).toEqual([]);
+    expect(result.briefing.disclaimer).toBe(MARKET_DISCLAIMER);
+    expect(asked.filter((call) => call.versionId === "market-briefing")).toHaveLength(1);
+    expect(asked.filter((call) => call.versionId === "market-figure-repair")).toHaveLength(0);
+  });
+
+  it("does not retry a name the venue does not list", async () => {
+    await generateMarketBriefing(tenant, REQUEST, emit, undefined, deps({ failures: ["ZZZZ: unknown symbol"] }));
+    expect(built).toHaveLength(1);
+    expect(events.filter((event) => event.type === "job.phase").map((event) => event.phase)).not.toContain("retrying");
+  });
+
+  it("rewrites an invented figure once, with no tools, then guards the rewrite", async () => {
+    const invented = JSON.stringify({
+      title: "Memory names lead the open",
+      sections: [{ heading: "TL;DR + confidence", body: "MU at 424242. Confidence medium." }],
+    });
+    const clean = JSON.stringify({
+      title: "Memory names lead the open",
+      sections: [{ heading: "TL;DR + confidence", body: "MU at 1000.26. Buy now before the open." }],
+    });
+    let calls = 0;
+    const result = await generateMarketBriefing(
+      tenant,
+      { ...REQUEST, language: "id" },
+      emit,
+      undefined,
+      deps({
+        ask: async (options) => {
+          asked.push(options);
+          calls += 1;
+          return calls === 1 ? invented : clean;
+        },
+      }),
+    );
+    expect(asked).toHaveLength(2);
+    const repair = asked[1] as AskOptions;
+    expect(repair.versionId).toBe("market-figure-repair");
+    expect(repair.toolKeys).toEqual([]);
+    expect(repair.systemPrompt).toContain("Bahasa Indonesia");
+    expect(repair.prompt).toContain("Angka yang harus dihapus: 424242");
+    expect(repair.prompt).toContain("DATA PACKET:");
+    expect(result.markdown).not.toContain("424242");
+    expect(result.markdown).toContain(ADVICE_MARKER);
+    expect(result.briefing.disclaimer).toBe(MARKET_DISCLAIMER);
+    expect(events).toContainEqual({
+      type: "job.phase",
+      phase: "repairing",
+      label: "Menulis ulang angka yang tidak ada di data",
+    });
+  });
+
+  it("marks a figure that the one rewrite still invents, and does not ask again", async () => {
+    const invented = JSON.stringify({
+      title: "Memory names lead the open",
+      sections: [{ heading: "TL;DR + confidence", body: "MU at 424242." }],
+    });
+    const result = await generateMarketBriefing(
+      tenant,
+      REQUEST,
+      emit,
+      undefined,
+      deps({
+        ask: async (options) => {
+          asked.push(options);
+          return invented;
+        },
+      }),
+    );
+    expect(asked.filter((call) => call.versionId === "market-figure-repair")).toHaveLength(1);
+    expect(asked).toHaveLength(2);
+    expect(result.markdown).toContain(UNVERIFIED_MARKER);
+    expect(result.briefing.disclaimer).toBe(MARKET_DISCLAIMER);
+  });
+
+  it("keeps the guarded draft when the rewrite is not a briefing", async () => {
+    const invented = JSON.stringify({
+      title: "Memory names lead the open",
+      sections: [{ heading: "TL;DR + confidence", body: "MU at 424242." }],
+    });
+    let calls = 0;
+    const result = await generateMarketBriefing(
+      tenant,
+      REQUEST,
+      emit,
+      undefined,
+      deps({
+        ask: async (options) => {
+          asked.push(options);
+          calls += 1;
+          return calls === 1 ? invented : "not json";
+        },
+      }),
+    );
+    expect(asked).toHaveLength(2);
+    expect(result.markdown).toContain(UNVERIFIED_MARKER);
+    expect(result.failures).toContain("figure repair: the rewrite was not a briefing");
+    expect(result.briefing.disclaimer).toBe(MARKET_DISCLAIMER);
   });
 
   it("fails with 400 when no ticker resolved and with 502 when the market data was unreachable", async () => {
@@ -427,13 +588,29 @@ describe("generateMarketBriefing", () => {
       expect(heartbeats().map((event) => event.label)).toEqual(["Still drafting… 20s", "Still drafting… 40s"]);
 
       finish(JSON.stringify(DRAFT));
+      await vi.waitFor(() =>
+        expect(events.some((event) => event.type === "job.phase" && event.phase === "repairing")).toBe(true),
+      );
+      finish(JSON.stringify(DRAFT));
       const result = await pending;
       expect(result.briefing.title).toBe("Memory names lead the open");
       vi.advanceTimersByTime(DRAFTING_HEARTBEAT_MS * 3);
       expect(heartbeats()).toHaveLength(2);
       expect(
         events.filter((event) => event.type === "job.phase").map((event) => (event as { phase: string }).phase),
-      ).toEqual(["resolving", "quotes", "technicals", "charts", "news", "macro", "drafting", "verifying", "saving"]);
+      ).toEqual([
+        "resolving",
+        "quotes",
+        "technicals",
+        "charts",
+        "news",
+        "macro",
+        "drafting",
+        "verifying",
+        "repairing",
+        "verifying",
+        "saving",
+      ]);
     } finally {
       vi.useRealTimers();
     }
@@ -567,7 +744,11 @@ describe("the model a Market briefing uses and records", () => {
       { ...REQUEST, depth: "team", model: PICK, modelPinned: true },
       undefined,
       controller.signal,
-      deps((options) => (options.versionId === "market-team-synthesis" ? TEAM_DRAFTER : options.model)),
+      deps((options) =>
+        options.versionId === "market-team-synthesis" || options.versionId === "market-figure-repair"
+          ? TEAM_DRAFTER
+          : options.model,
+      ),
     );
     expect(result.briefing.depth).toBe("team");
     expect(asked.length).toBeGreaterThan(1);
