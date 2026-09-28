@@ -20,13 +20,12 @@ describe("parseImageGenerateBody", () => {
     expect(() => parseImageGenerateBody({ prompt: "  " })).toThrow(ApiError);
   });
 
-  it("defaults aspect to square", () => {
-    expect(parseImageGenerateBody({ prompt: "a lantern" })).toEqual({
-      prompt: "a lantern",
-      aspect: "square",
-      model: undefined,
-      imageUrl: undefined,
-    });
+  it("leaves a missing aspect for the frame skill", () => {
+    const parsed = parseImageGenerateBody({ prompt: "a lantern" });
+    expect(parsed.prompt).toBe("a lantern");
+    expect(parsed.aspect).toBeUndefined();
+    expect(parsed.model).toBeUndefined();
+    expect(parsed.imageUrl).toBeUndefined();
   });
 
   it("accepts landscape and model", () => {

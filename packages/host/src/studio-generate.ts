@@ -37,6 +37,7 @@ import {
   type SpeechUnavailableReason,
   type TenantContext,
 } from "@agentforge/core";
+import { ImageModelRejectedError, runImageSkills } from "@agentforge/core/images";
 import { loadSettings } from "./settings-store";
 import { listImageModels, listMusicModels, listProbedVideoModels, listSpeechModels } from "./selectable-models";
 import { mediaIdFromUrl } from "./media-id";
@@ -44,7 +45,7 @@ import { getStudioMediaMeta, saveStudioMediaMeta, type StudioMediaMeta } from ".
 import { upsertWorkSource } from "./knowledge-ingest";
 import { mediaWorkCard, musicWorkCard } from "./work-cards";
 import type { WorkSourceType } from "./knowledge";
-import { imageGenerateFailedMessage, withImageOutputLanguage } from "./image-output-locale";
+import { imageGenerateFailedMessage, imageModelRejectedMessage, withImageOutputLanguage } from "./image-output-locale";
 import { localeForRun } from "./run-context";
 import { recordImageUsage, recordMusicUsage, recordVideoUsage } from "./usage-record";
 
@@ -58,7 +59,7 @@ export type StudioKind = "image" | "video" | "audio";
 
 export const imageGenerateBodySchema = z.object({
   prompt: z.string().trim().min(1, "prompt is required"),
-  aspect: z.enum(["square", "landscape", "portrait"]).optional().default("square"),
+  aspect: z.enum(["square", "landscape", "portrait"]).optional(),
   model: z.string().trim().min(1).optional(),
   imageUrl: z.string().url().optional(),
 });
@@ -267,6 +268,10 @@ export function studioRouteReady(
   return Boolean(routes[capability]?.ready);
 }
 
+/** 1×1 PNG. A stub desk saves this instead of calling the gateway. */
+const STUB_IMAGE_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
 export async function generateStudioImage(
   tenant: TenantContext,
   body: ImageGenerateBody,
@@ -276,26 +281,58 @@ export async function generateStudioImage(
   const locale = localeForRun();
   const scope = buildToolSecretScope(settings);
   const model = body.model || settings.imageGenModel || defaultStudioImageModel();
-  const output = await runWithToolSecrets(scope, () =>
-    imageGenerateTool.execute(
-      {
-        prompt: withImageOutputLanguage(maskPii(body.prompt), locale),
-        aspect_ratio: body.aspect,
-        image_url: body.imageUrl,
-        model,
+  // Edit keeps the live tool. The Images page, including a stub desk, uses the harness.
+  const standIn = process.env.AGENTFORGE_RUNTIME === "stub" && options.workType !== "Edit";
+  let ran: Awaited<ReturnType<typeof runImageSkills<string>>>;
+  try {
+    ran = await runImageSkills({
+      prompt: maskPii(body.prompt),
+      aspect: body.aspect,
+      model,
+      execute: async (attempt) => {
+        if (standIn) {
+          return { url: STUB_IMAGE_DATA_URL, extra: model };
+        }
+        const output = await runWithToolSecrets(scope, () =>
+          imageGenerateTool.execute(
+            {
+              prompt: withImageOutputLanguage(attempt.prompt, locale),
+              aspect_ratio: attempt.aspect,
+              image_url: body.imageUrl,
+              model: attempt.model,
+            },
+            tenant,
+          ),
+        );
+        const url = toolSuccessUrl(output, "image");
+        if (!url) {
+          return { url: null, error: toolFailureMessage(output, imageGenerateFailedMessage(locale)) };
+        }
+        return { url, extra: toolModel(output, model) };
       },
-      tenant,
-    ),
-  );
-  const url = toolSuccessUrl(output, "image");
-  if (!url) {
-    throw new ApiError("tool_failed", toolFailureMessage(output, imageGenerateFailedMessage(locale)), 400);
+    });
+  } catch (error) {
+    if (error instanceof ImageModelRejectedError) {
+      throw new ApiError("invalid_request", imageModelRejectedMessage(locale), 400);
+    }
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(
+      "tool_failed",
+      error instanceof Error && error.message ? error.message : imageGenerateFailedMessage(locale),
+      400,
+    );
   }
+  const url = ran.url;
+  const usedModel = ran.extra ?? model;
   // Metered here, not after the file is stored: the gateway has already charged for this image, so
   // a failure to save it must not be a call that vanishes from the ledger (Phase 5 lane A). The
   // model recorded is the one that answered, which is not always the one that was asked for.
-  const usedModel = toolModel(output, model);
-  recordImageUsage(tenant, { model: usedModel, count: 1, aspect: body.aspect });
+  // A stub stand-in never reached the gateway, so it is not a charge.
+  if (!standIn) {
+    recordImageUsage(tenant, { model: usedModel, count: 1, aspect: ran.aspect });
+  }
   const { saveGeneratedImage } = await import("./media");
   const stored = await saveGeneratedImage(tenant, url);
   const id = mediaIdFromUrl(stored);
@@ -304,7 +341,7 @@ export async function generateStudioImage(
       mediaId: id,
       kind: "image",
       prompt: body.prompt,
-      aspect: body.aspect,
+      aspect: ran.aspect,
       model: usedModel,
       createdAt: new Date().toISOString(),
     });
@@ -314,14 +351,14 @@ export async function generateStudioImage(
         kind: "image",
         mediaId: id,
         prompt: body.prompt,
-        aspect: body.aspect,
+        aspect: ran.aspect,
         model: usedModel,
         url: stored,
         type: options.workType,
       }),
     );
   }
-  return { id, url: stored, prompt: body.prompt, aspect: body.aspect, model: usedModel };
+  return { id, url: stored, prompt: body.prompt, aspect: ran.aspect, model: usedModel };
 }
 
 export async function generateStudioVideo(

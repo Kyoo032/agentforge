@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-26 for the Videos picker (probed models only, empty default, not-on-key copy in both locales) and the Images needs-key note (same `allowed` flag as submit). Before that: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1.
+Last verified: 2026-09-28 for the Images harness (brief, frame, one still, one retry only when the call never left) at `generateStudioImage`. Before that: 2026-09-26 for the Videos picker (probed models only, empty default, not-on-key copy in both locales) and the Images needs-key note (same `allowed` flag as submit).
 
 ## Overview
 
@@ -84,11 +84,11 @@ What the three knobs do with that:
 - **`videos-studio-seconds`** lists `allowedVideoSeconds(model)` (`packages/core/src/models/video-capabilities.ts:68-73`), which is `[4, 6, 8]` for any `veo[_-]` id and `[5, 8, 10]` for everything else. When the model changes, an effect re-snaps the current value through `snapVideoSeconds` (`:76-80`, called from `apps/web/components/videos-studio.tsx:101-103`) — nearest allowed length, ties to the shorter clip. Driven: 10 s on `seedance-2.0-fast`, switch to `veo_3_1-fast`, the select lands on 8.
 - **`videos-studio-still`** is not rendered at all when `!caps.imageToVideo`; a muted "text to video only" line takes its place (`apps/web/components/videos-studio.tsx:274-286`). A second effect clears any typed URL when the capability goes away (`:105-109`), so a stale still cannot ride along after a model switch.
 
-Images has one knob, `images-studio-aspect` (`square` / `landscape` / `portrait`, `apps/web/components/images-studio.tsx:41`), and it is not model-dependent in the UI at all.
+Images has one knob, `images-studio-aspect` (`square` / `landscape` / `portrait`, `apps/web/components/images-studio.tsx:47`). Until that menu is touched, `chooseImageFrame` (`apps/web/components/images-studio.tsx:91`, `packages/core/src/images/harness.ts`) sets it from the sentence: a poster is portrait, a banner is landscape, and a clash or a plain sentence stays square. It is not model-dependent.
 
 ### 6. Submit → `POST /api/v1/images` or `/api/v1/videos`
 
-`onSubmit` (`apps/web/components/images-studio.tsx:91-118`, `apps/web/components/videos-studio.tsx:139-174`) posts JSON through `apiFetch`, so the packaged app routes it over IPC exactly like Chat does. The video body carries `seconds` always and `resolution` only when the model is Seedance-wire (`:150-157`). On a 2xx it clears the prompt and re-runs `load()` — the new clip appears because the **gallery is re-fetched**, not because anything was pushed into local state.
+`onSubmit` (`apps/web/components/images-studio.tsx:99-127`, `apps/web/components/videos-studio.tsx:139-174`) posts JSON through `apiFetch`, so the packaged app routes it over IPC exactly like Chat does. The video body carries `seconds` always and `resolution` only when the model is Seedance-wire (`:150-157`). On a 2xx it clears the prompt and re-runs `load()` — the new clip appears because the **gallery is re-fetched**, not because anything was pushed into local state.
 
 On the host, `handlePostImages` / `handlePostVideos` (`packages/host/src/handlers/jobs.ts:67-77`, `:98-108`) are four lines each and in this order:
 
@@ -99,14 +99,15 @@ On the host, `handlePostImages` / `handlePostVideos` (`packages/host/src/handler
 
 ### 7. The generate helper — no run, no thread, no stream
 
-`generateStudioImage` (`packages/host/src/studio-generate.ts:267-322`):
+`generateStudioImage` (`packages/host/src/studio-generate.ts:275-362`) calls `runImageSkills` (`packages/core/src/images/harness.ts`):
 
-1. Resolve the model: body → `settings.imageGenModel` → `defaultStudioImageModel()` (`:162`).
-2. `runWithToolSecrets(buildToolSecretScope(settings), …)` (`:161`, `:163`) — the secret scope is an async-local map, so the tool reads its key through `getSecret` instead of being handed one.
-3. `imageGenerateTool.execute({ prompt: withImageOutputLanguage(maskPii(prompt), locale), aspect_ratio, image_url, model })` (`:163-173`). **The prompt is PII-masked and locale-stamped before it leaves the process.**
-4. `toolSuccessUrl(output, "image")` (`:119-129`) insists on `success === true` plus a non-empty string. Anything else is `tool_failed`, 400, carrying the tool's own error text (`:174-177`).
-5. `saveGeneratedImage(tenant, url)` mirrors it (`:178-179`) → a local `/api/v1/media/<id>/file`.
-6. Sidecar meta (`:183-190`) and a Knowledge work card (`:191-202`, `packages/host/src/work-cards.ts:98-117`) — a text card holding the prompt, aspect, model and a `media:<id>` pointer. **No bytes go to Knowledge.**
+1. Resolve the model: body → `settings.imageGenModel` → `defaultStudioImageModel()` (`studio-generate.ts:283`). A model whose `mediaKind` is not `image` throws `ImageModelRejectedError` before any call (`harness.ts`), and the host answers 400 with `imageModelRejectedMessage` (`studio-generate.ts:315-316`).
+2. Write a brief: the masked sentence is the subject, plus one still, no collage, no invented text (`writeImageBrief`). `withImageOutputLanguage` stamps the run locale on that brief (`studio-generate.ts:288-300`). The gallery stores the sentence they typed, not the brief.
+3. Choose the frame with `chooseImageFrame` when `aspect` was omitted (`harness.ts`). The page sends the frame the menu is showing.
+4. One `imageGenerateTool.execute` inside `runWithToolSecrets` (`studio-generate.ts:296-306`). On `AGENTFORGE_RUNTIME=stub`, and only when `workType` is not `Edit`, this step returns a 1×1 PNG and does not call the tool (`:285`, `:293-294`).
+5. If the tool returns no URL and `imageMissMayRetry` matches a connection that never left (`fetch failed`, `ECONNREFUSED`, `ENOTFOUND`), the same brief runs once more. A timeout, an HTTP body, or a missing key is not retried (`harness.ts`).
+6. `saveGeneratedImage` mirrors the URL (`studio-generate.ts:336-337`) → a local `/api/v1/media/<id>/file`. A live call records `recordImageUsage` first (`:334`); the stub stand-in does not.
+7. Sidecar meta (`:340-347`) and a Knowledge work card (`:348-359`, `packages/host/src/work-cards.ts`) — a text card holding their sentence, the frame, the model, and a `media:<id>` pointer. **No bytes go to Knowledge.**
 
 `generateStudioVideo` (`:207-268`) is the same shape with three differences: it re-checks `studioRouteReady("video_gen")` itself and 400s with `gatewayRequiredMessage` (`:212-214`) — the image path has no such check; it re-checks the still gate against the *resolved* model rather than the body's (`:218-220`); and it snaps the clip length server-side with `snapVideoSeconds(model, body.seconds)` (`:228`) so a hand-written body cannot ask Veo for 5 seconds. Its failure status is not a flat 400 but `studioVideoFailureStatus(message)` (`packages/core/src/tools/platform/gateway-media.ts:83-91`), which lifts 503 for "no live gateway channel" / upstream-rejected and 401 for a rejected key.
 
@@ -173,25 +174,25 @@ Both tools resolve their backend first and return a **structured failure rather 
 
 ## Gotchas
 
-- **Every generate now leaves a usage row.** `recordImageUsage` (`packages/host/src/studio-generate.ts:295`)
-  and `recordVideoUsage` (`:363`) fire right after the tool returns and before the file is stored,
+- **Every live generate now leaves a usage row.** `recordImageUsage` (`packages/host/src/studio-generate.ts:334`)
+  and `recordVideoUsage` (`:419`) fire right after the tool returns and before the file is stored,
   because the gateway has already charged by then. Images are metered in images, videos in the
-  *snapped* seconds. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
+  *snapped* seconds. A stub Images stand-in skips the image row: nothing was billed. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 
-- **The picker outlives the key.** `models-cache.json` (`packages/host/src/model-cache.ts:22-30`) is written by the last successful probe and read unconditionally. A desk with `hasOpenai: false` still shows whatever that probe returned. Images also fill an empty provider from static `CHAT_MODELS`. Videos do not: an empty probe is an empty `videos-studio-model`, and a static Seedance row is not priced. A model the video route then refuses with "not available for this key" is dropped from the picker (`apps/web/components/videos-studio.tsx:173-184`) and the error names another probed id (`rewriteModelNotOnKey`, `packages/host/src/studio-generate.ts:370-375`).
+- **The picker outlives the key.** `models-cache.json` (`packages/host/src/model-cache.ts:22-30`) is written by the last successful probe and read unconditionally. A desk with `hasOpenai: false` still shows whatever that probe returned. Images also fill an empty provider from static `CHAT_MODELS`. Videos do not: an empty probe is an empty `videos-studio-model`, and a static Seedance row is not priced. A model the video route then refuses with "not available for this key" is dropped from the picker (`apps/web/components/videos-studio.tsx:173-184`) and the error names another probed id (`rewriteModelNotOnKey`, `packages/host/src/studio-generate.ts:408-413`).
 - **"Seedance-class" includes Veo, Kling and Sora.** `usesSeedanceVideoWire` (`packages/core/src/models/video-capabilities.ts:32-34`). Reading the name instead of the regex leads you to expect `videos-studio-resolution` to be disabled on the default model; it is enabled.
 - **`videos-studio-seconds` is not a fixed set.** Veo ids get `[4, 6, 8]` (`:65`, `:68-73`), everything else `[5, 8, 10]`. Since `veo_3_1-fast` is the first `VIDEO_PREF` entry (`packages/core/src/models/media-kind.ts:25`), `4 / 6 / 8` is what a driver sees first.
-- **Three places snap the clip length**: the UI effect (`apps/web/components/videos-studio.tsx:101-103`), the host helper (`packages/host/src/studio-generate.ts:340`), and the payload builder (`packages/core/src/tools/platform/gateway-media.ts:171`). Only the last one clamps to the 2–12 window; the first two snap to an allowed option.
+- **Three places snap the clip length**: the UI effect (`apps/web/components/videos-studio.tsx:101-103`), the host helper (`packages/host/src/studio-generate.ts:392`), and the payload builder (`packages/core/src/tools/platform/gateway-media.ts:171`). Only the last one clamps to the 2–12 window; the first two snap to an allowed option.
 - **`still` and `imageToVideo` are two different flags and the legacy one lies.** Both `SEEDANCE_ALL` and `OPENAI_LIKE` set `still: true` (`video-capabilities.ts:17-29`); only `imageToVideoForModel` (`:40-54`) is honest, and only it drives the field (`apps/web/components/videos-studio.tsx:274`). Driven: `videos-studio-still` count 0 on `mj_video` and `omni-fast-v2v`, 1 on `grok-imagine-video`.
 - **Images note and submit share `allowed`.** `images-studio-needs-key` renders when `needsKey && !loading`; `images-studio-submit` is `disabled` on `needsKey`. Stub `allowed: true` hides the note and can generate. Videos still disables submit and shows its note while `!ready`.
-- **`generateStudioVideo` re-checks readiness and `generateStudioImage` does not** (`packages/host/src/studio-generate.ts:329-331`). The image path relies entirely on the tool's own backend check, which is why its keyless failure is a `tool_failed` 400 rather than an `invalid_request` 400. Same status, different code, different message.
+- **`generateStudioVideo` re-checks readiness and `generateStudioImage` does not** (`packages/host/src/studio-generate.ts:369-371`). The image path relies entirely on the tool's own backend check, which is why its keyless failure on a live runtime is a `tool_failed` 400 rather than an `invalid_request` 400. Same status, different code, different message. A stub Images desk saves a stand-in instead (`:285`).
 - **Every gateway image request carries OpenAI pixel sizes**, whatever the vendor (`packages/core/src/tools/platform/gateway-media.ts:145-153`, used unconditionally at `:309`). `quality: "medium"` is added only for `gpt-image` ids (`:311-313`) — which is also why the estimate line says "at medium quality" for exactly those models.
-- **`gateway_blocked` is swallowed here too.** The host answers a flat body whose `error` is a string (`packages/host/src/errors.ts:20-25`), and both studios read `data.error?.message` (`apps/web/components/images-studio.tsx:108`, `apps/web/components/videos-studio.tsx:163`). `.message` on a string is `undefined`, so a closed gate shows the generic "generate failed" copy. The same finding is recorded for Chat in [`chat-send.md`](chat-send.md).
+- **`gateway_blocked` is swallowed here too.** The host answers a flat body whose `error` is a string (`packages/host/src/errors.ts:20-25`), and both studios read `data.error?.message` (`apps/web/components/images-studio.tsx:116`, `apps/web/components/videos-studio.tsx:163`). `.message` on a string is `undefined`, so a closed gate shows the generic "generate failed" copy. The same finding is recorded for Chat in [`chat-send.md`](chat-send.md).
 - **Visiting a studio leaves it mounted.** `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:50-81`) hides rather than unmounts, so `example-gallery` resolves to two elements once both studios have been visited, and `images-studio` has count 1 while the user is on `/videos`. Driven; it is a Playwright strict-mode violation on any shared testid.
 - **The empty state is behind the loading state.** `loading` starts `true` and both the `*-studio-needs-key` box and `*-studio-empty` are suppressed until it flips. Snapshotting the page as soon as `images-studio` becomes visible reads `null` for both. Wait for `*-studio-model` to gain options instead.
 - **A missing media file is a 500, not a 404, and the message contains the absolute path.** `handleGetMediaFile` (`packages/host/src/handlers/media.ts:40`) only 404s on a missing *row*; a missing *file* throws ENOENT out of `stat` and lands in `jsonError`'s catch-all (`packages/host/src/errors.ts:42-46`), whose `redactSecrets` does not touch paths. Driven on `:3000`: `500 {"error":{"code":"internal_error","message":"ENOENT: no such file or directory, stat 'C:\\…\\data\\media\\<organizationId>\\<mediaId>.mp4'"}}`. **Finding, not a design.**
 - **The gallery is org-scoped, not desk-scoped**, exactly like the rest of the media store — open finding `b9`, see [`renderer-media.md`](renderer-media.md).
-- **A successful generate writes a Knowledge source; loading an example prompt does not.** `upsertWorkSource` runs only from the two generate helpers (`packages/host/src/studio-generate.ts:308-319`, `:252-265`); `videos-example-use-*` calls `onPick` → `pickTemplate`, pure React state (`apps/web/components/video-examples.tsx:126-131`, `apps/web/components/videos-studio.tsx:127-132`), and issues no request at all.
+- **A successful generate writes a Knowledge source; loading an example prompt does not.** `upsertWorkSource` runs only from the generate helpers (`packages/host/src/studio-generate.ts:348-359` for an image); `videos-example-use-*` calls `onPick` → `pickTemplate`, pure React state (`apps/web/components/video-examples.tsx:126-131`, `apps/web/components/videos-studio.tsx:127-132`), and issues no request at all.
 - **`/runs/image` and `/runs/video` are not these routes.** They are chat runs that *consume* media: `parseImageRunInput` demands at least one `image_url` part and rejects `video_url` outright (`packages/core/src/content/parse-run-input.ts:57-58`, `:165-167`). Posting a generate body there is a 400 for a completely unrelated reason.
 
 ## Verify

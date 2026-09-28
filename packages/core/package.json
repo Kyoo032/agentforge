@@ -42,6 +42,7 @@
     "./channels": "./src/channels/index.ts",
     "./channels/pinned": "./src/channels/pinned.ts",
     "./harness": "./src/harness/mode-skills.ts",
+    "./images": "./src/images/harness.ts",
     "./documents": "./src/documents/source-check.ts",
     "./open-slide": "./src/open-slide/index.ts"
   },

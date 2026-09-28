@@ -5,6 +5,7 @@
   "settingsLink": "Settings",
   "loadError": "Could not load image studio",
   "generateError": "Image generation failed",
+  "modelRejected": "That model does not make images.",
   "aspect": {
     "square": "Square",
     "landscape": "Landscape",
