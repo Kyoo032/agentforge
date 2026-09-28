@@ -156,6 +156,13 @@ describe("StubRuntime answers", () => {
     expect(seen.answer).not.toMatch(/gateway key/i);
   });
 
+  it("does not read the clock when the question is about an earlier chat", async () => {
+    const seen = await run("what did we decide last time", ["datetime", "past_sessions"]);
+    expect(seen.tools).toEqual(["past_sessions"]);
+    expect(seen.answer).not.toMatch(/T\d{2}:/);
+    expect(seen.thinking).toMatch(/earlier chats/i);
+  });
+
   it("cites the desk note and includes a number the check can drop", async () => {
     const runtime = new StubRuntime();
     let answer = "";

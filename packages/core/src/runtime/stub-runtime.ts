@@ -54,8 +54,9 @@ export class StubRuntime implements AgentRuntime {
     const answers: string[] = [];
 
     const wantsCalc = hasEnabledBinding(input.bindings, "calculator") && /\d+\s*[+\-*/]\s*\d+/.test(summary);
-    const wantsClock = hasEnabledBinding(input.bindings, "datetime") && wantsStubClock(summary);
     const wantsPast = hasEnabledBinding(input.bindings, "past_sessions") && wantsStubPastChat(summary);
+    // "last time" contains the word time. An earlier-chat question is not a request for the clock.
+    const wantsClock = hasEnabledBinding(input.bindings, "datetime") && wantsStubClock(summary) && !wantsPast;
     const wantsDesk = /## Retrieved sources/.test(input.version.systemPrompt) && wantsStubDeskSource(summary);
 
     if (showThinking) {
