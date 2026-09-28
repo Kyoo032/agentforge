@@ -562,3 +562,9 @@ Host and renderer, both products. Nothing packed.
 - **Restart waits for the language save.** The banner can show while `POST /api/v1/settings` is in flight. The Restart button stays disabled until that save resolves, and the click applies the locale that landed on disk. A failed save does not call `apply-locale`.
 - **Shape toolbar clicks keep the selection.** On the simple Presentation stage (starter and Education lesson), a pointerdown on Duplicate, Fill, Stroke, the shape text, or Remove used to clear the selection because the toolbar is drawn inside the stage. The stage now ignores that toolbar, so the click runs. Open Slide is unchanged.
 - **Edit transport and the timeline hint follow the desk language.** `edit-play` and the timeline zoom, hint, and trim names read the `edit` catalog (`Putar` / `snap: bingkai…` on `id`). The rest of the Edit chrome below the header is still literal English.
+
+## Videos harness, 2026-09-28 (not packed)
+
+Host and renderer, both products. Nothing packed. The Videos screen gains no control.
+
+- **Videos writes a shot, retries a dead render once, and keeps only a billed clip.** A bare sentence becomes a shot that still contains that sentence. A prompt that already names a camera and a motion is left as written. The model list stays the key refresh, and the length snap stays. One retry covers a timeout, a 502/503/504, a dropped connection, or a result that is not a video. A missing key, a model the refresh did not list, a still the model cannot take, and a prepaid-price refusal do not retry. The gallery caption and the Knowledge card record the shot and the snapped length.

@@ -10,23 +10,23 @@ import {
   lyricsWriteTool,
   maskPii,
   mediaKind,
-  modelNotOnKeyMessage,
   modeMessage,
   musicCapabilities,
   musicGenerateTool,
   availableVideoDefault,
   pickPreferredImageModel,
   pickPreferredMusicModel,
-  resolveVideoModelForKey,
   rewriteModelNotOnKey,
   resolveMusicMode,
   runWithToolSecrets,
   speechUnavailableReason,
   studioVideoFailureStatus,
   videoCapabilities,
-  snapVideoSeconds,
   videoGenerateTool,
   withOutputLanguage,
+  runVideoHarness,
+  type VideoRenderCall,
+  type VideoRenderResult,
   MUSIC_LYRICS_MAX,
   MUSIC_PROMPT_MAX,
   MUSIC_STYLE_MAX,
@@ -51,6 +51,11 @@ import { recordImageUsage, recordMusicUsage, recordVideoUsage } from "./usage-re
 export type StudioGenerateOptions = {
   /** Knowledge source type for the work card. Defaults to Images / Videos; Edit passes "Edit". */
   workType?: Extract<WorkSourceType, "Images" | "Videos" | "Edit">;
+};
+
+export type VideoGenerateOptions = StudioGenerateOptions & {
+  /** Tests inject the gateway call. Production uses `videoGenerateTool`. */
+  renderVideo?: (input: VideoRenderCall) => Promise<unknown>;
 };
 
 /** The media kinds a studio gallery can list. Music shares the media store with Images and Videos. */
@@ -324,12 +329,36 @@ export async function generateStudioImage(
   return { id, url: stored, prompt: body.prompt, aspect: body.aspect, model: usedModel };
 }
 
+function videoToolResult(
+  output: unknown,
+  locale: ReturnType<typeof localeForRun>,
+  model: string,
+  availableIds: readonly string[],
+): VideoRenderResult {
+  const url = toolSuccessUrl(output, "video");
+  if (url) {
+    return { ok: true, url, model: toolModel(output, model) };
+  }
+  const raw = toolFailureMessage(output, modeMessage("videoGenerateFailed", locale));
+  const rewritten = rewriteModelNotOnKey(raw, locale, model, availableIds);
+  if (rewritten) {
+    return {
+      ok: false,
+      message: rewritten.message,
+      code: "model_not_on_key",
+      status: 400,
+      ...(rewritten.suggestModel ? { suggestModel: rewritten.suggestModel } : {}),
+    };
+  }
+  return { ok: false, message: raw, code: "tool_failed", status: studioVideoFailureStatus(raw) };
+}
+
 export async function generateStudioVideo(
   tenant: TenantContext,
   body: VideoGenerateBody,
-  options: StudioGenerateOptions = {},
+  options: VideoGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
-  if (!studioRouteReady("video_gen", tenant)) {
+  if (!options.renderVideo && !studioRouteReady("video_gen", tenant)) {
     throw new ApiError("invalid_request", gatewayRequiredMessage("videos", localeForRun()), 400);
   }
   const settings = loadSettings(tenant);
@@ -337,81 +366,60 @@ export async function generateStudioVideo(
   const locale = localeForRun();
   const availableIds = listStudioVideoModels().map((item) => item.id);
   const requested = (body.model || settings.videoGenModel || "").trim();
-  const choice = resolveVideoModelForKey({ requested, availableIds });
-  if (!choice.ok) {
-    throw new ApiError(
-      "model_not_on_key",
-      modelNotOnKeyMessage(locale, choice.rejected, choice.suggestion),
-      400,
-      choice.suggestion,
-    );
-  }
-  const model = choice.model;
-  if (body.imageUrl && !videoCapabilities(model).imageToVideo) {
-    throw new ApiError("video_still_unsupported", modeMessage("videoStillUnsupported", localeForRun()), 400);
-  }
-  // The billable length is the snapped one the gateway is actually asked for, never `body.seconds`:
-  // a model that only does 5 s clips bills 5 s for a 4 s request.
-  const seconds = snapVideoSeconds(model, body.seconds);
-  const output = await runWithToolSecrets(scope, () =>
-    videoGenerateTool.execute(
-      {
-        prompt: withOutputLanguage(maskPii(body.prompt), "videos", localeForRun()),
-        aspect_ratio: body.aspect,
-        image_url: body.imageUrl,
-        model,
-        seconds,
-        resolution: body.resolution,
-      },
-      tenant,
-    ),
+  const harness = await runVideoHarness(
+    {
+      prompt: body.prompt,
+      requestedModel: requested,
+      availableIds,
+      aspect: body.aspect,
+      imageUrl: body.imageUrl,
+      seconds: body.seconds,
+      resolution: body.resolution,
+      locale,
+    },
+    async (call) => {
+      const output = options.renderVideo
+        ? await options.renderVideo(call)
+        : await runWithToolSecrets(scope, () => videoGenerateTool.execute(call, tenant));
+      return videoToolResult(output, locale, call.model, availableIds);
+    },
   );
-  const url = toolSuccessUrl(output, "video");
-  if (!url) {
-    const raw = toolFailureMessage(output, modeMessage("videoGenerateFailed", locale));
-    const rewritten = rewriteModelNotOnKey(raw, locale, model, availableIds);
-    if (rewritten) {
-      throw new ApiError("model_not_on_key", rewritten.message, 400, rewritten.suggestModel);
-    }
-    throw new ApiError("tool_failed", raw, studioVideoFailureStatus(raw));
-  }
-  // Same rule as images: the gateway has been paid, so the row is written before the file is
-  // stored. Videos are metered in seconds because every list price in `media-pricing.ts` is
-  // per second, and the clip length is the only thing that moves the number.
-  const usedModel = toolModel(output, model);
+  // The gateway has been paid once a clip is kept, so the row is written before the file is
+  // stored. The length is the snapped one the harness asked for, never `body.seconds`.
   recordVideoUsage(tenant, {
-    model: usedModel,
-    seconds,
+    model: harness.usedModel,
+    seconds: harness.seconds,
     ...(body.resolution ? { resolution: body.resolution } : {}),
   });
   const { saveGeneratedVideo } = await import("./media");
-  const stored = await saveGeneratedVideo(tenant, url);
+  const stored = await saveGeneratedVideo(tenant, harness.url);
   const id = mediaIdFromUrl(stored);
   if (id) {
     await persistMeta(tenant.tenantId, {
       mediaId: id,
       kind: "video",
-      prompt: body.prompt,
+      prompt: harness.shot,
       aspect: body.aspect,
-      model: usedModel,
+      model: harness.usedModel,
       createdAt: new Date().toISOString(),
+      durationSeconds: harness.seconds,
     });
     await upsertWorkSource(
       tenant,
       mediaWorkCard({
         kind: "video",
         mediaId: id,
-        prompt: body.prompt,
+        prompt: harness.shot,
         aspect: body.aspect,
-        model: usedModel,
+        model: harness.usedModel,
         url: stored,
-        seconds: body.seconds,
+        seconds: harness.seconds,
         resolution: body.resolution,
         type: options.workType,
       }),
     );
   }
-  return { id, url: stored, prompt: body.prompt, aspect: body.aspect, model: usedModel };
+  return { id, url: stored, prompt: body.prompt, aspect: body.aspect, model: harness.usedModel };
 }
 
 /** The text a music job is remembered by: the lyrics in custom mode, the brief in describe mode. */

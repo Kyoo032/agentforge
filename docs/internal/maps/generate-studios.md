@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-26 for the Videos picker (probed models only, empty default, not-on-key copy in both locales) and the Images needs-key note (same `allowed` flag as submit). Before that: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1.
+Last verified: 2026-09-28 at 076e7a6 for the Videos harness (shot, one retry when the render dies before a video file, keep only that file at the snapped length). Stub webdev drive the same day: `/videos` showed `videos-studio` and `videos-studio-needs-key`, Generate stayed disabled, and the screen had no new button. The picker and the Images needs-key note are unchanged from 2026-09-26. Before that: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1.
 
 ## Overview
 
@@ -108,7 +108,14 @@ On the host, `handlePostImages` / `handlePostVideos` (`packages/host/src/handler
 5. `saveGeneratedImage(tenant, url)` mirrors it (`:178-179`) → a local `/api/v1/media/<id>/file`.
 6. Sidecar meta (`:183-190`) and a Knowledge work card (`:191-202`, `packages/host/src/work-cards.ts:98-117`) — a text card holding the prompt, aspect, model and a `media:<id>` pointer. **No bytes go to Knowledge.**
 
-`generateStudioVideo` (`:207-268`) is the same shape with three differences: it re-checks `studioRouteReady("video_gen")` itself and 400s with `gatewayRequiredMessage` (`:212-214`) — the image path has no such check; it re-checks the still gate against the *resolved* model rather than the body's (`:218-220`); and it snaps the clip length server-side with `snapVideoSeconds(model, body.seconds)` (`:228`) so a hand-written body cannot ask Veo for 5 seconds. Its failure status is not a flat 400 but `studioVideoFailureStatus(message)` (`packages/core/src/tools/platform/gateway-media.ts:83-91`), which lifts 503 for "no live gateway channel" / upstream-rejected and 401 for a rejected key.
+`generateStudioVideo` (`packages/host/src/studio-generate.ts:356-423`) is not a second copy of the image helper. It calls `runVideoHarness` (`packages/core/src/videos/harness.ts:152-235`):
+
+1. **Write the shot.** A sentence that does not already name a camera and a motion becomes subject, one motion, and one camera (`composeVideoShot`, `:72-83`). The owner's sentence has to remain in the shot (`shotKeepsAsk`, `:86-89`); a draft that drops it is repaired once (`acceptVideoShot`, `:94-108`). A prompt that already has both, or is already 400 characters, is sent as written. The outbound prompt is `withOutputLanguage(maskPii(shot), "videos", locale)` (`:178`).
+2. **Fit the key.** `resolveVideoModelForKey` still refuses an id the refresh did not list (`:161-172`). `snapVideoSeconds` still picks the length (`:177`). A still on a model whose `imageToVideo` is false throws `video_still_unsupported` before any render (`:174-176`).
+3. **Render once more when the job dies before a video file.** A timeout, HTTP 502/503/504, a dropped connection, or a URL that is not a video is tried once (`videoRenderShouldRetry`, `:117-122`, and the loop at `:193-215`). A missing key, a rejected key, a model the refresh did not list, a still the model cannot take, and a prepaid-price refusal are not retried.
+4. **Keep the clip.** A video URL is the only success (`clipIsVideoUrl`, `:127-145`). Usage (`studio-generate.ts:389-393`), the gallery sidecar (`:398-406`, prompt is the shot, `durationSeconds` is the snapped length), and the Knowledge card (`:407-420`) all record that snapped length. The JSON body still returns the owner's sentence as `prompt`.
+
+The image path has no route-ready check. Videos still 400s with `gatewayRequiredMessage` when the route is not ready (`studio-generate.ts:361-363`), unless a test injects `renderVideo`. A tool failure that is not a missing file still uses `studioVideoFailureStatus` (`packages/core/src/tools/platform/gateway-media.ts:83-91`): 503 for "no live gateway channel" / upstream-rejected, 401 for a rejected key.
 
 ### 8. The wire
 
@@ -121,7 +128,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 - Seedance-wire (`:172-192`): `content[]`, `duration`, `resolution`, `ratio`, `generate_audio: false`, `watermark: false`, and a still attached twice — inside `content` as `role: "first_frame"` and at the top level as `image`, because Veo and Kling read the generic field.
 - Everything else (`:197-206`): `{ model, prompt, duration, seconds: String(duration) }` and nothing more. The comment above it records why — grok rejected pixel `size`, then rejected `ratio`.
 
-`clampVideoSeconds` (`packages/core/src/models/video-capabilities.ts:82-87`) squeezes duration into 2–12 one last time here, so there are **three** snap points on a video request: the UI effect, the host helper, and the payload builder.
+`clampVideoSeconds` (`packages/core/src/models/video-capabilities.ts:82-87`) squeezes duration into 2–12 one last time here, so there are **three** snap points on a video request: the UI effect, the harness (`packages/core/src/videos/harness.ts:177`), and the payload builder.
 
 ### 9. Gallery and serving
 
@@ -136,8 +143,9 @@ Both tools resolve their backend first and return a **structured failure rather 
 | No key / no backend ready | `resolveToolBackend` inside the tool (`image-generate.ts:62-72`, `video-generate.ts:120-134`) | `{ success: false, error }` → `tool_failed` **400**, "add a Toko Token gateway key in Settings". A stub Images desk (`allowed: true`) can still post; Videos cannot (button disabled on `!ready`). A closed gate disables Images before the post. |
 | Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:71` (and the video twin at `:102`) | HTTP 403, flat `{error:"gateway_blocked", status, message}`. Both studios show it through `*-studio-error`, since they read `data.error?.message` and the flat body has none — the generic "generate failed" copy wins. |
 | Empty prompt / bad aspect / out-of-range seconds | zod in `parseImageGenerateBody` / `parseVideoGenerateBody` | HTTP 400, `{error:{code:"invalid_content_part", message}}` |
-| Still on a text-only model | `studio-generate.ts:103-105` (body model) and `:218-220` (resolved model) | HTTP 400, `video_still_unsupported` |
-| Video route not ready | `studio-generate.ts:212-214` | HTTP 400, `gatewayRequiredMessage("videos")`. **The image path has no equivalent guard.** |
+| Still on a text-only model | body model in `parseVideoGenerateBody`; resolved model in `packages/core/src/videos/harness.ts:174-176` | HTTP 400, `video_still_unsupported`. No render. |
+| Video route not ready | `studio-generate.ts:361-363` | HTTP 400, `gatewayRequiredMessage("videos")`. **The image path has no equivalent guard.** |
+| Render dies before a video file | `packages/core/src/videos/harness.ts:193-215` | One retry. A second miss is the tool error, or `video_clip_rejected` 502 when the URL is not a video. The studio shows `videos.clipRejected`. |
 | Gateway non-2xx on create | `generateGatewayVideo` (`gateway-media.ts:415-424`) | status mapped by `httpStatusForGatewayFailure` (`:53-58`): 401/403/404/429/503 pass through, everything else is 502; message widened by `formatVideoGatewayFailure` (`:60-71`) |
 | Prepaid proxy key on a Seedance async job | `isPrepaidAsyncPriceError` (`:93-95`) | 403 with the long "billed by tokens after the job finishes … this is not an invalid API key" explanation |
 | Upstream refused an accepted job | `formatVideoJobFailure` (`:76-81`), `UPSTREAM_REJECTED` at `:73` | 503 via `studioVideoFailureStatus` |
@@ -163,6 +171,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 | `packages/host/src/model-cache.ts` | Where the probed catalog is persisted, and its memo stamp |
 | `packages/core/src/models/media-kind.ts` | `mediaKind`, `routeModelsByKind`, the preference lists and the default ids |
 | `packages/core/src/models/video-capabilities.ts` | Capability profiles, `allowedVideoSeconds`, `snapVideoSeconds`, `clampVideoSeconds` |
+| `packages/core/src/videos/harness.ts` | Videos only: shot, listed model, snapped length, still gate, one retry, keep a video URL |
 | `packages/core/src/tools/platform/image-generate.ts`, `video-generate.ts` | The two platform tools and their FAL / Volcengine alternates |
 | `packages/core/src/tools/platform/gateway-media.ts` | Wire payloads, poll loops, error classification |
 | `packages/core/src/tools/credentials.ts` | `image_gen` / `video_gen` capability definitions; `listToolRoutes`, `buildToolSecretScope` |
@@ -174,24 +183,25 @@ Both tools resolve their backend first and return a **structured failure rather 
 ## Gotchas
 
 - **Every generate now leaves a usage row.** `recordImageUsage` (`packages/host/src/studio-generate.ts:295`)
-  and `recordVideoUsage` (`:363`) fire right after the tool returns and before the file is stored,
-  because the gateway has already charged by then. Images are metered in images, videos in the
+  fires right after the image tool returns. `recordVideoUsage` (`:389`) fires after the harness
+  has kept a video URL, and still before the file is stored, because the gateway has already
+  charged by then. Images are metered in images, videos in the
   *snapped* seconds. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 
-- **The picker outlives the key.** `models-cache.json` (`packages/host/src/model-cache.ts:22-30`) is written by the last successful probe and read unconditionally. A desk with `hasOpenai: false` still shows whatever that probe returned. Images also fill an empty provider from static `CHAT_MODELS`. Videos do not: an empty probe is an empty `videos-studio-model`, and a static Seedance row is not priced. A model the video route then refuses with "not available for this key" is dropped from the picker (`apps/web/components/videos-studio.tsx:173-184`) and the error names another probed id (`rewriteModelNotOnKey`, `packages/host/src/studio-generate.ts:370-375`).
+- **The picker outlives the key.** `models-cache.json` (`packages/host/src/model-cache.ts:22-30`) is written by the last successful probe and read unconditionally. A desk with `hasOpenai: false` still shows whatever that probe returned. Images also fill an empty provider from static `CHAT_MODELS`. Videos do not: an empty probe is an empty `videos-studio-model`, and a static Seedance row is not priced. A model the video route then refuses with "not available for this key" is dropped from the picker (`apps/web/components/videos-studio.tsx:173-184`) and the error names another probed id (`rewriteModelNotOnKey`, `packages/host/src/studio-generate.ts:343-351`).
 - **"Seedance-class" includes Veo, Kling and Sora.** `usesSeedanceVideoWire` (`packages/core/src/models/video-capabilities.ts:32-34`). Reading the name instead of the regex leads you to expect `videos-studio-resolution` to be disabled on the default model; it is enabled.
 - **`videos-studio-seconds` is not a fixed set.** Veo ids get `[4, 6, 8]` (`:65`, `:68-73`), everything else `[5, 8, 10]`. Since `veo_3_1-fast` is the first `VIDEO_PREF` entry (`packages/core/src/models/media-kind.ts:25`), `4 / 6 / 8` is what a driver sees first.
-- **Three places snap the clip length**: the UI effect (`apps/web/components/videos-studio.tsx:101-103`), the host helper (`packages/host/src/studio-generate.ts:340`), and the payload builder (`packages/core/src/tools/platform/gateway-media.ts:171`). Only the last one clamps to the 2–12 window; the first two snap to an allowed option.
+- **Three places snap the clip length**: the UI effect (`apps/web/components/videos-studio.tsx:101-103`), the harness (`packages/core/src/videos/harness.ts:177`), and the payload builder (`packages/core/src/tools/platform/gateway-media.ts:171`). Only the last one clamps to the 2–12 window; the first two snap to an allowed option.
 - **`still` and `imageToVideo` are two different flags and the legacy one lies.** Both `SEEDANCE_ALL` and `OPENAI_LIKE` set `still: true` (`video-capabilities.ts:17-29`); only `imageToVideoForModel` (`:40-54`) is honest, and only it drives the field (`apps/web/components/videos-studio.tsx:274`). Driven: `videos-studio-still` count 0 on `mj_video` and `omni-fast-v2v`, 1 on `grok-imagine-video`.
 - **Images note and submit share `allowed`.** `images-studio-needs-key` renders when `needsKey && !loading`; `images-studio-submit` is `disabled` on `needsKey`. Stub `allowed: true` hides the note and can generate. Videos still disables submit and shows its note while `!ready`.
-- **`generateStudioVideo` re-checks readiness and `generateStudioImage` does not** (`packages/host/src/studio-generate.ts:329-331`). The image path relies entirely on the tool's own backend check, which is why its keyless failure is a `tool_failed` 400 rather than an `invalid_request` 400. Same status, different code, different message.
+- **`generateStudioVideo` re-checks readiness and `generateStudioImage` does not** (`packages/host/src/studio-generate.ts:361-363`). The image path relies entirely on the tool's own backend check, which is why its keyless failure is a `tool_failed` 400 rather than an `invalid_request` 400. Same status, different code, different message.
 - **Every gateway image request carries OpenAI pixel sizes**, whatever the vendor (`packages/core/src/tools/platform/gateway-media.ts:145-153`, used unconditionally at `:309`). `quality: "medium"` is added only for `gpt-image` ids (`:311-313`) — which is also why the estimate line says "at medium quality" for exactly those models.
-- **`gateway_blocked` is swallowed here too.** The host answers a flat body whose `error` is a string (`packages/host/src/errors.ts:20-25`), and both studios read `data.error?.message` (`apps/web/components/images-studio.tsx:108`, `apps/web/components/videos-studio.tsx:163`). `.message` on a string is `undefined`, so a closed gate shows the generic "generate failed" copy. The same finding is recorded for Chat in [`chat-send.md`](chat-send.md).
+- **`gateway_blocked` is swallowed here too.** The host answers a flat body whose `error` is a string (`packages/host/src/errors.ts:20-25`), and both studios read `data.error?.message` (`apps/web/components/images-studio.tsx:108`, `apps/web/components/videos-studio.tsx:186`). `.message` on a string is `undefined`, so a closed gate shows the generic "generate failed" copy. The same finding is recorded for Chat in [`chat-send.md`](chat-send.md).
 - **Visiting a studio leaves it mounted.** `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:50-81`) hides rather than unmounts, so `example-gallery` resolves to two elements once both studios have been visited, and `images-studio` has count 1 while the user is on `/videos`. Driven; it is a Playwright strict-mode violation on any shared testid.
 - **The empty state is behind the loading state.** `loading` starts `true` and both the `*-studio-needs-key` box and `*-studio-empty` are suppressed until it flips. Snapshotting the page as soon as `images-studio` becomes visible reads `null` for both. Wait for `*-studio-model` to gain options instead.
 - **A missing media file is a 500, not a 404, and the message contains the absolute path.** `handleGetMediaFile` (`packages/host/src/handlers/media.ts:40`) only 404s on a missing *row*; a missing *file* throws ENOENT out of `stat` and lands in `jsonError`'s catch-all (`packages/host/src/errors.ts:42-46`), whose `redactSecrets` does not touch paths. Driven on `:3000`: `500 {"error":{"code":"internal_error","message":"ENOENT: no such file or directory, stat 'C:\\…\\data\\media\\<organizationId>\\<mediaId>.mp4'"}}`. **Finding, not a design.**
 - **The gallery is org-scoped, not desk-scoped**, exactly like the rest of the media store — open finding `b9`, see [`renderer-media.md`](renderer-media.md).
-- **A successful generate writes a Knowledge source; loading an example prompt does not.** `upsertWorkSource` runs only from the two generate helpers (`packages/host/src/studio-generate.ts:308-319`, `:252-265`); `videos-example-use-*` calls `onPick` → `pickTemplate`, pure React state (`apps/web/components/video-examples.tsx:126-131`, `apps/web/components/videos-studio.tsx:127-132`), and issues no request at all.
+- **A successful generate writes a Knowledge source; loading an example prompt does not.** `upsertWorkSource` runs only from the two generate helpers (`packages/host/src/studio-generate.ts:308-319` for an image, `:407-420` for a video). The video card stores the shot and the snapped length. `videos-example-use-*` calls `onPick` → `pickTemplate`, pure React state (`apps/web/components/video-examples.tsx:126-131`, `apps/web/components/videos-studio.tsx:127-132`), and issues no request at all.
 - **`/runs/image` and `/runs/video` are not these routes.** They are chat runs that *consume* media: `parseImageRunInput` demands at least one `image_url` part and rejects `video_url` outright (`packages/core/src/content/parse-run-input.ts:57-58`, `:165-167`). Posting a generate body there is a 400 for a completely unrelated reason.
 
 ## Verify
