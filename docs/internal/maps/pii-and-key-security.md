@@ -350,7 +350,7 @@ Hosted document conversion is guarded separately and repository-wide by
 ### What this slice does not cover
 
 - ~~The four non-brief tasks do not get the column-aware pseudonymisation.~~ **Closed later the same day.**
-  `guardFinanceInput` is now wired into `packages/host/src/finance-tasks/runner.ts:214` and into all four
+  `guardFinanceInput` is now wired into `packages/host/src/finance-tasks/runner.ts:224` and into all four
   parsers — `parse-cashflow.ts:210`, `:226`, `:260`; `parse-budget.ts:153`, `:162`, `:176`;
   `parse-appraisal.ts:99`, `:103`, `:110`, `:114`; `parse-ratios.ts:200`, `:209` — and
   `finance-tasks/budget-embed.ts:7` names it as the caller's contract. `cashflow`, `budget`, `appraisal`

@@ -42,11 +42,11 @@ Each task declares exactly the steps its own graph draws, in order (`tasks.ts:63
 
 The strip renders them as `finance-phase-<id>` (`apps/web/components/finance-steps/finance-phase-strip.tsx:34`), labelled from `finance.phases.*` in the locale catalog.
 
-A run does **not** announce the whole graph. `runnerMathPhases` (`packages/host/src/finance-tasks/runner.ts:49-63`) emits only the `math` steps after the task's last shared step — everything before that already happened on the parse route — with a documented fallback so a run is never silent. `runnerPhases` (`:69-78`) then names the two the runner ends on: its last math step and its last step.
+A run does **not** announce the whole graph. `runnerMathPhases` (`packages/host/src/finance-tasks/runner.ts:59-73`) emits only the `math` steps after the task's last shared step — everything before that already happened on the parse route — with a documented fallback so a run is never silent. `runnerPhases` (`:69-78`) then names the two the runner ends on: its last math step and its last step.
 
 ### 3. What one task module is
 
-`FinanceTaskModule<Input, Computed>` (`packages/core/src/finance/tasks/types.ts:40-57`) is five things and nothing else:
+`FinanceTaskModule<Input, Computed>` (`packages/core/src/finance/tasks/types.ts:41-63`) is five things and nothing else:
 
 - `inputSchema` — the **confirmed** input, validated at the host boundary (`:46`);
 - `compute(input)` — plain arithmetic, no I/O, no model, no formatting (`:48`);
@@ -113,7 +113,7 @@ The read button is shared. Until rows are confirmed it is `finance-parse` (`apps
 
 All five render `ArtifactActions` with `testIdPrefix="finance"`, so the `finance-actions` / `finance-download` / `finance-send-kb` bar is the same everywhere. All but budget render `FinanceReportCharts`; budget draws `budget-variance-bars` (`budget/variance-bars.tsx:35`) instead.
 
-Chart ids, which become `finance-chart-<id>` (`apps/web/components/finance-charts/chart-frame.tsx:47`): brief `margin-growth` (`packages/core/src/finance/report-brief.ts:209`), cashflow `cash-balance` / `net-cash` (`cashflow/report-charts.ts:64`, `:88`), budget `variance-bars` / `variance-by-period` (`budget/report.ts:98`, `:114`), appraisal `cumulative-cash-flow` / `sensitivity` (`appraisal/report.ts:132`, `:148`), ratios `gauge-<key>` (`ratios/report.ts:86`).
+Chart ids, which become `finance-chart-<id>` (`apps/web/components/finance-charts/chart-frame.tsx:47`): brief `margin-growth` (`packages/core/src/finance/report-brief.ts:216`), cashflow `cash-balance` / `net-cash` (`cashflow/report-charts.ts:64`, `:88`), budget `variance-bars` / `variance-by-period` (`budget/report.ts:98`, `:114`), appraisal `cumulative-cash-flow` / `sensitivity` (`appraisal/report.ts:132`, `:148`), ratios `gauge-<key>` (`ratios/report.ts:86`).
 
 ### 8. The eval harness (dev-only, never ships)
 
@@ -200,7 +200,7 @@ The workbook fixes are pinned by evaluating the Calc formulas in the test itself
 - **Parse is keyless for most tasks.** Cashflow, budget, and the appraisal's grid and sentence reads never call `requireLive`; ratios only does when a label needs placing (`packages/host/src/finance-tasks/parse-ratios.ts:157`). Only the brief's parse refuses a keyless desk outright. Generate still needs a key on every task.
 - **There is no coming-soon panel.** It was removed on 2026-09-17; every task is `available: true`, so the studio's one-line `finance-task-unavailable` fallback never renders and `finance_task_unavailable` is never thrown. `finance-task-coming-soon`, `finance-task-sample` and `finance-coming-soon-back` no longer exist. Do not write a recipe around any of them without first re-reading `tasks.ts`.
 - **The brief's prompt must stay byte-identical.** `task-rules.ts:22` gives `brief` no bullets on purpose, and `withFinanceTaskRules` returns the base string untouched when the list is empty (`packages/host/src/finance-task.ts:48`). Adding a "harmless" brief rule changes a shipping prompt.
-- **The runner announces fewer phases than the strip draws.** Everything up to the task's last shared step happened on the parse route; re-emitting it would tell the reader work is being redone (`packages/host/src/finance-tasks/runner.ts:38-48`). A `finance-phase-*` chip with no matching `job.phase` is correct.
+- **The runner announces fewer phases than the strip draws.** Everything up to the task's last shared step happened on the parse route; re-emitting it would tell the reader work is being redone (`packages/host/src/finance-tasks/runner.ts:48-58`). A `finance-phase-*` chip with no matching `job.phase` is correct.
 - **A section id is the task's, not the model's.** `parseNarration` drops a section the task did not ask for rather than renaming it (`narrate.ts:83`, `:91`), and the repair carries the id through even when the rewrite renames the heading (`repair.ts:74-76`).
 - **`[unverified figure]` must never reach a reader.** It is guarded, rewritten once, then the sentence is removed, and the finished report is swept again for notes and chart captions the builder wrote itself (`repair.ts:129`). Seeing the marker in an export is a bug, not the guard working.
 - **The budget pairing is the only stage that leaves the desk, and it sends labels.** No amount, period, scenario or filename (`budget-embed.ts:3-9`). A stub-runtime embedding is discarded rather than scored, and the screen says `budget-embedding-note`.
@@ -219,7 +219,7 @@ Tests: `packages/core/src/finance/tasks.test.ts`, `tasks/registry.test.ts`, `tas
 
 **Why a registry of modules rather than a switch.** `[Direct]` `packages/core/src/finance/tasks/registry.ts:3-8`: "One import per task file and nothing else: a worker building a task replaces exactly one file and flips one `available` flag, and never edits a switch this file would otherwise grow." `[Direct]` the same reasoning is repeated at the three other seams — `parsers.ts:3-6`, `apps/web/components/finance-steps/registry.tsx:5-8`, and the do-not-touch list in `tasks/README.md`. `[Inferred]` the shape is chosen for four workers building four tasks in parallel, which is what the README says it is for. **Confidence: high** — the intent is written at every seam it applies to.
 
-**Why the brief keeps its own code path.** `[Direct]` `packages/host/src/finance-tasks/runner.ts:9-10`: "The brief keeps the path it has always run (`finance-generate.ts`) — this runner is what the four task flows land on", and `packages/core/src/finance/task-rules.ts:6-10` gives the same reason for the empty rule set: the brief ships today and the catalog must not move it. **Confidence: high.**
+**Why the brief keeps its own code path.** `[Direct]` `packages/host/src/finance-tasks/runner.ts:11-12`: "The brief keeps the path it has always run (`finance-generate.ts`) — this runner is what the four task flows land on", and `packages/core/src/finance/task-rules.ts:6-10` gives the same reason for the empty rule set: the brief ships today and the catalog must not move it. **Confidence: high.**
 
 **Why the guard runs last for every task, without the task's help.** `[Direct]` `packages/core/src/finance/tasks/types.ts:9-12` names the invariant, and `runFinanceTask` is the only caller of `guardNarration` and `repairTaskProse`, so a task module has no way to skip it (`runner.ts:244-251`). `[Supported]` `tasks/README.md` tells authors that a figure shown by `promptFacts` but absent from `allowedNumbers` is stripped and that this is the author's bug, not the guard's. **Confidence: high.**
 

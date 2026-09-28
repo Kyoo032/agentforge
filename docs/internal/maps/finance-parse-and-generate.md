@@ -79,7 +79,7 @@ Finally `requireNoInjection` (`finance-import.ts:133-137`) scans the filename an
 
 ### 5. Stage 1 — parse: code reads the figures, the model only names things
 
-`handlePostFinanceParse` dispatches on the task: `financeTaskParser(task)` (`packages/host/src/finance-tasks/parsers.ts:27-30`) picks one of five hooks, with the brief's as the fallback. The brief's is `parseFinanceFigures` (`packages/host/src/finance-generate.ts:86`).
+`handlePostFinanceParse` dispatches on the task: `financeTaskParser(task)` (`packages/host/src/finance-tasks/parsers.ts:27-30`) picks one of five hooks, with the brief's as the fallback. The brief's is `parseFinanceFigures` (`packages/host/src/finance-generate.ts:89`).
 
 The brief's read, in order:
 
@@ -95,9 +95,9 @@ Client-side, pressing `finance-generate` with a brief, no rows and no dataset ru
 
 ### 6. Stage 2 — compute in code, then narrate around it
 
-`generateFinanceBrief` (`packages/host/src/finance-generate.ts:165-292`) reads the task and hands anything that is not the brief to the generic runner (`:173-179`) — see [`finance-tasks.md`](finance-tasks.md). The brief keeps the path below.
+`generateFinanceBrief` (`packages/host/src/finance-generate.ts:168-316`) reads the task and hands anything that is not the brief to the generic runner (`:173-179`) — see [`finance-tasks.md`](finance-tasks.md). The brief keeps the path below.
 
-- **`resolveInputs`** (`:127-141`): confirmed `items` through `readFinanceInputs` (`packages/host/src/finance-brief-build.ts:51`, params filtered to `FINANCE_PARAM_KEYS` at `:15`); else a `datasetId` through `lineItemsFromTable` (`packages/core/src/finance/line-items.ts:41`), 400 when no numeric column; else 400 "items are required".
+- **`resolveInputs`** (`:127-141`): confirmed `items` through `readFinanceInputs` (`packages/host/src/finance-brief-build.ts:53`, params filtered to `FINANCE_PARAM_KEYS` at `:15`); else a `datasetId` through `lineItemsFromTable` (`packages/core/src/finance/line-items.ts:41`), 400 when no numeric column; else 400 "items are required".
 - **Redact the rows** — `guardFinanceInput({ lineItems })` (`finance-generate.ts:194`) before the prompt table is written; the summary is merged with the source text's (`:196`).
 - **`computeFinance(items, params, { locale })`** (`packages/core/src/finance/metrics.ts:296`) is pure TypeScript: the per-period profit ladder, fiscal-year roll-ups, register metrics, trend and burn metrics, ratios, breakeven, NPV/IRR (`:324-338`), the tables (`:343-348`), the **`allowed`** list — every number the narrative may cite (`:349-354`) — and `checks`, the subtotals the source printed with our own arithmetic beside them (`:339`, type at `:24-30`).
 - **Stated facts** are added on top by `withStatedFacts` (`packages/host/src/finance-stated.ts:65`): a table plus entries in `allowed`, and `metrics` is deliberately untouched (`:84-87`) — a quotation is not something we computed.
@@ -112,9 +112,9 @@ Four `job.phase` frames bracket the work — `computing`, `drafting`, `verifying
 
 **Which numbers are free (tightened 2026-09-23).** Only a count written as one or two bare digits, up to `FREE_INTEGER_MAX = 12` (`:15`), and a year written as four bare digits in `1900..2100` (`:16-17`) pass without tracing (`BARE_COUNT` / `BARE_YEAR`, `:23-24`; `isFreeNumber`, `:143`). The test used to be on the parsed value, so "$2,000", "2k" and "Rp 1.950" — all unit-less integers in the year range once parsed — and "12.0" passed as a year or a count. A currency mark, a scale, a sign, a separator or a decimal now makes it an amount, and an amount has to trace ([SR-76](../security-register.md#sr-76)).
 
-**The guard covers everything the model wrote, not only the bodies (2026-09-23).** `buildFinanceBrief` (`packages/host/src/finance-brief-build.ts:191`) guards the title with `guardTitle` (`:140`) — a title stating an untraced figure is replaced whole by `DEFAULT_BRIEF_TITLE`; each heading with `guardLabel` (`:121`) — the figure is cut out and the words kept, and a heading that was nothing but the figure becomes `…`; each body with `guardNumbers` inside `guardSection` (`:166`); and the assumptions with `guardAssumptions` (`:149`) — an assumption resting on an untraced figure is dropped whole and counted. Titles, headings and assumptions are never rewritten by the repair, so the marker is never left in them. Flags from outside any section carry `section: GUARD_OUTSIDE_SECTIONS` (`-1`, `:21`). `guardSection` also drops any metric key the section claimed that `computed` does not publish (`:181`).
+**The guard covers everything the model wrote, not only the bodies (2026-09-23).** `buildFinanceBrief` (`packages/host/src/finance-brief-build.ts:193`) guards the title with `guardTitle` (`:140`) — a title stating an untraced figure is replaced whole by `DEFAULT_BRIEF_TITLE`; each heading with `guardLabel` (`:121`) — the figure is cut out and the words kept, and a heading that was nothing but the figure becomes `…`; each body with `guardNumbers` inside `guardSection` (`:166`); and the assumptions with `guardAssumptions` (`:149`) — an assumption resting on an untraced figure is dropped whole and counted. Titles, headings and assumptions are never rewritten by the repair, so the marker is never left in them. Flags from outside any section carry `section: GUARD_OUTSIDE_SECTIONS` (`-1`, `:21`). `guardSection` also drops any metric key the section claimed that `computed` does not publish (`:181`).
 
-A marked figure is **not an error**: it is counted into `guard.total`, one rewrite is attempted, and the remaining marked sentences are removed (`packages/host/src/finance-section-repair.ts:38`, `:98`). The reader is told once, through the report's `REMOVED_SENTENCE_FLAG` (`packages/core/src/finance/report-brief.ts:78`).
+A marked figure is **not an error**: it is counted into `guard.total`, one rewrite is attempted, and the remaining marked sentences are removed (`packages/host/src/finance-section-repair.ts:38`, `:98`). The reader is told once, through the report's `REMOVED_SENTENCE_FLAG` (`packages/core/src/finance/report-brief.ts:80`).
 
 ### 8. Privacy: what leaves the desk
 
@@ -136,13 +136,13 @@ The studio sends the locale on the request; `readFinanceLocale` (`packages/host/
 
 `persistBrief` (`finance-generate.ts:143-163`) saves `mode: "finance"`, `kind: "brief"`; a failure is a `log.warn` and a null id, never a failed run. `financeArtifactMeta` (`packages/host/src/finance-artifact.ts:36`) puts the brief JSON and the guard summary on `meta` beside the provenance (`question`, `model`, `task`, `itemCount`, `flagged`), unless the JSON exceeds `FINANCE_META_MAX_BYTES = 256 * 1024` (`:20`), in which case it is dropped with a warning. The `model` recorded is `run.model`, the one that answered (`finance-generate.ts:264`). When an id came back the brief is also written to the Knowledge Base as a work card (`:269-281`) — see [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md).
 
-**Section regen now carries the artifact id back.** `readRegenArtifactId` (`packages/host/src/finance-generate.ts:301-304`) reads it off the body and `regenerateFinanceSection` returns it (`:393`, `:409`), so "Send to Knowledge Base" after a rewrite updates the same card instead of minting a second one (`:294-300`).
+**Section regen now carries the artifact id back.** `readRegenArtifactId` (`packages/host/src/finance-generate.ts:325-328`) reads it off the body and `regenerateFinanceSection` returns it (`:393`, `:409`), so "Send to Knowledge Base" after a rewrite updates the same card instead of minting a second one (`:294-300`).
 
 **Section regen runs the same repair as a generate (2026-09-23).** `regenerateFinanceSection` (`:315`) guards the rewrite with `guardSection` and then hands it to `repairUnverifiedSections` — one rewrite of whatever the guard blanked, then the sentence goes (`:367-378`). A rewrite with nothing traceable left keeps the section it was asked to replace, and the guard says why. Before this the rewritten section went back with the literal `[unverified figure]` in it, in front of the reader ([SR-76](../security-register.md#sr-76)).
 
 ### 11. The report, the charts and the exports
 
-Every export and every on-screen chart reads one format-neutral object, `FinanceReport` (`packages/core/src/finance/report.ts:75`): `summary` KPIs, `tables` (`inputs` at `:24`, `calc` at `:26`, then the computed ones), `charts`, `flags`, `notes`. Two builders make one from a brief: `financeReportFromBrief` (`packages/core/src/finance/report-brief.ts:242`) and, for a brief that only exists as markdown, `financeReportFromMarkdown` (`:296` — notes only, no tables, no charts). A task builds its own.
+Every export and every on-screen chart reads one format-neutral object, `FinanceReport` (`packages/core/src/finance/report.ts:75`): `summary` KPIs, `tables` (`inputs` at `:24`, `calc` at `:26`, then the computed ones), `charts`, `flags`, `notes`. Two builders make one from a brief: `financeReportFromBrief` (`packages/core/src/finance/report-brief.ts:253`) and, for a brief that only exists as markdown, `financeReportFromMarkdown` (`:296` — notes only, no tables, no charts). A task builds its own.
 
 `FinanceResultPanel` (`apps/web/components/finance-steps/finance-result-panel.tsx:43-46`) uses `result.report` when the host sent one and otherwise builds it from the brief, then draws it through `FinanceReportCharts` — `finance-charts` (`apps/web/components/finance-charts/index.tsx:35`), `finance-charts-empty` (`:29`), one `finance-chart-<id>` per chart (`chart-frame.tsx:47`) — above the prose.
 
@@ -160,14 +160,14 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 | Task not built | `requireFinanceTask`, `packages/host/src/finance-task.ts:55-61` | 400 `finance_task_unavailable` — unreachable today, all five ship |
 | No key / stub runtime | `requireLive`, `packages/host/src/finance-tasks/live.ts:47-57` | `/parse`, `/finance`, `/regenerate`: **503** `runtime_stub`. `/finance/stream`: **200** with one `job.error` frame carrying `status: 503` |
 | Brief has no digit and no currency token | `briefLooksLikeFigures`, `apps/web/lib/finance-brief.ts:11` | no request at all; `finance-error` shows `finance.errors.addItems` (`finance-studio.tsx:226`) |
-| Figures text missing or blank | `packages/host/src/finance-generate.ts:109-111` | 400 `invalid_request` |
+| Figures text missing or blank | `packages/host/src/finance-generate.ts:112-114` | 400 `invalid_request` |
 | Model returns non-JSON at parse | `packages/host/src/finance-parse-figures.ts:104-110` | 502 `invalid_finance` |
 | Every prose row invalid or dropped | `:254-256` | 422 `invalid_finance`, `modeMessage("noFiguresParsed")`; the client appends the add-items hint (`apps/web/lib/finance-brief.ts:58-62`) |
-| `items` malformed | `readFinanceInputs`, `packages/host/src/finance-brief-build.ts:42` | 400 `invalid_request` |
-| Dataset has no numeric column | `packages/host/src/finance-generate.ts:135-137` | 400 `invalid_request` |
+| `items` malformed | `readFinanceInputs`, `packages/host/src/finance-brief-build.ts:44` | 400 `invalid_request` |
+| Dataset has no numeric column | `packages/host/src/finance-generate.ts:138-140` | 400 `invalid_request` |
 | Neither items nor dataset | `:119` | 400 `invalid_request` |
 | Prompt missing | `readPrompt`, `packages/host/src/finance-tasks/live.ts:23-32` | 400 `invalid_request` |
-| Narrative returns empty text | `packages/host/src/finance-generate.ts:226-228` | 502 `generation_failed` |
+| Narrative returns empty text | `packages/host/src/finance-generate.ts:232` | 502 `generation_failed` |
 | `sectionIndex` out of range | `readSectionIndex`, `:284-290` | 400 `invalid_request` |
 | Narrative invents a number | `guardNumbers` → one rewrite → sentence removal | marked, counted in `guard.total`, then removed; never shown to the reader |
 | Upload empty / oversized / wrong type | `requireImportFile`, `packages/host/src/handlers/finance-import.ts:88-104` | 400, **413**, `unsupported_content_type` 400 |
@@ -175,7 +175,7 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 | Upload carries prompt-injection text | `requireNoInjection`, `finance-import.ts:133-137` | 400 `injection_blocked` |
 | Posted report oversized / malformed | `readPostedFinanceReport`, `packages/host/src/finance-tasks/report-schema.ts:74-80` | **413** / 400 `invalid_request` |
 | `pdf` export | `packages/host/src/renderers/registry.ts:18-20` | 501 `format_unavailable` |
-| Artifact could not be saved | `persistBrief`, `packages/host/src/finance-generate.ts:158-162` | `log.warn`, `artifactId: null`, run still succeeds |
+| Artifact could not be saved | `persistBrief`, `packages/host/src/finance-generate.ts:161-165` | `log.warn`, `artifactId: null`, run still succeeds |
 | Client cancels | `throwIfJobAborted`, `packages/host/src/job-stream.ts:19` | 499 `aborted`; `useJobStream` resets quietly |
 | DOCX brief malformed | `packages/host/src/handlers/finance.ts:81-83` | 400 `invalid_request` — reachable **without** a key |
 
@@ -220,7 +220,7 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 - **The generate route answers 200, not 503.** Only `/finance/parse`, `/finance` and `/finance/regenerate` are HTTP 503 keyless. A harness that asserts on the HTTP status of a generate reads a refusal as success.
 - **`finance-inputs` is not universal.** Four tasks mount a panel with `data-testid="finance-inputs"`, but the ratios task mounts `finance-ratios-inputs` with `finance-ratios-figures` (`apps/web/components/finance-steps/ratios/ratios-inputs.tsx:103`, `:121`). `finance-ratios-parse` is the same footer button the other tasks call `finance-parse` (`apps/web/components/finance-studio-view.tsx:405`). A recipe that asserts `finance-inputs` on every task fails on ratios. The chooser (`/finance` with no task query) mounts none of them.
 - **There is no coming-soon panel.** It was removed on 2026-09-17 with its three testids (`finance-task-coming-soon`, `finance-task-sample`, `finance-coming-soon-back`) and its `finance.comingSoon` locale block. All five tasks are `available: true` (`packages/core/src/finance/tasks.ts:72, 98, 125, 151, 177`), so the `finance_task_unavailable` 400 and the studio's one-line `finance-task-unavailable` fallback are both unreachable; the flag itself stays, because the core registry pins it to the module map.
-- **Section regen no longer returns `artifactId: null`.** It carries the posted id back (`packages/host/src/finance-generate.ts:301-304`, `:393`) so the Knowledge Base card is rewritten rather than duplicated. A map or script that still expects `null` is stale.
+- **Section regen no longer returns `artifactId: null`.** It carries the posted id back (`packages/host/src/finance-generate.ts:325-328`, `:393`) so the Knowledge Base card is rewritten rather than duplicated. A map or script that still expects `null` is stale.
 - **The parse route barely uses the model.** For a readable table it asks one labels-only question and never sees an amount (`packages/host/src/finance-parse-figures.ts:62-69`, `:221-239`). Only text with no table falls through to `PARSE_SYSTEM`. A catalog sentence is not that text: `labeledAmountLines` in `packages/core/src/finance/plain-sentences.ts` rewrites it into `Label: amount` lines first, and `cellValue` reads the amounts. Do not describe Finance parsing as "the model reads the figures" any more.
 - **A stated fact is a quotation, not an input.** `withStatedFacts` adds a table and widens `allowed` but never touches `metrics` (`packages/host/src/finance-stated.ts:84-87`). It will never appear in a sum.
 - **`looksScaled` needs the raw text, not the expanded text** (`packages/core/src/finance/magnitude.ts:125`, called with `text` at `finance-parse-figures.ts:252`) — the suffixes are the evidence.
@@ -248,7 +248,7 @@ Tests: `packages/core/src/finance/magnitude.test.ts`, `count-rows.test.ts`, `der
 
 **Why the parse stopped trusting the model with figures.** `[Direct]` `docs/internal/0.14.26-changelog.md:189`: with the `reasoning_effort: "low"` job knob, `deepseek-v4-flash` returned `revenue: 18.4` instead of 18 400 000 000 in 6 of 8 parses; margins hid it because ratios are scale-invariant, but stored items, DOCX and NPV/runway were 1e9 short. `expandMagnitudes` / `looksScaled` were the first answer. `[Supported]` the second answer is the current one, recorded at the call site: "an imported sheet arrives as a table with an exact shape, and code reads a table perfectly… the model is asked one question it is genuinely better at: what category does this *label* belong to" (`packages/host/src/finance-parse-figures.ts:2-8`). **Confidence: high** for the mechanism; the code comment is the only statement of the second decision's intent.
 
-**Why the narrative model is never allowed to produce a number.** `[Supported]` Four mechanisms converge: `financePromptBlock` renders inputs and metrics only as tables (`packages/host/src/finance-brief-build.ts:201`); `computeFinance` publishes an explicit `allowed` list (`packages/core/src/finance/metrics.ts:349-354`); `guardNumbers` replaces anything outside it; and `repairUnverifiedSections` removes the sentence rather than shipping the marker. `[Inferred]` an LLM arithmetic error in a financial brief is both plausible-looking and consequential, so the design makes it structurally impossible rather than merely unlikely. **Confidence: high for the mechanism, medium for the rationale.**
+**Why the narrative model is never allowed to produce a number.** `[Supported]` Four mechanisms converge: `financePromptBlock` renders inputs and metrics only as tables (`packages/host/src/finance-brief-build.ts:203`); `computeFinance` publishes an explicit `allowed` list (`packages/core/src/finance/metrics.ts:349-354`); `guardNumbers` replaces anything outside it; and `repairUnverifiedSections` removes the sentence rather than shipping the marker. `[Inferred]` an LLM arithmetic error in a financial brief is both plausible-looking and consequential, so the design makes it structurally impossible rather than merely unlikely. **Confidence: high for the mechanism, medium for the rationale.**
 
 **Why redaction has no bypass and why amounts are restored.** `[Direct]` `packages/host/src/finance-privacy.ts:10-17` sets the rules, and `:88-90` records the incident: 2024 cost of sales written `(23.960.000.000)` under a column headed `2024` reached the model as `[phone])` and every ratio built on it was wrong. `[Direct]` `packages/core/src/finance/pii-columns.ts:42-50` records the same event at the classification end. **Confidence: high** — the fix, the reason and the safety net are all written down where they act.
 

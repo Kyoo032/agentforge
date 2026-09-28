@@ -402,7 +402,7 @@ with the changes; this entry does not claim a full run of any suite.
   `packages/core/src/finance/ratios/compute.ts:138`).
 - **Both — a brief whose repair emptied a section answered 500.** The section now keeps its heading
   and says, in the reader's language and without a figure, that its text was removed
-  (`EMPTIED_SECTION_BODY`, `packages/host/src/finance-generate.ts:74`).
+  (`EMPTIED_SECTION_BODY`, `packages/host/src/finance-generate.ts:77`).
 - **Both — a pin with no model held a Finance job to the host default.** Finance now uses the one
   `readModelPinned` every job shares, which is no pin without a model
   (`packages/host/src/job-regen.ts:43`, re-exported at `packages/host/src/finance-tasks/live.ts:45`).
