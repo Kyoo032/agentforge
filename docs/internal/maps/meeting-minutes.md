@@ -1,8 +1,10 @@
 # Map — Meeting: recording → transcript → minutes → translation
 
-Last verified: 2026-09-28. The minutes sheet, the date/figure check, and the translation check are the
+Last verified: 2026-09-28 at 0755386. The minutes sheet, the date/figure check, and the translation check are the
 lines in `packages/host/src/meeting/run.ts` and `packages/core/src/meeting/sheet.ts` below. Stub unit tests
-cover each new skill. A stub webdev drive of the page is recorded in
+cover each new skill. The same day, stub webdev on `:3000` created a meeting, pasted a transcript, and
+`meeting-run` answered `runtime_stub` (“Meeting minutes need a live gateway”) with no minutes panel — the
+new checks stay behind that refusal. Recipe:
 [`.cursor/skills/verify-agentforge/features/meeting.md`](../../../.cursor/skills/verify-agentforge/features/meeting.md).
 Earlier: 2026-09-21 at 4938747 — **driven end to end on webdev
 against the live gateway**: upload → transcript → minutes → translation, in both locale directions. Transcription
