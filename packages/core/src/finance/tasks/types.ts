@@ -12,6 +12,7 @@
  * figure stripped, by construction.
  */
 import type { z } from "zod";
+import type { DirectionClaim } from "../claim-direction";
 import type { FinanceReport, ReportLocale } from "../report";
 import type { GuardFlags } from "../report-brief";
 import type { FinanceTask } from "../task-ids";
@@ -54,6 +55,11 @@ export type FinanceTaskModule<Input, Computed> = {
   allowedNumbers(input: Input, computed: Computed): readonly number[];
   /** The sections the narration is asked for, in order. Empty means the model picks its own. */
   readonly sections: readonly FinanceTaskSection[];
+  /**
+   * Figures whose direction the code already decided. The host uses them to catch a sentence that
+   * quotes the figure and says the opposite. Absent means this task has no such figure.
+   */
+  directionClaims?(computed: Computed): readonly DirectionClaim[];
 };
 
 /**

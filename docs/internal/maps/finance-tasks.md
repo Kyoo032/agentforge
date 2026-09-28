@@ -1,6 +1,6 @@
 # Map — Finance tasks: the catalog and the generic runner
 
-Last verified: 2026-09-27 for the chooser mascot: `/finance` with no `task` query (`showChooser`) mounts `ModeIllustration mode="finance"` before `FinanceChooser`. After the wave, the home pose is `calculating`. `/finance?task=brief` is the brief path, which already had its own empty-state slot. Earlier: 2026-09-26 at 083f925. Catalog sentences for every task are read in core (`plain-sentences.ts`) and covered by `sample-sentences.test.ts`. § 7 testids were re-read against the guided path on 2026-09-26 at 4477d27 (the read button moved to the footer; upload is first; task levers sit in `finance-task-advanced`) and driven on stub webdev.
+Last verified: 2026-09-28. A reading that is not the sections is asked for once more (`askForReading`, `packages/host/src/finance-tasks/reading.ts`), and a sentence that quotes a computed figure while saying the opposite of its direction is rewritten once then dropped (`holdReadingDirection`, `packages/host/src/finance-tasks/direction.ts`). Claims come from each task (`directionClaims` on `FinanceTaskModule`, `packages/core/src/finance/tasks/types.ts:62`). The guided three-step screen is unchanged. Earlier: 2026-09-27 for the chooser mascot. Catalog sentences for every task are read in core (`plain-sentences.ts`) and covered by `sample-sentences.test.ts`. § 7 testids were re-read against the guided path on 2026-09-26 at 4477d27.
 
 ## Overview
 
@@ -55,7 +55,7 @@ A run does **not** announce the whole graph. `runnerMathPhases` (`packages/host/
 - `allowedNumbers(input, computed)` — the only figures the guard will accept back (`:54`);
 - plus `sections`, the section ids the narration is asked for, in order (`:56`).
 
-The invariant is stated at `:9-12`: `compute` is the only place a number is produced, `promptFacts` the only thing the model sees, `allowedNumbers` the only thing the guard accepts. A task that narrates a figure it never declared has that figure stripped, by construction. `cashflow.ts` is the shape to copy — 47 lines of wiring over `../cashflow/**` (`packages/core/src/finance/tasks/cashflow.ts:27-47`).
+The invariant is stated at `:9-12`: `compute` is the only place a number is produced, `promptFacts` the only thing the model sees, `allowedNumbers` the only thing the guard accepts. `directionClaims` (`types.ts:62`) lists figures whose direction the code already decided; it produces no amount. A task that narrates a figure it never declared has that figure stripped, by construction. `cashflow.ts` is the shape to copy — wiring over `../cashflow/**` (`packages/core/src/finance/tasks/cashflow.ts`).
 
 The authoring contract is `packages/core/src/finance/tasks/README.md`: seven files per task, an explicit do-not-touch list (the registries, the runner, `parsers.ts`, the step registry), and the hard privacy requirement that a parse hook redacts its own rows with `guardFinanceInput({ lineItems })` before answering.
 
@@ -73,7 +73,7 @@ That is the practical consequence worth remembering: **`/finance/parse` is not u
 
 ### 5. The generic runner
 
-`generateFinanceBrief` hands anything that is not the brief to `runFinanceTask` (`packages/host/src/finance-generate.ts:173-179`). One pipeline, every task (`packages/host/src/finance-tasks/runner.ts:206-303`):
+`generateFinanceBrief` hands anything that is not the brief to `runFinanceTask` (`packages/host/src/finance-generate.ts`). One pipeline, every task (`packages/host/src/finance-tasks/runner.ts`):
 
 1. `readPrompt`, `requireLive`, `resolveModel` (`:211-213`).
 2. Source text redacted with `guardFinanceInput` on the same terms as the task's own rows (`:216-218`).
@@ -83,9 +83,11 @@ That is the practical consequence worth remembering: **`/finance/parse` is not u
 6. `module.compute(input)` and `module.allowedNumbers(...)`, then a `job.step` with the figure count.
 7. `narrate` (`:102-141`): `FINANCE_TASK_SYSTEM` (`packages/host/src/finance-tasks/narrate.ts:24-37`) plus the task's own bullet rules and the output-language rule, with a prompt of `promptFacts` + `sectionRequest` + source text + the question. The request's pin travels as `modelExplicit` through the one shared reader (`readModelPinned`, re-exported at `packages/host/src/finance-tasks/live.ts:45`), which reads a pin that names no model as no pin. Empty answer is 502 `generation_failed` (`runner.ts:138`).
 8. `parseNarration` (`narrate.ts:72-101`) keeps only the section ids the task asked for, in order; zero survivors is 502 `invalid_finance` (`:92-94`). The reader's own question is kept as `fallbackTitle`.
-9. `verifyNarration` (`runner.ts:161-196`) runs `guardNarration` (`narrate.ts:124`) over **everything the model wrote**, not only the bodies (2026-09-23). A title stating an untraced figure is replaced by the reader's own question, which is never counted against the model (`guardedTitle`, `:107-114`); a heading loses the figure and keeps its words; an assumption resting on one is dropped whole and counted as a removed sentence; a body keeps the marker for the repair. Then **one** rewrite of each marked section through `repairTaskProse` (`packages/host/src/finance-tasks/repair.ts:78`), which is an adapter onto the brief's `repairUnverifiedSections` — the logic lives in one place (`repair.ts:1-11`). The removed count is the guard's dropped assumptions plus the repair's removed sentences (`runner.ts:193`); it used to be the repair's alone, so a dropped assumption went unmentioned ([SR-76](../security-register.md#sr-76)).
-10. `module.buildReport(...)`, then `scrubReportMarkers` (`repair.ts:129`) sweeps the report's own notes and chart captions, because a builder may write prose too; `withRemovedFlag` (`:144`) tells the reader once.
-11. Markdown via `renderMd`, then `persistFinanceTaskReport` (`packages/host/src/finance-tasks/persist.ts:73`) with `financeTaskArtifactMeta` (`:53`) — the whole `FinanceReport` under `meta.report` (`:19`) behind the same 256 KB cap — and a Knowledge Base work card when an id came back (`runner.ts:278-290`).
+9. `askForReading` (`reading.ts`) wraps the narration and `parseNarration`. An empty answer or a body that is not the sections (`502` `generation_failed` or `invalid_finance`) is asked for once more, with the step "Asked once more for the reading". A second failure is the same error.
+10. `verifyNarration` runs `guardNarration` (`narrate.ts`) over **everything the model wrote**, not only the bodies (2026-09-23). A title stating an untraced figure is replaced by the reader's own question, which is never counted against the model; a heading loses the figure and keeps its words; an assumption resting on one is dropped whole and counted as a removed sentence; a body keeps the marker for the repair. Then **one** rewrite of each marked section through `repairTaskProse` (`packages/host/src/finance-tasks/repair.ts`), which is an adapter onto the brief's `repairUnverifiedSections`. The removed count is the guard's dropped assumptions plus the repair's removed sentences; it used to be the repair's alone, so a dropped assumption went unmentioned ([SR-76](../security-register.md#sr-76)).
+11. `holdReadingDirection` (`direction.ts`) rewrites once any section that quotes a `directionClaims` figure and says the opposite (`claim-direction.ts`). The heading stays. A sentence that still contradicts is dropped and counted on `guard.directionRemoved`, not on `guard.removed`. The flag is `DIRECTION_SENTENCE_FLAG` via `withDirectionFlag`. No claim, or no contradicting sentence, asks nothing. The step labels are "Reading contradicted a computed direction" and, only when a sentence is dropped, "N sentence(s) removed because they contradicted a computed direction".
+12. `module.buildReport(...)`, then `scrubReportMarkers` (`repair.ts`) sweeps the report's own notes and chart captions, because a builder may write prose too; `withRemovedFlag` tells the reader once about an untraced figure.
+13. Markdown via `renderMd`, then `persistFinanceTaskReport` (`packages/host/src/finance-tasks/persist.ts:73`) with `financeTaskArtifactMeta` (`:53`) — the whole `FinanceReport` under `meta.report` (`:19`) behind the same 256 KB cap — and a Knowledge Base work card when an id came back (`runner.ts`).
 
 The result is `FinanceTaskRunResult` (`packages/host/src/finance-tasks/types.ts:22-38`): `task`, `report`, `artifactId`, `markdown`, `guard`, `pii`, and optionally `model`, `notice` and `warnings`. The brief answers with a `FinanceBrief` instead; the studio branches on which arrived (`apps/web/components/finance-steps/finance-result-panel.tsx:43-46`).
 
@@ -177,7 +179,9 @@ The workbook fixes are pinned by evaluating the Calc formulas in the test itself
 | `packages/core/src/finance/tasks/README.md` | The task-authoring contract: seven files, the do-not-touch list, the privacy rule |
 | `packages/core/src/finance/tasks/{brief,cashflow,budget,appraisal,ratios}.ts` | One task module each, wiring only |
 | `packages/core/src/finance/{cashflow,budget,appraisal,ratios}/` | The arithmetic, one module per question, plus `facts.ts` and `report*.ts` |
-| `packages/host/src/finance-tasks/runner.ts` | The one pipeline: validate → compute → narrate → guard → report → save |
+| `packages/host/src/finance-tasks/runner.ts` | The one pipeline: validate → compute → narrate → guard → direction → report → save |
+| `packages/host/src/finance-tasks/reading.ts`, `direction.ts` | Ask once more for a reading; rewrite once a sentence that contradicts a computed direction |
+| `packages/core/src/finance/claim-direction.ts` | The sentence check. It compares words. It never produces an amount |
 | `packages/host/src/finance-tasks/parsers.ts`, `parse-<task>.ts` | Which parse hook the route runs, and the five hooks |
 | `packages/host/src/finance-tasks/narrate.ts`, `repair.ts` | The narration prompt and the guard/repair adapter |
 | `packages/host/src/finance-tasks/persist.ts`, `report-schema.ts` | The stored report and its boundary schema |

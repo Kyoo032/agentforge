@@ -545,6 +545,7 @@
     "derivedBadge": "Total",
     "statedFactsTitle": "Stated in the document",
     "statedFactsHint": "Figures the file states in a sentence rather than in a table.",
-    "removedSentence": "One sentence was removed because its figure could not be traced."
+    "removedSentence": "One sentence was removed because its figure could not be traced.",
+    "directionSentence": "One sentence was removed because it said the opposite of a computed figure."
   }
 }

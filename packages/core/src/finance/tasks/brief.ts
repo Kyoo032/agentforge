@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import type { FinanceBrief } from "../../artifacts/finance-brief";
+import type { DirectionClaim } from "../claim-direction";
 import { formatMetricValue } from "../format-number";
 import { computeFinance, type ComputedFinance, type FinanceParams } from "../metrics";
 import { financeReportFromBrief } from "../report-brief";
@@ -88,4 +89,32 @@ export const briefTaskModule: FinanceTaskModule<BriefTaskInput, ComputedFinance>
   },
   /** The brief's headings are the model's own — three to six of them — so it declares none. */
   sections: Object.freeze([]),
+  directionClaims: briefDirectionClaims,
 };
+
+const PROFIT_WORDS: DirectionClaim["agree"] = [
+  { en: "a profit", id: "laba" },
+  { en: "profitable", id: "menguntungkan" },
+];
+const LOSS_WORDS: DirectionClaim["agree"] = [
+  { en: "a loss", id: "rugi" },
+  { en: "is a loss", id: "merugi" },
+];
+
+/** The sign of operating profit and of net profit. A zero, or a metric with no value, says nothing. */
+export function briefDirectionClaims(computed: ComputedFinance): readonly DirectionClaim[] {
+  return computed.metrics.flatMap((metric) => {
+    const profit = metric.key.startsWith("operating_profit") || metric.key.startsWith("net_profit");
+    if (!profit || metric.value === null || !Number.isFinite(metric.value) || metric.value === 0) {
+      return [];
+    }
+    const loss = metric.value < 0;
+    return [
+      {
+        amount: metric.value,
+        agree: loss ? LOSS_WORDS : PROFIT_WORDS,
+        contradict: loss ? PROFIT_WORDS : LOSS_WORDS,
+      },
+    ];
+  });
+}

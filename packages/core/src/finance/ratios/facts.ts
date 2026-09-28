@@ -11,11 +11,13 @@
  * magnitude readings. Nothing else is added — a number that is not an input row, a computed value,
  * a band threshold or the days-per-year constant cannot survive the guard.
  */
+import type { DirectionClaim } from "../claim-direction";
 import type { ReportLocale } from "../report";
+import type { RatioBandLevel } from "./bands";
 import type { ComputedRatios } from "./compute";
 import { formatRatioValue, formatRatioMagnitude, ratioAllowedReadings } from "./format";
 import { RATIO_METRICS } from "./keys";
-import { ratioFullCard, type RatioScorecardEntry } from "./scorecard";
+import { ratioFullCard, ratioScorecard, type RatioScorecardEntry } from "./scorecard";
 import { RATIO_TEXT, bandWord, say, trendWord } from "./text";
 
 function factLine(entry: RatioScorecardEntry, locale: ReportLocale, currency: string): string {
@@ -79,4 +81,24 @@ export function ratioAllowedNumbers(computed: ComputedRatios): readonly number[]
   return [
     ...new Set([...inputs, ...values, ...thresholds, ...reconciled, computed.daysPerYear].filter(Number.isFinite)),
   ];
+}
+
+const BAND_PHRASE: Readonly<Record<RatioBandLevel, readonly DirectionClaim["agree"][number][]>> = {
+  healthy: [{ en: "healthy", id: "sehat" }],
+  watch: [{ en: "on watch", id: "waspada" }],
+  risk: [{ en: "at risk", id: "berisiko" }],
+};
+
+/** Each banded ratio, so a sentence that quotes it and names another band is the opposite. */
+export function ratioDirectionClaims(computed: ComputedRatios): readonly DirectionClaim[] {
+  return ratioScorecard(computed).flatMap((entry) => {
+    if (entry.band === null || entry.value === null || !Number.isFinite(entry.value)) {
+      return [];
+    }
+    const agree = BAND_PHRASE[entry.band];
+    const contradict = (["healthy", "watch", "risk"] as const)
+      .filter((level) => level !== entry.band)
+      .flatMap((level) => BAND_PHRASE[level]);
+    return [{ amount: entry.value, agree, contradict }];
+  });
 }

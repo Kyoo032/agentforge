@@ -2,6 +2,7 @@ import { ApiError, modeMessage, withOutputLanguage, type AppLocale, type TenantC
 import { financeBriefSchema, financeBriefToMarkdown, type FinanceBrief } from "@agentforge/core/artifacts";
 import {
   DEFAULT_FINANCE_TASK,
+  briefTaskModule,
   getFinanceTaskModule,
   lineItemsFromTable,
   type LineItem,
@@ -27,6 +28,8 @@ import { readFinanceLocale } from "./finance-locale";
 import { readStatedFacts, statedFactsBlock, withStatedFacts } from "./finance-stated";
 import { parseFiguresText, type ParsedFigures } from "./finance-parse-figures";
 import { repairUnverifiedSections } from "./finance-section-repair";
+import { holdReadingDirection } from "./finance-tasks/direction";
+import { askForReading } from "./finance-tasks/reading";
 import { guardFinanceInput, mergeFinancePii, type FinancePiiSummary } from "./finance-privacy";
 import { readFinanceTask, withFinanceTaskRules } from "./finance-task";
 import {
@@ -210,22 +213,31 @@ export async function generateFinanceBrief(
   const factsBlock = [financePromptBlock(inputs, computed, locale), statedFactsBlock(stated, locale)]
     .filter(Boolean)
     .join("\n\n");
-  const run = await collectJobAssistantRun({
-    tenant,
-    model,
-    modelExplicit: readModelPinned(body),
-    systemPrompt,
-    runPrefix: "finance",
-    agentId: "finance",
-    jobMode: "finance",
-    versionId: "finance-brief",
-    prompt: [factsBlock, extra ? `Extra context:\n${extra}` : null, `Brief requested:\n${question}`]
-      .filter(Boolean)
-      .join("\n\n"),
-  });
-  if (!run.text.trim()) {
-    throw new ApiError("generation_failed", modeMessage("emptyFinanceBrief", locale), 502);
-  }
+  const run = await askForReading(
+    async () => {
+      const answered = await collectJobAssistantRun({
+        tenant,
+        model,
+        modelExplicit: readModelPinned(body),
+        systemPrompt,
+        runPrefix: "finance",
+        agentId: "finance",
+        jobMode: "finance",
+        versionId: "finance-brief",
+        prompt: [factsBlock, extra ? `Extra context:\n${extra}` : null, `Brief requested:\n${question}`]
+          .filter(Boolean)
+          .join("\n\n"),
+      });
+      if (!answered.text.trim()) {
+        throw new ApiError("generation_failed", modeMessage("emptyFinanceBrief", locale), 502);
+      }
+      parseBriefDraft(answered.text);
+      return answered;
+    },
+    () => {
+      emit({ type: "job.step", phase: "drafting", label: "Asked once more for the reading" });
+    },
+  );
 
   throwIfJobAborted(abortSignal);
   emit({ type: "job.phase", phase: "verifying", label: "Checking every figure" });
@@ -238,12 +250,24 @@ export async function generateFinanceBrief(
     factsBlock,
     locale,
   });
-  const brief = financeBriefSchema.parse(withEmptiedSectionsNoted(repaired.brief, locale));
+  const held = await holdReadingDirection(repaired.brief.sections, briefTaskModule.directionClaims?.(computed) ?? [], {
+    tenant,
+    model: run.model,
+    locale,
+    factsBlock,
+    allowed: computed.allowed,
+    emit,
+    phase: "verifying",
+  });
+  const brief = financeBriefSchema.parse(
+    withEmptiedSectionsNoted({ ...repaired.brief, sections: held.sections }, locale),
+  );
   const guard: GuardReport = {
     flagged: [...built.guard.flagged, ...repaired.guard.flagged],
     total: built.guard.total + repaired.guard.total,
     // An assumption the guard dropped is a removed sentence too, and the reader is told the same way.
-    removed: (built.guard.removed ?? 0) + (repaired.guard.removed ?? 0),
+    removed: (built.guard.removed ?? 0) + (repaired.guard.removed ?? 0) + held.amountRemoved,
+    ...(held.directionRemoved > 0 ? { directionRemoved: held.directionRemoved } : {}),
   };
   emit({
     type: "job.step",

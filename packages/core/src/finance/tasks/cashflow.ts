@@ -11,7 +11,7 @@
  * Sections: position, burn-and-runway, scenario, flags
  */
 import { computeCashflow, cashflowInputSchema, type CashflowComputed, type CashflowInput } from "../cashflow/compute";
-import { cashflowAllowedNumbers, cashflowPromptFacts } from "../cashflow/facts";
+import { cashflowAllowedNumbers, cashflowDirectionClaims, cashflowPromptFacts } from "../cashflow/facts";
 import { cashflowReport } from "../cashflow/report";
 import type { FinanceReport, ReportLocale } from "../report";
 import type { FinanceTaskModule, FinanceTaskProse, FinanceTaskReportOptions, FinanceTaskSection } from "./types";
@@ -44,4 +44,5 @@ export const cashflowTaskModule: FinanceTaskModule<CashflowInput, CashflowComput
     return cashflowAllowedNumbers(input, computed);
   },
   sections: SECTIONS,
+  directionClaims: cashflowDirectionClaims,
 };

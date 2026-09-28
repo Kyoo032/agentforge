@@ -7,11 +7,12 @@
  * readings of those same figures (the sign written the other way, the magnitudes a writer reaches
  * for). The two are built from one array, so a figure can never be shown without being allowed.
  */
+import type { DirectionClaim } from "../claim-direction";
+import type { ReportLocale } from "../report";
 import { monthCashRunsOut } from "./calendar";
 import type { CashflowComputed, CashflowInput } from "./compute";
 import { cashflowFigures } from "./figures";
 import { allowedReadings, formatCashflowValue } from "./format";
-import type { ReportLocale } from "../report";
 
 type Text = Readonly<Record<ReportLocale, string>>;
 
@@ -28,7 +29,10 @@ const NOTHING: Text = {
 const ZERO_CASH: Text = { id: "Kas habis pada", en: "Cash runs out in" };
 const NEGATIVE: Text = { id: "Periode dengan arus kas bersih minus", en: "Periods with a negative net cash flow" };
 const SCENARIO: Text = { id: "Skenario yang diterapkan", en: "Scenario applied" };
-const NO_SCENARIO: Text = { id: "Tidak ada skenario what-if pada laporan ini", en: "No what-if scenario on this report" };
+const NO_SCENARIO: Text = {
+  id: "Tidak ada skenario what-if pada laporan ini",
+  en: "No what-if scenario on this report",
+};
 const UNCONFIRMED: Text = {
   id: "Klasifikasi biaya yang belum dikonfirmasi pembaca",
   en: "Cost classifications the reader has not confirmed",
@@ -118,4 +122,21 @@ export function cashflowAllowedNumbers(input: CashflowInput, computed: CashflowC
     // The locale only changes how a figure is written, never what it is, so one pass is enough.
     ...cashflowFigures(computed, "en").map((entry) => entry.value),
   ]);
+}
+
+const RUNS_OUT: DirectionClaim["agree"] = [{ en: "runs out", id: "habis" }];
+const STAYS: DirectionClaim["agree"] = [{ en: "does not run out", id: "tidak habis" }];
+
+/**
+ * The runway figure carries the direction. When cash runs out, the months say so; when it does not,
+ * the closing balance is what a sentence quotes while claiming that it does.
+ */
+export function cashflowDirectionClaims(computed: CashflowComputed): readonly DirectionClaim[] {
+  if (computed.monthsToZeroCash !== null && Number.isFinite(computed.monthsToZeroCash)) {
+    return [{ amount: computed.monthsToZeroCash, agree: RUNS_OUT, contradict: STAYS }];
+  }
+  if (Number.isFinite(computed.closingCash)) {
+    return [{ amount: computed.closingCash, agree: STAYS, contradict: RUNS_OUT }];
+  }
+  return [];
 }

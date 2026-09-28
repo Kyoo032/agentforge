@@ -11,6 +11,7 @@
  * reach a report note, the markdown, or any export.
  */
 import {
+  DIRECTION_SENTENCE_FLAG,
   REMOVED_SENTENCE_FLAG,
   UNVERIFIED_MARKER,
   type ComputedFinance,
@@ -143,6 +144,18 @@ export function scrubReportMarkers(report: FinanceReport): { report: FinanceRepo
  */
 export function withRemovedFlag(report: FinanceReport, removed: number, locale: ReportLocale): FinanceReport {
   const text = REMOVED_SENTENCE_FLAG[locale] ?? REMOVED_SENTENCE_FLAG.en;
+  if (removed <= 0 || report.flags.some((flag) => flag.text === text)) {
+    return report;
+  }
+  return { ...report, flags: [...report.flags, { level: "watch", text }] };
+}
+
+/**
+ * The reader is told, once, that a sentence contradicted a figure the code already directed.
+ * This is not the untraced-figure flag: that one says the amount could not be found.
+ */
+export function withDirectionFlag(report: FinanceReport, removed: number, locale: ReportLocale): FinanceReport {
+  const text = DIRECTION_SENTENCE_FLAG[locale] ?? DIRECTION_SENTENCE_FLAG.en;
   if (removed <= 0 || report.flags.some((flag) => flag.text === text)) {
     return report;
   }

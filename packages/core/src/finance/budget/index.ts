@@ -78,4 +78,4 @@ export type { BudgetWord } from "./text";
 
 export { BUDGET_CALC_COLUMNS, BUDGET_CHART_ROW_MAX, budgetTables } from "./tables";
 export { budgetReport } from "./report";
-export { BUDGET_FACT_LINE_MAX, budgetAllowedNumbers, budgetPromptFacts } from "./facts";
+export { BUDGET_FACT_LINE_MAX, budgetAllowedNumbers, budgetDirectionClaims, budgetPromptFacts } from "./facts";

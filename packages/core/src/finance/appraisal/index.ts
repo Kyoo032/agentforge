@@ -50,7 +50,7 @@ export type { AppraisalComputed, AppraisalParams, AppraisalPeriod } from "./comp
 export { formatAmount, formatPercent, formatRatio, formatYears, magnitudeReadings } from "./format";
 export { APPRAISAL_SECTIONS, APPRAISAL_TEXT, appraisalText, rateLabel, shiftColumnLabel } from "./labels";
 export type { AppraisalTextKey, Localized } from "./labels";
-export { appraisalAllowedNumbers, appraisalFacts, appraisalPromptFacts } from "./facts";
+export { appraisalAllowedNumbers, appraisalDirectionClaims, appraisalFacts, appraisalPromptFacts } from "./facts";
 export type { AppraisalFact } from "./facts";
 export { APPRAISAL_TABLE_IDS, appraisalCalcRows, appraisalTables } from "./tables";
 export { appraisalCharts, appraisalFlags, appraisalReport, appraisalSummary } from "./report";
