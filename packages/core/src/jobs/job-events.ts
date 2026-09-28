@@ -17,7 +17,7 @@ export type JobPhaseStateName = (typeof JOB_PHASE_STATES)[number];
 
 export type JobPhaseEvent = {
   type: "job.phase";
-  /** Machine id: planning | searching | reading | drafting | distilling | saving. */
+  /** Machine id: planning | searching | reading | comparing | drafting | checking | distilling | saving. */
   phase: string;
   /** Human label shown in the progress list. */
   label: string;

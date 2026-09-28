@@ -4,18 +4,23 @@ import { DOSSIER_HEADINGS, dossierToMarkdown } from "@agentforge/core/artifacts"
 import type { JobEvent } from "@agentforge/core/jobs";
 import {
   CITE_REPAIR_SYSTEM,
+  CLAIMS_SYSTEM,
   EXTRACT_SYSTEM,
   PLAN_SYSTEM,
   SYNTHESIS_SYSTEM,
+  buildComparison,
+  claimsForRun,
   dedupeCandidates,
   findingCitesResolve,
   groundFindings,
+  parseClaimPassages,
   parseExtraction,
   parsePlan,
   parseRepairFindings,
   parseSynthesis,
   passageBackedIds,
   runResearchDossier,
+  stripInventedQuotes,
   type DossierDeps,
 } from "./research-dossier";
 
@@ -119,6 +124,9 @@ function fakeDeps(overrides: Partial<DossierDeps> = {}): DossierDeps & { asked: 
     now: () => new Date("2026-09-07T10:00:00Z"),
     ask: async (system, prompt) => {
       asked.push(system);
+      if (system === CLAIMS_SYSTEM) {
+        return JSON.stringify({ claims: [] });
+      }
       if (system === PLAN_SYSTEM) {
         return JSON.stringify({ queries: ["lithium recycling margins", "recycler bankruptcies 2026"] });
       }
@@ -197,7 +205,8 @@ describe("runResearchDossier", () => {
     const phases = deps.events
       .filter((event) => event.type === "job.phase")
       .map((event) => (event as { phase: string }).phase);
-    expect(phases).toEqual(["planning", "searching", "reading", "drafting"]);
+    expect(phases).toEqual(["planning", "searching", "reading", "comparing", "drafting"]);
+    expect(dossier.comparison).toEqual([]);
     const reads = deps.events.filter(
       (event) => event.type === "job.step" && (event as { phase: string }).phase === "reading",
     );
@@ -285,9 +294,13 @@ describe("runResearchDossier", () => {
       "planning",
       "searching",
       "reading",
+      "comparing",
       "drafting",
       "checking",
     ]);
+    expect(phases.find((event) => (event as { phase: string }).phase === "comparing")).toMatchObject({
+      label: "Membandingkan sumber",
+    });
     expect(phases.at(-1)).toMatchObject({ label: "Memeriksa kutipan" });
   });
 
@@ -325,5 +338,159 @@ describe("cite a kept passage", () => {
     expect(groundFindings([{ heading: "H", body: "Kept [S1] and [S9].", sources: ["S1", "S9"] }], backed)).toEqual([
       { heading: "H", body: "Kept [S1] and.", sources: ["S1"] },
     ]);
+  });
+});
+
+const MARGINS = "Margins reached 12% in 2025.";
+const CHEESE = "The moon is made of cheese.";
+const PASTED = `Check these claims.\n\n${MARGINS} ${CHEESE}`;
+
+describe("claimed sources and comparison", () => {
+  it("keeps a claim only when it is in the question or the pasted text", () => {
+    const raw = JSON.stringify({
+      claims: [MARGINS, CHEESE, "A fabricated claim that is not in the prompt at all."],
+    });
+    expect(claimsForRun(raw, PASTED, 5)).toEqual([MARGINS, CHEESE]);
+    expect(claimsForRun("not json", PASTED, 5)).toEqual([MARGINS, CHEESE]);
+    expect(claimsForRun(JSON.stringify({ claims: [] }), QUESTION, 5)).toEqual([QUESTION]);
+  });
+
+  it("drops a passage that is not on the page", () => {
+    const page = "Margins fell to 2% in 2025 and plants closed.";
+    const raw = JSON.stringify({
+      onClaims: [
+        { claim: MARGINS, passage: page, stance: "contradicts" },
+        { claim: CHEESE, passage: CHEESE, stance: "supports" },
+        { claim: MARGINS, passage: page, stance: "maybe" },
+        { claim: "Not a pulled claim at all.", passage: page, stance: "supports" },
+      ],
+    });
+    expect(parseClaimPassages(raw, page, [MARGINS, CHEESE])).toEqual([
+      { claim: MARGINS, passage: page, stance: "contradicts" },
+    ]);
+  });
+
+  it("builds agree, contradict, and only in code, and drops a claim with no passage", () => {
+    const fell = "Margins fell to 2% in 2025 and plants closed.";
+    const rows = buildComparison(
+      [MARGINS, "Two recyclers filed for bankruptcy.", CHEESE, "Only the tides are mentioned here."],
+      [
+        { claim: MARGINS, sourceId: "S3", passage: fell, stance: "contradicts" },
+        { claim: MARGINS, sourceId: "S1", passage: MARGINS, stance: "supports" },
+        {
+          claim: "Two recyclers filed for bankruptcy.",
+          sourceId: "S2",
+          passage: "Two recyclers filed.",
+          stance: "supports",
+        },
+        {
+          claim: "Two recyclers filed for bankruptcy.",
+          sourceId: "S4",
+          passage: "Two recyclers filed.",
+          stance: "supports",
+        },
+        { claim: CHEESE, sourceId: "S5", passage: CHEESE, stance: "supports" },
+      ],
+    );
+    expect(rows).toEqual([
+      { claim: MARGINS, verdict: "contradict", sources: ["S1", "S3"] },
+      { claim: "Two recyclers filed for bankruptcy.", verdict: "agree", sources: ["S2", "S4"] },
+      { claim: CHEESE, verdict: "only", sources: ["S5"] },
+    ]);
+  });
+
+  it("drops a quote that is not a kept passage", () => {
+    expect(stripInventedQuotes(`One page says "${MARGINS}" and "the moon is made of cheese".`, [MARGINS])).toBe(
+      `One page says "${MARGINS}" and.`,
+    );
+  });
+
+  it("drops a claim with no kept passage and builds the comparison row in code", async () => {
+    const fell = "Margins fell to 2% in 2025 and plants closed.";
+    const searched: string[] = [];
+    const deps = fakeDeps({
+      locale: "id",
+      caps: { maxQueries: 2, maxPages: 4 },
+      ask: async (system, prompt) => {
+        if (system === CLAIMS_SYSTEM) {
+          return JSON.stringify({
+            claims: [MARGINS, CHEESE, "A fabricated claim that is not in the prompt at all."],
+          });
+        }
+        if (system === PLAN_SYSTEM) {
+          return JSON.stringify({ queries: ["this extra query must not be searched"] });
+        }
+        if (system === EXTRACT_SYSTEM) {
+          const text = prompt.split("Page text:\n")[1] ?? "";
+          const sentence = `${text.split(". ")[0]}.`;
+          const onClaims = text.includes("Margins fell")
+            ? [{ claim: MARGINS, passage: fell, stance: "contradicts" }]
+            : text.includes("Margins reached")
+              ? [{ claim: MARGINS, passage: MARGINS, stance: "supports" }]
+              : [{ claim: CHEESE, passage: CHEESE, stance: "supports" }];
+          return JSON.stringify({ passages: [sentence], notes: "ok", onClaims });
+        }
+        if (system === SYNTHESIS_SYSTEM) {
+          expect(prompt).toContain(`${MARGINS} — contradict [S1][S3]`);
+          expect(prompt).not.toContain(`${CHEESE} —`);
+          return JSON.stringify({
+            title: "Claim check",
+            summary: "The pages do not agree.",
+            findings: [
+              {
+                heading: "Margins",
+                body: `One page says "${MARGINS}" [S1]. A blog said "the moon is made of cheese".`,
+                sources: ["S1"],
+              },
+            ],
+            comparison: [{ claim: "Invented by the model", verdict: "agree", sources: ["S9"] }],
+            contradictions: [],
+            openQuestions: [],
+          });
+        }
+        throw new Error(`unexpected system prompt`);
+      },
+      search: async (query) => {
+        searched.push(query);
+        if (query === MARGINS) {
+          return [
+            { title: "High", url: "https://a.test/high" },
+            { title: "Low", url: "https://b.test/low" },
+          ];
+        }
+        if (query === CHEESE) {
+          return [{ title: "Tides", url: "https://c.test/tides" }];
+        }
+        return [{ title: "Dead", url: "https://dead.test/", description: "snippet dead" }];
+      },
+      readPage: async (url) => {
+        const pages: Record<string, string> = {
+          "https://a.test/high": `${MARGINS} Recyclers report thin returns.`,
+          "https://b.test/low": `${fell} Demand for black mass fell.`,
+          "https://c.test/tides": "This page discusses ocean tides and nothing about the claim.",
+        };
+        const text = pages[url];
+        if (!text) {
+          throw new Error("HTTP 404");
+        }
+        return { title: url, text, truncated: false };
+      },
+    });
+
+    const { dossier } = await runResearchDossier({ question: PASTED, models: ["m1"] }, deps);
+
+    expect(searched).toEqual([MARGINS, CHEESE]);
+    expect(dossier.comparison).toEqual([{ claim: MARGINS, verdict: "contradict", sources: ["S1", "S3"] }]);
+    expect(dossier.comparison.some((row) => row.claim === CHEESE || row.claim === "Invented by the model")).toBe(false);
+    expect(dossier.findings[0]?.body).toBe(`One page says "${MARGINS}" [S1]. A blog said.`);
+    expect(dossier.findings[0]?.sources).toEqual(["S1"]);
+
+    const md = dossierToMarkdown(dossier, "id");
+    expect(md).toContain(`${MARGINS} — Sumber bertentangan [S1][S3]`);
+    expect(md).toContain("## Comparison");
+    const phases = deps.events
+      .filter((event) => event.type === "job.phase")
+      .map((event) => (event as { phase: string }).phase);
+    expect(phases).toEqual(["planning", "searching", "reading", "comparing", "drafting"]);
   });
 });
