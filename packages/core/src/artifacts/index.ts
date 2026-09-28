@@ -32,16 +32,18 @@ export {
 } from "./research-notes";
 export type { ResearchNote, ResearchNotes, ResearchSource } from "./research-notes";
 export {
+  COMPARISON_VERDICTS,
   DOSSIER_HEADINGS,
   DOSSIER_SOURCE_STATUSES,
   DOSSIER_VERSION,
   citedSourceIds,
+  comparisonRowSchema,
   dossierFindingSchema,
   dossierSchema,
   dossierSourceSchema,
   dossierToMarkdown,
 } from "./dossier";
-export type { Dossier, DossierFinding, DossierSource } from "./dossier";
+export type { ComparisonRow, ComparisonVerdict, Dossier, DossierFinding, DossierSource } from "./dossier";
 export {
   CHART_TYPES,
   dataAnalysisSchema,
