@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { stubChatCopy, stubChatEnhanceSuffix, wantsStubClock, withChatOutputLanguage } from "./chat-locale";
+import {
+  chatTurnCopy,
+  stubChatCopy,
+  stubChatEnhanceSuffix,
+  wantsStubClock,
+  wantsStubDeskSource,
+  wantsStubPastChat,
+  withChatOutputLanguage,
+} from "./chat-locale";
 
 describe("chat locale", () => {
   it("appends Bahasa output instructions only for id", () => {
@@ -24,5 +32,15 @@ describe("chat locale", () => {
     expect(wantsStubClock("Jam berapa sekarang?")).toBe(true);
     expect(wantsStubClock("Hari ini tanggal berapa?")).toBe(true);
     expect(wantsStubClock("What is 2 + 3?")).toBe(false);
+  });
+
+  it("notices an earlier chat and a desk-note question without a method", () => {
+    expect(wantsStubPastChat("what did we decide last time")).toBe(true);
+    expect(wantsStubPastChat("yang kita putuskan terakhir kali")).toBe(true);
+    expect(wantsStubPastChat("What is 2 + 3?")).toBe(false);
+    expect(wantsStubDeskSource("what does the desk say about the note")).toBe(true);
+    expect(wantsStubDeskSource("menurut catatan itu")).toBe(true);
+    expect(chatTurnCopy("id").noSource).toMatch(/Meja ini/);
+    expect(chatTurnCopy("id").lookingAttached).toMatch(/Anda/);
   });
 });

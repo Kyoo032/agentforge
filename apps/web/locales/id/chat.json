@@ -168,5 +168,14 @@
     },
     "noMatch": "Tidak ada model yang cocok dengan “{query}”",
     "noMatchEmpty": "Tidak ada model yang cocok dengan pencarian Anda"
+  },
+  "harness": {
+    "thinkPast": "Saya akan meninjau percakapan sebelumnya, lalu menjawab dari yang saya temukan.",
+    "thinkDesk": "Saya akan menjawab dari catatan meja.",
+    "lookingAttached": "Melihat yang Anda lampirkan.",
+    "pastNone": "Tidak ada percakapan sebelumnya di meja ini yang cocok.",
+    "pastOne": "Percakapan sebelumnya berjudul \"{title}\".",
+    "pastMany": "Percakapan sebelumnya mencakup \"{title}\".",
+    "noSource": "Meja ini tidak punya sumber untuk itu."
   }
 }

@@ -168,5 +168,14 @@
     },
     "noMatch": "No models matching “{query}”",
     "noMatchEmpty": "No models matching your search"
+  },
+  "harness": {
+    "thinkPast": "I'll look through earlier chats, then answer from what I find.",
+    "thinkDesk": "I'll answer from the desk note.",
+    "lookingAttached": "Looking at what you attached.",
+    "pastNone": "No earlier chat on this desk matches that.",
+    "pastOne": "The earlier chat is \"{title}\".",
+    "pastMany": "Earlier chats include \"{title}\".",
+    "noSource": "This desk did not have a source for that."
   }
 }

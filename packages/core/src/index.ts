@@ -678,8 +678,23 @@ export {
   stubChatCopy,
   stubChatEnhanceSuffix,
   wantsStubClock,
+  wantsStubPastChat,
+  wantsStubDeskSource,
+  chatTurnCopy,
+  fillChatTurn,
 } from "./agents/chat-locale";
-export type { StubChatCopy } from "./agents/chat-locale";
+export type { StubChatCopy, ChatTurnCopy } from "./agents/chat-locale";
+export {
+  CHAT_UNDERSTAND_HIDDEN_TOOLS,
+  bindingsForChatModality,
+  sentenceFromCalculator,
+  sentenceFromDatetime,
+  sentenceFromPastSessions,
+  sentenceFromTool,
+  repairUnresolvedCites,
+  settleChatTurn,
+} from "./agents/chat-turn";
+export type { SettledTool, SettledChatTurn } from "./agents/chat-turn";
 export {
   ENHANCE_SURFACES,
   isEnhanceSurface,

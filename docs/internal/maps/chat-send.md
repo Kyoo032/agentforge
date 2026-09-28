@@ -1,6 +1,6 @@
 # Map — Chat send
 
-Last verified: 2026-09-26 (placeholder mascot and message cards on the redesigned desk). Changed here: a live turn shows `PlaceholderMascot` (`idle` / `thinking` / `answering` / `error`) using the desk gradient and lip, the idle mascot sits in the hero orb, and a paragraph that is only a link, file, image, or job result renders as a `card-live` `message-embed`. A refused send writes the sentence to `composer-error` only; `chat-error` stays the pane banner. The 0.15.0 pass still holds: `chat-turn.tsx` renders thinking and tool calls as **one** `message-thinking` disclosure, thinking renders through `FormattedText`, and `apps/web/lib/tool-labels.ts` summarises a tool payload by shape (`gist()`). The send path, the SSE read and the watchdog are untouched. **Note the visibility contract**: `message-tools` is inside a closed `<details>` once a turn lands, so a *count* assertion passes but a *visibility* one fails — `features/chat.md` carries the same note. The mascot SVG is placeholder art (`data-placeholder="nultron-mascot"`).
+Last verified: 2026-09-28 (Chat turn check: unresolved cites, a sentence after a tool, look-not-make on an attachment). Changed here: a live turn shows `PlaceholderMascot` (`idle` / `thinking` / `answering` / `error`) using the desk gradient and lip, the idle mascot sits in the hero orb, and a paragraph that is only a link, file, image, or job result renders as a `card-live` `message-embed`. A refused send writes the sentence to `composer-error` only; `chat-error` stays the pane banner. The 0.15.0 pass still holds: `chat-turn.tsx` renders thinking and tool calls as **one** `message-thinking` disclosure, thinking renders through `FormattedText`, and `apps/web/lib/tool-labels.ts` summarises a tool payload by shape (`gist()`). The send path, the SSE read and the watchdog are untouched. **Note the visibility contract**: `message-tools` is inside a closed `<details>` once a turn lands, so a *count* assertion passes but a *visibility* one fails — `features/chat.md` carries the same note. The mascot SVG is placeholder art (`data-placeholder="nultron-mascot"`).
 
 The composer chrome described here on 2026-09-22 was itself changed by this pass: the dashed drop zone and its two hint paragraphs are gone (one placeholder line remains), `composer-send-hint` no longer renders, Thinking is a single unlabeled `<select>` showing only the level rather than a bordered label plus a select, and Attach is a 32px toolbar icon instead of a button in the drop zone.
 
@@ -82,7 +82,17 @@ While anything is live, or a send just failed, `ChatTurn` renders inside a `data
 
 Fixed in `e93c617`. The composer toolbar's single-row `overflow-hidden` layout (from `4db009a`) clipped the absolutely-positioned dropdown off-screen and squeezed the trigger to roughly 18px. Now: the panel is `createPortal(..., document.body)` as a `fixed` element (`apps/web/components/model-picker.tsx:321-378`), positioned by the pure `placePickerPanel` (`apps/web/lib/picker-panel.ts:61-88`) which flips above the trigger when there is more room above or at least `PICKER_PANEL_MIN_HEIGHT` (160px), clamps to an 8px viewport gutter, and re-runs on open plus `resize`/`scroll` (capture) while open (`apps/web/components/model-picker.tsx:200-221`). The trigger carries `w-36 min-w-[7rem]` so it cannot be squeezed below ~112px (`:381`), and the toolbar is `flex-wrap` with `ml-auto` on Send (`apps/web/components/chat-composer.tsx:389-390`, `:441-443`) so overflow wraps to a second row instead of clipping.
 
-### Failure modes
+#### 8. Check the reply, then save
+
+The turn is still one `runtime.execute`. After it stops, `persistAssistant` (`packages/host/src/runs.ts`) calls `settleChatTurn` (`packages/core/src/agents/chat-turn.ts`) before `insertMessage`. Locale is `localeForRun()` while the run context is set, otherwise the locale loaded for this turn. Three checks, and no second model call:
+
+- **Sources.** `repairUnresolvedCites` drops a `[n]` past the chunks `knowledgeInjection` offered. A fence is left alone, same rule as `parseCiteMarkers`. When every marker was invented, the reply gains `chat.harness.noSource` (`This desk did not have a source for that.` / `Meja ini tidak punya sumber untuk itu.`). A marker that maps is kept. `recordCites` reads this checked text.
+- **A tool with no sentence.** Calculator, clock, and past chats become one sentence when the reply is empty. The stub already writes that sentence for arithmetic, the clock, and — now — an earlier chat (`past_sessions`, `wantsStubPastChat`). The check covers a live turn that called the tool and wrote nothing.
+- **Look, don't make.** `bindingsForChatModality` removes `image_generate` and `video_generate` when the modality is image or video. With thinking on, the host sends `Looking at what you attached.` before the model runs. A wrong content type is still the parser's 400, before this check. Text turns keep the generate tools.
+
+A suffix the check only appended is streamed as one more `assistant.delta` so the live bubble matches the saved reply. A rewrite in the middle (a ghost `[99]` removed) shows up when the client re-fetches the thread. There is no new button and no Continue. Contact retry stays the three attempts in `retry.ts`. The tool cap stays `maxSteps: 6`.
+
+## Failure modes
 
 | Failure | Where | What the client gets |
 |---|---|---|
@@ -116,6 +126,8 @@ Fixed in `e93c617`. The composer toolbar's single-row `overflow-hidden` layout (
 | `packages/host/src/http-adapter.ts` | SSE headers, per-request abort on socket close |
 | `packages/core/src/runtime/ai-sdk-runtime.ts` | The runtime: probe loop, `streamText`, per-call watchdog |
 | `packages/core/src/runtime/stream-watchdog.ts` | The one deadline rule and the four budgets |
+| `packages/core/src/agents/chat-turn.ts` | Cite repair, tool sentence, understand-turn bindings |
+| `packages/core/src/agents/chat-locale.ts` | Chat turn copy in `en` and `id` |
 | `packages/core/src/runtime/retry.ts` | Attempts, retryability, empty-output and keep-tool rules |
 | `packages/core/src/models/reasoning-effort.ts` | Chat's Thinking ladder, parsing and per-model coercion |
 | `packages/core/src/models/job-thinking.ts` | The job-only effort knob Chat does not use |

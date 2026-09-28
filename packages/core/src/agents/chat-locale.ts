@@ -48,8 +48,71 @@ export function stubChatCopy(locale: AppLocale): StubChatCopy {
   return STUB_CHAT_COPY[parseAppLocale(locale)];
 }
 
+/**
+ * Sentences a Chat turn shows while it works. Mirrors `chat.harness` in the en/id catalogs.
+ * The host does not import those catalogs; this table is the copy the turn actually writes.
+ */
+export type ChatTurnCopy = {
+  thinkPast: string;
+  thinkDesk: string;
+  lookingAttached: string;
+  pastNone: string;
+  pastOne: string;
+  pastMany: string;
+  /** Stub only: a real marker plus one the desk did not offer, so the check has something to drop. */
+  deskCite: string;
+  noSource: string;
+};
+
+const CHAT_TURN_COPY: Record<AppLocale, ChatTurnCopy> = {
+  en: {
+    thinkPast: "I'll look through earlier chats, then answer from what I find.",
+    thinkDesk: "I'll answer from the desk note.",
+    lookingAttached: "Looking at what you attached.",
+    pastNone: "No earlier chat on this desk matches that.",
+    pastOne: 'The earlier chat is "{title}".',
+    pastMany: 'Earlier chats include "{title}".',
+    deskCite: "From the desk [1] [99].",
+    noSource: "This desk did not have a source for that.",
+  },
+  id: {
+    thinkPast: "Saya akan meninjau percakapan sebelumnya, lalu menjawab dari yang saya temukan.",
+    thinkDesk: "Saya akan menjawab dari catatan meja.",
+    lookingAttached: "Melihat yang Anda lampirkan.",
+    pastNone: "Tidak ada percakapan sebelumnya di meja ini yang cocok.",
+    pastOne: 'Percakapan sebelumnya berjudul "{title}".',
+    pastMany: 'Percakapan sebelumnya mencakup "{title}".',
+    deskCite: "Dari meja [1] [99].",
+    noSource: "Meja ini tidak punya sumber untuk itu.",
+  },
+};
+
+export function chatTurnCopy(locale: AppLocale): ChatTurnCopy {
+  return CHAT_TURN_COPY[parseAppLocale(locale)];
+}
+
+export function fillChatTurn(template: string, title: string): string {
+  return template.replaceAll("{title}", title);
+}
+
 export function wantsStubClock(summary: string): boolean {
   return CLOCK_RE.test(summary);
+}
+
+const PAST_CHAT_RE =
+  /\b(earlier chat|previous (?:chat|conversation)|last time we|what did we (?:say|decide|discuss)|we (?:said|decided))\b|percakapan sebelumnya|chat sebelumnya|terakhir kali|yang kita (?:bahas|putuskan|katakan)/i;
+
+const DESK_SOURCE_RE =
+  /\bwhat does (?:the|this) desk (?:say|know)\b|\baccording to (?:my|the) (?:notes|sources)\b|menurut (?:catatan|sumber)|apa kata (?:meja|catatan)/i;
+
+/** The person referred to an earlier chat and did not name a tool. */
+export function wantsStubPastChat(summary: string): boolean {
+  return PAST_CHAT_RE.test(summary);
+}
+
+/** The person asked what the desk already knows, without naming a cite format. */
+export function wantsStubDeskSource(summary: string): boolean {
+  return DESK_SOURCE_RE.test(summary);
 }
 
 const CHAT_STUB_ENHANCE_SUFFIX: Record<AppLocale, string> = {
