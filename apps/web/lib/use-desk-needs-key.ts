@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api-client";
+import { readSettings } from "@/lib/settings-read";
 import { parseGatewayGate, type GatewayGatePayload } from "@/lib/gateway-gate";
 
 /**
@@ -20,11 +20,11 @@ export function useDeskNeedsKey(): boolean {
 
   useEffect(() => {
     let cancelled = false;
-    void apiFetch("/api/v1/settings")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((payload: { gateway?: unknown } | null) => {
-        if (cancelled || !payload) return;
-        setNeedsKey(hostWithholdsLiveModel(parseGatewayGate(payload.gateway)));
+    // Shared with the shell's gate read and the other Chat readers: one round trip per load.
+    void readSettings()
+      .then((answer) => {
+        if (cancelled || !answer.ok || !answer.body) return;
+        setNeedsKey(hostWithholdsLiveModel(parseGatewayGate(answer.body.gateway)));
       })
       .catch(() => {
         // Leave the controls as they are; a failed settings read is not a new decision.

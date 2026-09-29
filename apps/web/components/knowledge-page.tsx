@@ -7,6 +7,7 @@ import { KnowledgeGraphPanel } from "@/components/knowledge-graph-panel";
 import { KnowledgeLoop } from "@/components/knowledge-loop";
 import { ModeHeader } from "@/components/mode-header";
 import { ModelSelect } from "@/components/model-select";
+import { modelsForMode, type ModelCatalogWire } from "@agentforge/core/mode-catalog";
 import { t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
 import { apiFetch } from "@/lib/api-client";
@@ -210,7 +211,7 @@ export function KnowledgePage() {
   const [tab, setTab] = useState<KnowledgeTab>("sources");
   const [sources, setSources] = useState<SourceRow[]>([]);
   // Placeholder only, until GET /api/v1/knowledge lands the desk's real Soul. It follows the brand
-  // (DPSBuddy, or the flavor name the packaged shell preloaded) — never a persona the host has no
+  // (Nultron, or the flavor name the packaged shell preloaded) — never a persona the host has no
   // row for.
   const [soul, setSoul] = useState({ name: productName, role: "", voice: "", rules: [] as string[] });
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -253,12 +254,13 @@ export function KnowledgePage() {
       setKnowledgeMap(payload.map as KnowledgeMap);
     }
 
-    const modes =
-      catalog && typeof catalog === "object" ? (catalog as { modes?: Record<string, unknown> }).modes : undefined;
+    const wire = catalog && typeof catalog === "object" ? (catalog as ModelCatalogWire<unknown>) : null;
     const defaults =
       catalog && typeof catalog === "object" ? (catalog as { defaults?: Record<string, unknown> }).defaults : undefined;
-    const chatList = asModels(modes?.chat);
-    const embeddingList = asModels(modes?.embedding);
+    // The host sends the chat catalogue once, as `models`; only embeddings (and the media kinds) have
+    // a list of their own. `modelsForMode` is the one place that knows which is which.
+    const chatList = asModels(modelsForMode(wire, "chat"));
+    const embeddingList = asModels(modelsForMode(wire, "embedding"));
     setChatModels(chatList);
     setEmbeddingModels(embeddingList);
 

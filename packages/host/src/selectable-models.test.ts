@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RELAY_ONLY_MUSIC_MODEL_IDS, type ChatModel } from "@agentforge/core";
+import { CHAT_CATALOG_MODES, modelsForMode } from "@agentforge/core/mode-catalog";
 import {
   listCatalogModels,
   modeCatalogPayload,
@@ -72,14 +73,17 @@ describe("modeCatalogPayload", () => {
       "glm-5.2-fast-preview",
       "deepseek-v4-flash",
     ]);
-    expect(payload.modes.documents.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
-    expect(payload.modes.research.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
-    expect(payload.modes.presentations.map((item) => item.id)).toEqual(
-      payload.modes.chat.map((item) => item.id),
-    );
-    expect(payload.modes.finance.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
-    expect(payload.modes.data.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
-    expect(payload.modes.market.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
+    // Every chat-shaped mode offers this list, so the payload does not repeat it under eight more
+    // names: `modelsForMode` reads them back from `modes.chat` (the wire's `models`).
+    for (const mode of CHAT_CATALOG_MODES) {
+      expect(
+        modelsForMode({ models: payload.modes.chat, modes: payload.modes }, mode).map((item) => item.id),
+        mode,
+      ).toEqual(payload.modes.chat.map((item) => item.id));
+      if (mode !== "chat") {
+        expect(payload.modes, mode).not.toHaveProperty(mode);
+      }
+    }
     expect(payload.modes.image.map((item) => item.id)).toEqual(["mj_imagine", "gpt-image-2"]);
     expect(payload.modes.video.map((item) => item.id)).toEqual(["mj_video", "grok-imagine-video", "seedance-2.5"]);
     expect(payload.modes.audio.map((item) => item.id)).toEqual(["whisper-1"]);

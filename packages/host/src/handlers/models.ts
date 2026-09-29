@@ -1,26 +1,14 @@
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
-import {
-  defaultSelectableModel,
-  listSelectableModels,
-  modeCatalogPayload,
-  refreshModelCache,
-} from "../selectable-models";
+import { modelCatalogBody, refreshModelCache } from "../selectable-models";
 import { probeSummary } from "../model-cache";
 import { loadSettings } from "../settings-store";
 
 export async function handleGetModels(request: HostRequest): Promise<HostResult> {
   try {
     await getTenant(request);
-    const models = listSelectableModels();
-    const catalog = modeCatalogPayload();
-    return jsonOk({
-      models,
-      defaultModel: defaultSelectableModel(models),
-      modes: catalog.modes,
-      defaults: catalog.defaults,
-    });
+    return jsonOk(modelCatalogBody());
   } catch (error) {
     return jsonError(error);
   }
@@ -31,15 +19,7 @@ export async function handlePostModels(request: HostRequest): Promise<HostResult
     const tenant = await getTenant(request);
     // Explicit refresh from the UI: also re-download the models.dev registry.
     const probe = await refreshModelCache(loadSettings(tenant), { forceRegistry: true });
-    const models = listSelectableModels();
-    const catalog = modeCatalogPayload();
-    return jsonOk({
-      models,
-      defaultModel: defaultSelectableModel(models),
-      modes: catalog.modes,
-      defaults: catalog.defaults,
-      probe: probeSummary(probe),
-    });
+    return jsonOk({ ...modelCatalogBody(), probe: probeSummary(probe) });
   } catch (error) {
     return jsonError(error);
   }

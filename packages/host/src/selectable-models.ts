@@ -186,19 +186,20 @@ function curateRouted(routed: RoutedModels<ChatModel>): RoutedModels<SelectableM
   };
 }
 
+/**
+ * The catalogue, once per distinct list. `modes.chat` is the chat catalogue, and every mode in
+ * `CHAT_CATALOG_MODES` (documents, research, presentations, finance, data, market, legal, meeting)
+ * offers exactly that list, so none of them gets a copy here: the renderer resolves them through
+ * `modelsForMode` (`@agentforge/core/mode-catalog`). Eight identical copies of 126 rows were 232 KB
+ * of every `GET /api/v1/models` and `GET /api/v1/settings` answer.
+ */
+export type ModeCatalogModes = RoutedModels<SelectableModel> & {
+  music: SelectableModel[];
+  embedding: ChatModel[];
+};
+
 export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
-  modes: RoutedModels<SelectableModel> & {
-    documents: SelectableModel[];
-    research: SelectableModel[];
-    presentations: SelectableModel[];
-    finance: SelectableModel[];
-    data: SelectableModel[];
-    market: SelectableModel[];
-    legal: SelectableModel[];
-    meeting: SelectableModel[];
-    music: SelectableModel[];
-    embedding: ChatModel[];
-  };
+  modes: ModeCatalogModes;
   defaults: ModeModelDefaults;
 } {
   const routed = routeModelsByKind(models);
@@ -211,14 +212,6 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
   return {
     modes: {
       ...curated,
-      documents: curated.chat,
-      research: curated.chat,
-      presentations: curated.chat,
-      finance: curated.chat,
-      data: curated.chat,
-      market: curated.chat,
-      legal: curated.chat,
-      meeting: curated.chat,
       music,
       embedding,
     },
@@ -231,6 +224,28 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
       chatDefault,
     }),
   };
+}
+
+/** What `GET` and `POST /api/v1/models` answer with, before `probe` is added on a refresh. */
+export type ModelCatalogBody = {
+  /** The chat catalogue, once. Chat and every mode in `CHAT_CATALOG_MODES` pick from it. */
+  models: SelectableModel[];
+  defaultModel: string;
+  /** Only the lists that are not the chat catalogue: image, video, audio, other, music, embedding. */
+  modes: Omit<ModeCatalogModes, "chat">;
+  defaults: ModeModelDefaults;
+};
+
+/**
+ * The catalogue as it goes on the wire: each list once. `modes.chat` is the same rows as `models`, so
+ * it is left off; see `ModeCatalogModes`. A caller that wants a mode's models reads them through
+ * `modelsForMode` in `@agentforge/core/mode-catalog`, which knows which modes are the chat catalogue.
+ */
+export function modelCatalogBody(): ModelCatalogBody {
+  const models = listSelectableModels();
+  const { modes, defaults } = modeCatalogPayload();
+  const { chat: _chat, ...ownLists } = modes;
+  return { models, defaultModel: defaultSelectableModel(models), modes: ownLists, defaults };
 }
 
 function putModels(next: ModelCache, dialect: ModelProvider, models: ChatModel[], now: string): void {
