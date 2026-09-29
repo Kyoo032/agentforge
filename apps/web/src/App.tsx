@@ -1,15 +1,22 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import {
-  firstVisibleHref,
-  resolveWorkspaceModes,
-  WORK_PRODUCT_MODES,
-  type ProductMode,
-} from "@agentforge/core/product-modes";
+import { firstVisibleHref, WORK_PRODUCT_MODES, type ProductMode } from "@agentforge/core/product-modes";
 import { HOME_WORKSPACE_NAME } from "@agentforge/core/local-owner";
 import { AppShell } from "@/components/app-shell";
 import { ComponentSetupSilent } from "@/components/component-setup";
+import { GuideTour } from "@/components/guide-tour";
 import { apiFetch } from "@/lib/api-client";
+import { hydrateGuide, offerGuideAfterOnboarding } from "@/lib/guide-store";
+import { readSettings } from "@/lib/settings-read";
+import {
+  browserShellModesStore,
+  initialShellModes,
+  readShellModesCache,
+  shellModesCacheKey,
+  shellModesFromHost,
+  writeShellModesCache,
+  type ShellModes,
+} from "@/lib/shell-modes";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SettingsPage } from "@/components/settings-page";
 import { UsagePage } from "@/components/usage-page";
@@ -29,6 +36,7 @@ import {
   type GateView,
 } from "@/lib/gateway-gate";
 import { applyLocale, freezeLocale, LOCALE_RESTART_EVENT, t } from "@/lib/i18n";
+import { useAmbientMotion } from "@/lib/use-ambient-motion";
 import { useProductBrand } from "@/lib/product-brand";
 import { WorkspaceScope } from "@/lib/workspace-scope";
 import { PlanBlockBoundary } from "@/components/plan-blocked-screen";
@@ -74,9 +82,19 @@ export function shellWorkspaceFrom(ok: boolean, payload: unknown): ShellWorkspac
 
 function Shell({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const session = useSession();
+  // Per tenant on the hosted app, so one account never sees another's remembered modes; one key on a
+  // Personal desk, where the session has no identity.
+  const modesCacheKey = shellModesCacheKey(session.identity?.tenantId);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState(HOME_WORKSPACE_NAME);
-  const [visibleModes, setVisibleModes] = useState<ProductMode[]>([...WORK_PRODUCT_MODES]);
+  // The rail is the desk's modes and only the host says what they are, so the first frames draw what
+  // this browser last saw, or, with nothing remembered, Chat and a skeleton. Never every mode: that
+  // was a wrong first paint on every fresh install (`lib/shell-modes.ts`).
+  const [shellModes, setShellModes] = useState<ShellModes>(() =>
+    initialShellModes(readShellModesCache(modesCacheKey, browserShellModesStore())),
+  );
+  const visibleModes = shellModes.modes;
 
   const reload = useCallback(() => {
     void apiFetch("/api/v1/workspaces")
@@ -85,14 +103,16 @@ function Shell({ children }: { children: ReactNode }) {
         if (!desk) {
           return;
         }
+        const named = shellModesFromHost(desk.productModes);
         setWorkspaceId(desk.id);
         setWorkspaceName(desk.name);
-        setVisibleModes(resolveWorkspaceModes(desk.productModes));
+        setShellModes(named);
+        writeShellModesCache(modesCacheKey, named.modes, browserShellModesStore());
       })
       .catch(() => {
         // first boot before SQLite is ready
       });
-  }, []);
+  }, [modesCacheKey]);
 
   useEffect(() => {
     reload();
@@ -103,9 +123,12 @@ function Shell({ children }: { children: ReactNode }) {
 
   return (
     <WorkspaceScope.Provider value={{ id: workspaceId, name: workspaceName }}>
-      <AppShell workspaceName={workspaceName} visibleModes={visibleModes}>
+      <AppShell workspaceName={workspaceName} visibleModes={visibleModes} modesSource={shellModes.source}>
         {children}
       </AppShell>
+      {/* The first-run tour. Draws nothing until first-run setup ends or Settings replays it, and
+          waits for the desk to load so the rail it points at is the real one. */}
+      <GuideTour visibleModes={visibleModes} ready={workspaceId !== null} />
     </WorkspaceScope.Provider>
   );
 }
@@ -171,6 +194,8 @@ function CallbackRoute({ view, signedIn }: { view: BootView; signedIn: boolean }
 }
 
 export function App() {
+  // One switch for every looping decoration: paused while the window is hidden, blurred or idle.
+  useAmbientMotion();
   return (
     <SessionProvider>
       <AppRoutes />
@@ -214,8 +239,16 @@ export function AppRoutes() {
     if (view !== "app") {
       return;
     }
-    void apiFetch("/api/v1/settings")
-      .then((res) => res.json())
+    // `fresh`: this read decides the gate, so it always asks the host. What it fetches is also what
+    // Chat's key pill, usage chip and composer share a moment later (`lib/settings-read.ts`), instead
+    // of each making the same round trip.
+    void readSettings({ fresh: true })
+      .then((answer) => {
+        if (!answer.body) {
+          throw new Error("settings answer was not a JSON object");
+        }
+        return answer.body;
+      })
       .then((payload) => {
         if (localeEpoch === 0) {
           freezeLocale(payload.locale);
@@ -224,6 +257,9 @@ export function AppRoutes() {
         }
         // The host owns the decision. The renderer only renders it.
         const reported = parseGatewayGate(payload?.gateway);
+        // Whether this person has already been through the first-run tour. The host keeps it beside
+        // the language; the tour opens only after first-run setup, and only when this says "not yet".
+        hydrateGuide(payload?.guide);
         setGateway(reported);
         setGate(resolveGate(reported, isElectron()));
       })
@@ -279,7 +315,14 @@ export function AppRoutes() {
   if (gate === "onboarding") {
     return (
       <PlanBlockBoundary>
-        <OnboardingScreen gateway={gateway} onDone={() => setGate("app")} />
+        <OnboardingScreen
+          gateway={gateway}
+          onDone={() => {
+            // First-run setup just ended: offer the quick tour, once (`lib/guide-store.ts`).
+            offerGuideAfterOnboarding();
+            setGate("app");
+          }}
+        />
       </PlanBlockBoundary>
     );
   }

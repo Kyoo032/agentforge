@@ -1,10 +1,11 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
-import { BrandMark } from "@/components/brand-mark";
 import { ComponentSetupPanel } from "@/components/component-setup";
 import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
 import { FloatingShapes } from "@/components/floating-shapes";
 import { ModeIcon, type ModeIconName } from "@/components/mode-icons";
+import { NultronMascot } from "@/components/nultron/nultron-mascot";
+import { warmMascot } from "@/components/nultron/nx-warm";
 import { OnboardingDesks } from "@/components/onboarding-desks";
 import { apiFetch, checkGateway, isElectron } from "@/lib/api-client";
 import { fetchEditDoctor, type EditDoctor } from "@/lib/edit-client";
@@ -15,7 +16,9 @@ import {
   resolveGate,
   type GatewayGatePayload,
 } from "@/lib/gateway-gate";
+import { getGuideSnapshot, subscribeGuide } from "@/lib/guide-store";
 import { t } from "@/lib/i18n";
+import { ONBOARDING_NEXT, onboardingMascot } from "@/lib/mascot-triggers";
 import { fetchOtherDesks, openDesk, type OnboardingDesk } from "@/lib/onboarding-desks";
 import { useProductBrand } from "@/lib/product-brand";
 import { useComponentSetup } from "@/lib/use-component-setup";
@@ -28,13 +31,18 @@ type Props = {
 
 type Step = "welcome" | "key" | "try";
 
-const EXAMPLES = ["chat", "document", "finance", "images"] as const;
+/*
+ * What a first desk has on its rail: Chat, then Research, Images, Videos and Presentation
+ * (`FIRST_RUN_MODES`, packages/core). The examples offer only things that are in the menu on the
+ * screen this leads to, so no tile names a tool the person has not got yet.
+ */
+export const EXAMPLES = ["chat", "research", "images", "presentation"] as const;
 
-const EXAMPLE_MODE: Record<(typeof EXAMPLES)[number], ModeIconName> = {
+export const EXAMPLE_MODE: Record<(typeof EXAMPLES)[number], ModeIconName> = {
   chat: "chat",
-  document: "documents",
-  finance: "finance",
+  research: "research",
   images: "images",
+  presentation: "presentations",
 };
 
 const fieldClass =
@@ -48,12 +56,21 @@ function openingStep(gateway: GatewayGatePayload | null | undefined): Step {
   return gatewayReasonKey(gateway?.status) ? "key" : "welcome";
 }
 
-function StepHero({ title, body, mode }: { title: string; body: string; mode?: ModeIconName }) {
+function StepHero({ title, body, mode, step }: { title: string; body: string; mode?: ModeIconName; step: Step }) {
   return (
-    <div className="hero-aurora enter-rise relative flex flex-col items-center px-6 py-8 text-center" data-mode={mode}>
+    <div
+      className="hero-aurora onboarding-hero enter-rise relative flex flex-col items-center px-6 py-8 text-center"
+      data-mode={mode}
+    >
       <FloatingShapes layout="hero" />
       <span className="enter-pop relative" style={{ "--i": 1 } as CSSProperties}>
-        <BrandMark orb size={52} />
+        <NultronMascot
+          state={onboardingMascot(step)}
+          placement="empty"
+          mode="chat"
+          size={96}
+          next={ONBOARDING_NEXT}
+        />
       </span>
       <h1
         className="enter-rise relative mt-4 font-heading text-[30px] font-bold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)] sm:text-[34px]"
@@ -79,6 +96,8 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
   const [doctor, setDoctor] = useState<EditDoctor | null>(null);
   // The other desks on this install, so a desk with no key of its own is never a dead end.
   const [desks, setDesks] = useState<OnboardingDesk[]>([]);
+  // Whether the host says the quick tour was already seen; only then is it not promised below.
+  const guide = useSyncExternalStore(subscribeGuide, getGuideSnapshot, getGuideSnapshot);
   // Optional native components install themselves here; the panel shows nothing when there is
   // nothing to install, and neither it nor ffmpeg ever gates the key form below.
   const componentSetup = useComponentSetup();
@@ -89,6 +108,13 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
   useEffect(() => {
     void fetchOtherDesks().then(setDesks);
   }, []);
+
+  // The last step shows the love clip. Its strip is fetched while the key goes in, one step ahead.
+  useEffect(() => {
+    if (step === "key") {
+      warmMascot(["love"], "full", { still: false });
+    }
+  }, [step]);
 
   useEffect(() => {
     void fetchEditDoctor().then((report) => {
@@ -204,6 +230,7 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
       {step === "welcome" ? (
         <section data-testid="onboarding-welcome">
           <StepHero
+            step="welcome"
             mode="chat"
             title={t("onboarding.welcome", { productName })}
             body={t("onboarding.intro", { productName })}
@@ -224,6 +251,7 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
       {step === "key" ? (
         <>
           <StepHero
+            step="key"
             mode="settings"
             title={t("onboarding.keyTitle", { gatewayName })}
             body={t("onboarding.keyHelp", { productName, gatewayName })}
@@ -304,7 +332,7 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
           <p className="mb-4 text-center text-sm font-medium text-[var(--ok)]" data-testid="onboarding-key-success">
             {t("onboarding.keySuccess")}
           </p>
-          <StepHero mode="chat" title={t("onboarding.tryTitle")} body={t("onboarding.tryIntro")} />
+          <StepHero step="try" mode="chat" title={t("onboarding.tryTitle")} body={t("onboarding.tryIntro")} />
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {EXAMPLES.map((id, index) => (
               <button
@@ -331,10 +359,16 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
               </button>
             ))}
           </div>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center gap-2">
             <button type="button" className="btn btn-primary" onClick={finish} data-testid="onboarding-start">
               {t("onboarding.tryStart")}
             </button>
+            {/* The quick tour opens on the desk this leads to, unless the host says it was seen. */}
+            {guide.seen === true ? null : (
+              <p className="text-center text-xs text-[var(--text-3)]" data-testid="onboarding-tour-hint">
+                {t("onboarding.tourNext")}
+              </p>
+            )}
           </div>
         </section>
       ) : null}

@@ -9,6 +9,8 @@ import {
   LOCAL_TENANT_SLUG,
   PERSONAL_ORG_SLUG,
   WORK_PRODUCT_MODES,
+  firstDeskModes,
+  isServerMode,
   pickWorkspaceId,
   slugifyWorkspace,
   type ProductMode,
@@ -62,13 +64,18 @@ export async function ensureLocalOwner(db: Database, preferredWorkspaceId?: stri
 
   let ownedWorkspaces = await db.select().from(workspaces).where(eq(workspaces.organizationId, org.id));
   if (ownedWorkspaces.length === 0) {
+    // The only place a Personal install's FIRST desk is written: a fresh data dir, and Start over's
+    // "all" scope, whose wipe removes the database so the next boot lands here again. It is the one
+    // branch on which a first-run rule can apply, because every later boot finds the row and leaves
+    // it alone. Personal starts with Research, Images, Videos and Presentation (`FIRST_RUN_MODES`);
+    // `isServerMode()` keeps a hosted process, should it ever reach this path, on every mode.
     const inserted = await db
       .insert(workspaces)
       .values({
         organizationId: org.id,
         name: HOME_WORKSPACE_NAME,
         slug: HOME_WORKSPACE_SLUG,
-        productModes: [...WORK_PRODUCT_MODES],
+        productModes: firstDeskModes(isServerMode()),
       })
       .returning();
     ownedWorkspaces = inserted;

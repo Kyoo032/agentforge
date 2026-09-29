@@ -3,11 +3,15 @@ import { ApiError } from "../errors";
 import { DEFAULT_CHAT_SLUG } from "./default-chat";
 import {
   FALLBACK_PRODUCT_MODES,
+  FIRST_RUN_MODES,
+  HOSTED_FIRST_DESK_MODES,
   LEGACY_PRODUCT_MODES,
   PRODUCT_MODE_IDS,
   WORK_PRODUCT_MODES,
+  firstDeskModes,
   firstVisibleHref,
   isParkedAgentPath,
+  isProductMode,
   productModeHref,
   productModeLabel,
   redirectIfHiddenMode,
@@ -79,6 +83,41 @@ describe("resolveWorkspaceModes", () => {
       "videos",
       "presentations",
     ]);
+  });
+});
+
+describe("the first desk of a fresh install (owner decision 2026-09-29)", () => {
+  // Written out, never derived from the catalog or from the constant under test: a new catalog
+  // entry, or an edit to FIRST_RUN_MODES, must make this fail rather than ride along.
+  const EXPECTED_PERSONAL = ["chat", "research", "images", "videos", "presentations"];
+
+  it("is Chat plus Research, Images, Videos and Presentation, in catalog order, and nothing else", () => {
+    expect([...FIRST_RUN_MODES]).toEqual(EXPECTED_PERSONAL);
+    expect(FIRST_RUN_MODES.every((id) => isProductMode(id))).toBe(true);
+    const order = FIRST_RUN_MODES.map((id) => PRODUCT_MODE_IDS.indexOf(id));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it("is what the rail shows: resolving the stored list changes nothing", () => {
+    expect(resolveWorkspaceModes([...FIRST_RUN_MODES])).toEqual(EXPECTED_PERSONAL);
+  });
+
+  it("is frozen, so no caller can widen it in place", () => {
+    expect(Object.isFrozen(FIRST_RUN_MODES)).toBe(true);
+    expect(Object.isFrozen(HOSTED_FIRST_DESK_MODES)).toBe(true);
+  });
+
+  it("firstDeskModes answers Personal by default and every mode for the hosted app, as copies", () => {
+    expect(firstDeskModes(false)).toEqual(EXPECTED_PERSONAL);
+    expect(firstDeskModes(true)).toEqual(PRODUCT_MODE_IDS);
+    const a = firstDeskModes(false);
+    a.push("finance");
+    expect(firstDeskModes(false)).toEqual(EXPECTED_PERSONAL);
+  });
+
+  it("leaves the read fallback alone: a desk row with no stored modes still reads as every mode", () => {
+    expect(resolveWorkspaceModes(null)).toEqual(PRODUCT_MODE_IDS);
+    expect(FALLBACK_PRODUCT_MODES).toEqual(PRODUCT_MODE_IDS);
   });
 });
 

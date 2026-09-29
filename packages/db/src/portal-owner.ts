@@ -23,8 +23,8 @@ import { and, eq } from "drizzle-orm";
 import {
   HOME_WORKSPACE_NAME,
   HOME_WORKSPACE_SLUG,
+  HOSTED_FIRST_DESK_MODES,
   PERSONAL_ORG_SLUG,
-  WORK_PRODUCT_MODES,
   type MembershipRole,
   type TenantContext,
 } from "@agentforge/core";
@@ -146,7 +146,9 @@ export async function ensurePortalOwner(db: Database, identity: PortalIdentity):
         organizationId: org.id,
         name: HOME_WORKSPACE_NAME,
         slug: HOME_WORKSPACE_SLUG,
-        productModes: [...WORK_PRODUCT_MODES],
+        // Enterprise: every mode, as it has always been. The Personal first-run list does not reach
+        // a hosted tenant; the owner has not decided this one.
+        productModes: [...HOSTED_FIRST_DESK_MODES],
       })
       .returning();
   }

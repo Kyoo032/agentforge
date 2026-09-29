@@ -1,9 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { showEveryMode } from "./every-mode";
 
 test.describe.configure({ retries: 0 });
 test.setTimeout(90_000);
+
+// A fresh desk starts with Research, Images, Videos and Presentation only; Edit is one to turn on.
+test.beforeEach(async ({ request }) => {
+  await showEveryMode(request);
+});
 
 test("edit shell renders on /edit", async ({ page }) => {
   await page.goto("/edit");

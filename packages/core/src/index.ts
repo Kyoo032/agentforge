@@ -401,6 +401,7 @@ export {
   recommendedChatModels,
   sortChatModels,
 } from "./models/preferred";
+export type { PickerGroup, PickerGroupKind } from "./models/preferred";
 export { curateModel, applyCuration, isEverydayModel, isThinkingModel } from "./models/curation";
 export type { ModelTier, CuratedModelMeta } from "./models/curation";
 export {
@@ -509,12 +510,17 @@ export {
   DEFAULT_TEMPLATE_KEY,
 } from "./agents/default-template";
 export type { AgentPack, AgentTemplate } from "./agents/default-template";
+export { GUIDE_OUTCOMES, guidePayload, isGuideOutcome, parseGuideRecord } from "./guide";
+export type { GuideOutcome, GuidePayload, GuideRecord } from "./guide";
 export {
   PRODUCT_MODES,
   PRODUCT_MODE_IDS,
   WORK_PRODUCT_MODES,
   LEGACY_PRODUCT_MODES,
   FALLBACK_PRODUCT_MODES,
+  FIRST_RUN_MODES,
+  HOSTED_FIRST_DESK_MODES,
+  firstDeskModes,
   isProductMode,
   productModeHref,
   productModeLabel,

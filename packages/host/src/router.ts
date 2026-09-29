@@ -187,6 +187,7 @@ import {
 } from "./handlers/misc";
 import { handleGetModels, handlePostModels } from "./handlers/models";
 import { handleRun } from "./handlers/runs";
+import { handlePostGuide } from "./handlers/guide";
 import {
   handleApplyLocale,
   handleCancelReset,
@@ -286,6 +287,7 @@ const routes: Route[] = [
   compile("POST", "/api/v1/settings", handlePostSettings),
   compile("POST", "/api/v1/settings/apply-locale", handleApplyLocale),
   compile("POST", "/api/v1/settings/gateway/check", handleGatewayCheck),
+  compile("POST", "/api/v1/settings/guide", handlePostGuide),
   compile("POST", "/api/v1/settings/reset", handleResetApp),
   compile("DELETE", "/api/v1/settings/reset", handleCancelReset),
   compile("GET", "/api/v1/usage", handleGetUsage),
