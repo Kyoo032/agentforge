@@ -149,6 +149,10 @@
   --content-stage: 1184px;
   /* The composer shares the chat column's measure so the two line up. */
   --composer-max: var(--content-max);
+  /* Chat's side gutter. The header, the message list (and the empty screen's cards inside it) and
+     the composer's outer margin all read it, so their left and right edges line up. A phone takes
+     the smaller value in the `max-width: 639px` block by `.composer-shell`. */
+  --chat-gutter: var(--space-5);
 
   /* The rail follows the theme like everything else (owner ruling 2026-09-23). It used to be
      dark chrome in both themes to match the workbench mockup, which meant switching to light
@@ -178,20 +182,19 @@
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
   /* Entrance curve: the same feel with a few percent of overshoot, for anything that appears. */
   --ease-entrance: cubic-bezier(0.22, 1, 0.3, 1.02);
-  /* Symmetric curve for ambient loops, which have no "arrival". */
-  --ease-wave: cubic-bezier(0.45, 0, 0.55, 1);
   /* Gap between siblings in a staggered entrance; an element sets `--i` to its index. */
   --motion-stagger: 55ms;
-  /* Ambient loops: the hero glow drifts, the thinking dots breathe. */
-  --motion-ambient: 18s;
+  /* The one loop that stays: the working dots. Status, not decoration (see the ambient block). */
   --motion-pulse: 1400ms;
-  /* Playful desk: a longer spring entrance, the float loop, the dot-grid drift and the wiggle. */
+  /* Playful desk: a longer spring entrance and the wiggle. Decoration plays once and rests;
+     `lib/motion-tokens.test.ts` fails on any other `infinite` animation. */
   --motion-5: 560ms;
-  --motion-bob: 4200ms;
-  --motion-drift: 16s;
   --motion-wiggle: 560ms;
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-linear: linear;
+  /* Busy indicators (the working dots, the mascot at a job): four discrete positions per keyframe
+     interval, so about 8 to 12 frames a second instead of a full 60. Without the GPU every extra
+     frame is a whole software-composited frame; the motion is a few pixels and reads the same. */
+  --ease-busy: steps(4);
   --motion-confetti: 1100ms;
 
   /* The compound aliases the rules below read. All four stay on step 1, the 120ms the warm desk
@@ -744,8 +747,28 @@ h6 {
   transition: background-color var(--motion-select), color var(--motion-select);
 }
 
+/* The composer answers to its own width. `.composer-shell` is a query container named `composer`, so
+   everything inside it (the toolbar grid, the compact chips, the prompt box's minimum height) is
+   chosen by the room the composer really has — beside a rail, in a split pane, or on a phone —
+   and never by the viewport. The one thing a container cannot query is itself, so the shell's own
+   margin is the single viewport rule here. See the "Chat composer" block below. */
 .composer-shell {
+  container-name: composer;
+  container-type: inline-size;
+  margin: var(--space-5) var(--chat-gutter);
   transition: border-color var(--motion-focus);
+}
+
+/* Phones: the gutter drops from 24px to 12px for everything in the Chat column that reads
+   `--chat-gutter` (header, message list, composer), and the composer sits tighter to the list. */
+@media (max-width: 639px) {
+  :root {
+    --chat-gutter: var(--space-3);
+  }
+
+  .composer-shell {
+    margin-block: var(--space-2) var(--space-3);
+  }
 }
 
 /* Tailwind's transition utilities default to 150ms and their own curve. Every one the renderer
@@ -768,6 +791,279 @@ h6 {
   border-color: var(--accent);
 }
 
+/* ---------------------------------------------------------------------------
+   Chat composer, by the composer's own width
+   ---------------------------------------------------------------------------
+   The thresholds below are the container's content width, which is the toolbar's width (the shell
+   is its box minus 26px of padding and border). Three layouts, chosen by measuring the controls at
+   their full size (Model 149, Thinking 137, Enhance 161, Send 69, Attach 32, 8px gaps; Indonesian,
+   the wider of the two catalogs):
+
+     wide     >= 600   attach | controls ............ | send          one row, centred
+     medium   470-599  controls (wrap left to right)                   two rows
+                       attach ....................... send
+     narrow   <  470   model + thinking on top, attach + enhance ..... send below;
+                       compact chips and 40px tap targets
+
+   One row of full labels needs 580px (attach, the three controls, send), so 600 leaves a little
+   slack for a longer model name. The three controls alone need 463px, so 470 is where they stop
+   fitting one line and the chips go compact rather than wrap to a third row. At a 320px composer
+   (294px toolbar) attach + compact controls + send would need about 380px, so narrow stays two rows.
+   It is not the medium arrangement, though: with Enhance in the top row the model chip was left
+   83px wide on a 375px phone ("GPT 5.6…"). Enhance (icon only) moves to the bottom row beside
+   Attach, and the model chip takes the rest of the top row (131px there). Under 220 (a 320px phone
+   with the rail collapsed) even that grid would overflow, so the toolbar turns into a wrapping flex.
+
+   The unqueried rules are the medium layout, so a browser without container queries still gets a
+   layout that works. Layout lives here, not in utilities on the elements, so the areas cannot be
+   fought by a class stacked on top. */
+.composer-toolbar {
+  --chip-h: 2rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "controls controls"
+    "attach send";
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.composer-attach {
+  grid-area: attach;
+  justify-self: start;
+  width: var(--chip-h);
+  height: var(--chip-h);
+}
+
+.composer-controls {
+  grid-area: controls;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.composer-send {
+  grid-area: send;
+  justify-self: end;
+  height: var(--chip-h);
+}
+
+/* Spans the full width in every layout; auto-placed into the row below the areas. */
+.composer-needs-key {
+  grid-column: 1 / -1;
+}
+
+.model-picker {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 9rem;
+  max-width: 18rem;
+}
+
+.model-picker-trigger {
+  height: var(--chip-h, 2rem);
+}
+
+/* The select's native arrow is switched off and the pill draws its own chevron: Chrome paints the
+   native one at the select's right edge and ignores `padding-right`, so it sat on the pill's rounded
+   border. The chevron is an inline svg (`.composer-thinking-chevron`), positioned against the pill
+   itself, so the same rule holds in every layout. Its box is 12px and the glyph inside it has a
+   2px margin, so `--chevron-inset` (box to pill edge) is 10px less the 1px border here, which puts
+   the visible glyph 12px from the pill's outer edge. The narrow layout swaps the border for an inset
+   ring and sets it to 10px. `--chevron-room` is what the select keeps clear on its right so its
+   text never runs under the glyph: the box, its inset, and 4px of air. */
+.composer-thinking {
+  --chevron-size: 12px;
+  --chevron-inset: 9px;
+  --chevron-room: calc(var(--chevron-size) + var(--chevron-inset) + 4px);
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: var(--chip-h, 2rem);
+  padding-left: 12px;
+  padding-right: 0;
+}
+
+.composer-thinking select {
+  height: calc(var(--chip-h, 2rem) - 4px);
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: var(--chevron-room);
+}
+
+/* Centred on the pill, out of the click path: a tap on the chevron opens the select beneath it. */
+.composer-thinking-chevron {
+  position: absolute;
+  inset-block: 0;
+  right: var(--chevron-inset);
+  width: var(--chevron-size);
+  height: var(--chevron-size);
+  margin-block: auto;
+  pointer-events: none;
+}
+
+/* A disabled select dims itself (`disabled:opacity-45`); its chevron follows. */
+.composer-thinking select:disabled + .composer-thinking-chevron {
+  opacity: 0.45;
+}
+
+/* The icon is only for the narrow chip. */
+.composer-thinking-icon {
+  display: none;
+}
+
+.enhance-btn {
+  height: var(--chip-h, 2rem);
+}
+
+.composer-text {
+  min-height: 2.75rem;
+  max-height: 10rem;
+}
+
+@container composer (min-width: 600px) {
+  .composer-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "attach controls send";
+  }
+}
+
+/* Anything under wide has room for two lines of the placeholder, which wraps rather than clips. */
+@container composer (max-width: 599px) {
+  .composer-text {
+    min-height: calc(3.2em + 1rem);
+  }
+}
+
+@container composer (max-width: 469px) {
+  /* Model and Thinking share the top row and the model name gets everything Thinking leaves. The
+     icon-only Enhance sits beside Attach underneath, with Send at the far end, so the name is not
+     squeezed by two more buttons. `display: contents` lets the controls' children take grid areas. */
+  .composer-toolbar {
+    --chip-h: 2.5rem;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "model model model think"
+      "attach enhance . send";
+  }
+
+  .composer-controls {
+    display: contents;
+  }
+
+  .composer-controls .model-picker {
+    grid-area: model;
+    min-width: 0;
+    max-width: none;
+  }
+
+  /* Words that the chip's icon or value already carries stay in the tree for screen readers. */
+  .model-picker-prefix,
+  .composer-thinking-word,
+  .composer-toolbar .enhance-btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The select fills the whole chip, so a tap anywhere on it opens the list and the tap target is
+     the full 40px. The chip's 1px border becomes an inset ring for that: a border would leave the
+     select 2px short of the chip's height. */
+  .composer-thinking {
+    --chevron-inset: 10px;
+    grid-area: think;
+    gap: 0;
+    padding: 0;
+    border-width: 0;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .composer-thinking-icon {
+    display: block;
+    position: absolute;
+    inset-block: 0;
+    left: 12px;
+    margin-block: auto;
+    pointer-events: none;
+  }
+
+  .composer-thinking select {
+    align-self: stretch;
+    height: auto;
+    padding: 0 var(--chevron-room) 0 32px;
+  }
+
+  .composer-toolbar .enhance-btn {
+    grid-area: enhance;
+    justify-content: center;
+    width: var(--chip-h);
+    padding: 0;
+    gap: 0;
+  }
+}
+
+/* Below 220 the two-row grid can no longer hold the chips (attach and enhance under the model chip
+   set its floor at 96px, Thinking is 103px), which is a 320px phone with the rail collapsed. The
+   toolbar becomes a wrapping flex, so it lays out at any width without overflowing: model on its own
+   line, then Thinking with Enhance, then Attach with Send pushed to the end. */
+@container composer (max-width: 219px) {
+  .composer-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .composer-controls .model-picker {
+    order: 1;
+    flex: 1 1 100%;
+  }
+
+  .composer-thinking {
+    order: 2;
+  }
+
+  .composer-toolbar .enhance-btn {
+    order: 3;
+  }
+
+  .composer-attach {
+    order: 4;
+  }
+
+  .composer-send {
+    order: 5;
+    margin-left: auto;
+  }
+
+  .composer-needs-key {
+    order: 6;
+    flex: 0 0 100%;
+  }
+}
+
+/* The Chat header (one row at every width, its chips folding into a menu when they do not fit) is
+   drawn by components/chat-header.css, next to the component that measures it. */
+
+/* The empty Chat's intent cards fill the row they are given: as many columns of at least 16rem as
+   fit, one when narrow. 16rem also keeps the four cards to a 2 x 2 at the grid's 48rem cap (three
+   would need 49.5rem) instead of leaving one alone on a second row. */
+.chat-ideas-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+}
+
 /* The desk is a raised panel over the app backdrop, carrying the blue float (owner ruling
    2026-09-23). Without a lift the whole light UI read as one flat white sheet: the rail and the
    desk were the same plane. `overflow-hidden` clips the panel's own children, so the radius has
@@ -782,7 +1078,8 @@ h6 {
 }
 
 /* The desk's backdrop takes the colour of the mode on screen: a wash at the top and a dot grid
-   that fades out down the page and drifts one tile at a time. Both sit behind the content. */
+   that fades out down the page. Both sit behind the content. The grid stands still: it used to
+   drift 24px in 16s, which nobody could see and which kept a full-desk masked layer repainting. */
 .desk-canvas:has(main[data-mode="chat"]) { --page-mode: var(--mode-chat); }
 .desk-canvas:has(main[data-mode="documents"]) { --page-mode: var(--mode-documents); }
 .desk-canvas:has(main[data-mode="research"]) { --page-mode: var(--mode-research); }
@@ -824,7 +1121,6 @@ h6 {
   background-size: 24px 24px;
   -webkit-mask-image: linear-gradient(180deg, #000 0, transparent 460px);
   mask-image: linear-gradient(180deg, #000 0, transparent 460px);
-  animation: nx-dots var(--motion-drift) var(--ease-linear) infinite;
 }
 
 .desk-canvas > * {
@@ -888,6 +1184,14 @@ aside nav > p {
 .formatted-md a {
   color: var(--color-accent-700);
   text-decoration: underline;
+}
+
+/* A URL or a token with no space in it has nowhere to break, so it ran past the reply's column (a
+   100-character link measured 1251px right edge in a 154px column at 320px). Prose breaks anywhere
+   as a last resort. Table cells are left alone: `anywhere` would shrink their minimum width and turn
+   a scrolling table into a squeezed one. */
+.formatted-md :is(p, li, blockquote, h1, h2, h3) {
+  overflow-wrap: anywhere;
 }
 
 .formatted-md code {
@@ -1021,21 +1325,6 @@ aside nav > p {
   }
 }
 
-@keyframes nx-drift {
-  0% {
-    translate: 0 0;
-    scale: 1;
-  }
-  50% {
-    translate: 6% -5%;
-    scale: 1.12;
-  }
-  100% {
-    translate: 0 0;
-    scale: 1;
-  }
-}
-
 @keyframes nx-pulse {
   0% {
     translate: 0 0;
@@ -1051,36 +1340,34 @@ aside nav > p {
   }
 }
 
-@keyframes nx-dots {
+/* A decorative shape arriving (`.float-shape`): a short drop and a tilt into its resting place,
+   once. The last keyframe is the shape's own style, so the fill is `backwards` and nothing holds it. */
+@keyframes nx-settle {
   0% {
-    translate: 0 0;
+    opacity: 0;
+    scale: 0.6;
+    translate: 0 -12px;
+    rotate: -16deg;
   }
   100% {
-    translate: 0 24px;
-  }
-}
-
-@keyframes nx-bob {
-  0% {
-    translate: 0 0;
-    rotate: 0deg;
-  }
-  50% {
-    translate: 0 -16px;
-    rotate: 14deg;
-  }
-  100% {
+    opacity: 1;
+    scale: 1;
     translate: 0 0;
     rotate: 0deg;
   }
 }
 
-@keyframes nx-spin {
+/* The same for a spinner (`.float-shape-spin`): one quarter turn into place instead of a tilt. */
+@keyframes nx-settle-spin {
   0% {
-    rotate: 0deg;
+    opacity: 0;
+    scale: 0.6;
+    rotate: -120deg;
   }
   100% {
-    rotate: 360deg;
+    opacity: 1;
+    scale: 1;
+    rotate: 0deg;
   }
 }
 
@@ -1150,9 +1437,27 @@ aside nav > p {
 }
 
 /* Empty chat centers when it fits. `safe` keeps the hero inside the pane when
-   the block is taller than a 900px window — plain center pushes the top negative. */
+   the block is taller than a 900px window — plain center pushes the top negative.
+   The column is also the size container the hero is measured against (`cqi`): the desk is often
+   far narrower than the window, so the hero's type, spacing and shapes follow this width. */
 .chat-empty-fit {
+  container-type: inline-size;
   justify-content: safe center;
+}
+
+/* The character grows with the pane: a taller window has the room for it. The two blocks below this
+   pair are the tightest tiers. The steps sit above the 900px block because that one narrows the hero's
+   padding, and a window just over it has the narrower hero's room no longer. */
+@media (max-height: 1040px) {
+  .chat-empty-fit .chat-hero-orb {
+    --orb: clamp(4.5rem, 20cqi, 6rem);
+  }
+}
+
+@media (max-height: 960px) {
+  .chat-empty-fit .chat-hero-orb {
+    --orb: clamp(3.75rem, 13cqi, 4.25rem);
+  }
 }
 
 @media (max-height: 900px) {
@@ -1162,9 +1467,13 @@ aside nav > p {
     padding-bottom: 0.5rem;
   }
 
-  .chat-empty-fit .hero-aurora {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+  .chat-empty-fit .chat-hero {
+    --hero-pad-y: clamp(var(--space-2), 3cqi, var(--space-4));
+    --hero-gap: clamp(var(--space-2), 2cqi, var(--space-3));
+  }
+
+  .chat-empty-fit .chat-hero-orb {
+    --orb: clamp(4.5rem, 20cqi, 6rem);
   }
 }
 
@@ -1176,13 +1485,15 @@ aside nav > p {
     padding-bottom: 0;
   }
 
-  .chat-empty-fit .hero-aurora {
-    padding-top: 0.25rem;
-    padding-bottom: 0;
+  .chat-empty-fit .chat-hero {
+    --hero-pad-y: var(--space-2);
+    --hero-gap: var(--space-2);
   }
 
-  .chat-empty-fit h2 {
-    margin-top: 0.25rem;
+  /* An 800px window has almost no room, so the hero takes no more of the column than the old orb (3.5rem)
+     did: a 68px box gives back 8% at each end and lays out 57px tall. */
+  .chat-empty-fit .chat-hero-orb {
+    --orb: clamp(3.75rem, 13cqi, 4.25rem);
   }
 
   .chat-empty-fit > p {
@@ -1207,12 +1518,12 @@ aside nav > p {
   animation: nx-bounce-in var(--motion-5) var(--ease-spring);
 }
 
-/* Empty-state tiles float so an empty page still breathes. */
-.icon-float {
-  animation: nx-bob var(--motion-bob) var(--ease-wave) infinite;
-}
-
-/* Decorative shapes around heroes and headers (`FloatingShapes`). */
+/* Decorative shapes around heroes and headers (`FloatingShapes`). They rest at their designed
+   positions and move only on events: one settle when they arrive, the hero's pointer parallax
+   (`.float-shapes-live`, below) and a tap. They used to bob and spin for ever; without the GPU each
+   of those loops cost a software-composited frame sixty times a second whenever the desk was in use.
+   Do not add one back: `lib/motion-tokens.test.ts` fails any `infinite` animation outside the busy
+   allowlist (the working dots and a mascot at a job). */
 .float-shapes {
   position: absolute;
   inset: 0;
@@ -1224,16 +1535,12 @@ aside nav > p {
 .float-shape {
   --i: 0;
   position: absolute;
-  animation:
-    nx-pop var(--motion-5) var(--ease-spring) both,
-    nx-bob var(--motion-bob) var(--ease-wave) infinite;
-  animation-delay: calc(var(--i) * var(--motion-stagger) + var(--motion-3)), calc(var(--i) * var(--motion-stagger) * -9);
+  animation: nx-settle var(--motion-5) var(--ease-spring) backwards;
+  animation-delay: calc(var(--i) * var(--motion-stagger) + var(--motion-3));
 }
 
 .float-shape-spin {
-  animation:
-    nx-pop var(--motion-5) var(--ease-spring) both,
-    nx-spin var(--motion-ambient) var(--ease-linear) infinite;
+  animation-name: nx-settle-spin;
 }
 
 /* A light sweep across primary buttons on hover. */
@@ -1295,23 +1602,6 @@ aside nav > p {
   animation-delay: calc(var(--i) * var(--motion-stagger) / 4);
 }
 
-@keyframes nx-illustration-bob {
-  0% {
-    translate: 0 0;
-  }
-  50% {
-    translate: 0 -6px;
-  }
-  100% {
-    translate: 0 0;
-  }
-}
-
-/* The empty-state scenes are wider than a tile, so they float without tilting. */
-.illustration-float {
-  animation: nx-illustration-bob var(--motion-bob) var(--ease-wave) infinite;
-}
-
 /* A working pill inside a button takes the button's colours instead of drawing a second pill. */
 .btn .chip {
   padding: 0;
@@ -1330,8 +1620,14 @@ aside nav > p {
 .enter-pop,
 .enter-slide {
   --i: 0;
-  animation-delay: calc(var(--i) * var(--motion-stagger));
-  animation-fill-mode: both;
+  /* The stagger stops growing at the twelfth sibling (a 660ms tail at most): a list of hundreds
+     used to hold its last row back for tens of seconds. */
+  animation-delay: calc(min(var(--i), 12) * var(--motion-stagger));
+  /* `backwards`, not `both`: the first keyframe holds through the delay, and once the entrance is
+     over the element goes back to its own style, which is what the last keyframe already was
+     (opacity 1, no translate, scale 1). A `forwards` fill kept a finished animation alive on every
+     element, hundreds of them on Edit, and pinned `translate` on it for good. */
+  animation-fill-mode: backwards;
 }
 
 .enter-rise {
@@ -1410,6 +1706,15 @@ aside nav > p {
   box-shadow: var(--lip-press);
 }
 
+/* A card that also carries an entrance (`card-live enter-rise`) has never lifted or pressed: the
+   entrance's `both` fill held `translate: 0 0` over the two rules above. The fill is `backwards`
+   now, so this keeps those cards as they were. The lift would also reach disabled starter buttons
+   (Data, Market) and cards around a `<video controls>`, which jump 6px while the scrubber is held.
+   Delete this rule to switch the designed lift on, and guard those two first (owner decision). */
+.card-live:is(.enter-rise, .enter-fade, .enter-pop, .enter-slide):is(:hover, :focus-visible, :active) {
+  translate: none;
+}
+
 /* A solid icon tile in the mode's colour; `-soft` is the tinted variant for dense lists. */
 .icon-orb {
   display: inline-flex;
@@ -1450,6 +1755,198 @@ aside nav > p {
   border: 2px solid color-mix(in srgb, var(--mode, var(--accent)) 18%, var(--line));
 }
 
+/* The empty Chat hero (`ChatHero`). Type, spacing and shapes are measured against the width of the
+   Chat column (`.chat-empty-fit` is the size container), so a 220px desk and a 1000px desk both
+   read as loose rather than one being the other squeezed. Motion is transform and opacity only.
+   The pointer variables `--px` / `--py` (-1..1) come from `attachHeroMotion` and are absent, so 0,
+   on touch and under reduced motion. */
+.chat-hero {
+  --hero-pad-x: clamp(var(--space-2), 5cqi, var(--space-6));
+  --hero-pad-y: clamp(var(--space-3), 6cqi, var(--space-6));
+  --hero-gap: clamp(var(--space-2), 3.2cqi, var(--space-4));
+  --hero-gap-tight: clamp(var(--space-2), 2cqi, var(--space-3));
+}
+
+.chat-hero-panel {
+  isolation: isolate;
+  overflow: hidden;
+  padding: var(--hero-pad-y) var(--hero-pad-x);
+}
+
+/* A resting halo behind the mascot, painted once. */
+.chat-hero-panel::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 50%;
+  width: min(140%, 36rem);
+  aspect-ratio: 2;
+  translate: -50% -38%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--mode, var(--accent)) 20%, transparent), transparent);
+  pointer-events: none;
+}
+
+/* A soft spot that trails a fine pointer across the panel. Off until the pointer is over it. */
+.chat-hero-panel::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  width: 16rem;
+  height: 16rem;
+  margin: -8rem 0 0 -8rem;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--mode, var(--accent)) 15%, transparent), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(calc(var(--px, 0) * 40cqi), calc(var(--py, 0) * 4rem));
+  transition:
+    opacity var(--motion-4) var(--ease-out),
+    transform var(--motion-4) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chat-hero-panel:hover::after {
+    opacity: 1;
+  }
+}
+
+/* The tap burst is clipped to the hero: a piece thrown past the column would otherwise give the
+   scrolling message list a horizontal scrollbar for a second. */
+.chat-hero-burst {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  border-radius: var(--r-hero);
+  pointer-events: none;
+}
+
+/* The button the whole Nultron character stands in (the name is from when a blue orb held a face).
+   `--orb` is its side. The render is a square canvas with the character at about 76% of its height and
+   the same margin above and below, so the box gives back 8% of its side at each end: it takes that
+   much less room in the column than its size says, and only transparent pixels sit outside the layout.
+   The picture fills the button (components/nultron/nultron.css) and drifts with the pointer there. */
+.chat-hero-orb {
+  --orb: clamp(5rem, 26cqi, 10rem);
+  width: var(--orb);
+  height: var(--orb);
+  margin-block: calc(var(--orb) * -0.08);
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  transition:
+    transform var(--motion-3) var(--ease-spring),
+    box-shadow var(--motion-2) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .chat-hero-orb:hover {
+    transform: translateY(-3px) rotate(-4deg);
+  }
+}
+
+.chat-hero-orb:active {
+  transform: translateY(1px) scale(0.94);
+}
+
+.chat-hero-orb:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--mode, var(--accent)) 45%, transparent);
+  outline-offset: 3px;
+}
+
+.chat-hero-title {
+  max-width: 100%;
+  margin-top: var(--hero-gap);
+  font-size: clamp(1.25rem, 0.8rem + 4.4cqi, 2.5rem);
+  line-height: var(--lh-tight);
+  text-wrap: balance;
+}
+
+/* Each wrapped line takes the whole gradient instead of a slice of one long line. */
+.chat-hero-title .text-gradient {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.chat-status-pill {
+  gap: clamp(0.3125rem, 2cqi, 0.5rem);
+  padding: 0.3rem clamp(0.4rem, 3cqi, 0.75rem);
+  font-size: clamp(0.6875rem, 0.544rem + 0.88cqi, 0.875rem);
+}
+
+/* Shapes shrink with the column and thin out: tier 1 always, 2 from 26rem, 3 from 44rem. A
+   hidden shape has no box, so its entrance does not run either. */
+.chat-hero .float-shape {
+  width: calc(var(--s) * 0.75px);
+  height: calc(var(--s) * 0.75px);
+}
+
+.chat-hero .float-shape[data-tier="2"],
+.chat-hero .float-shape[data-tier="3"] {
+  display: none;
+}
+
+@container (min-width: 26rem) {
+  .chat-hero .float-shape {
+    width: calc(var(--s) * 1px);
+    height: calc(var(--s) * 1px);
+  }
+
+  .chat-hero .float-shape[data-tier="2"] {
+    display: inline;
+  }
+}
+
+@container (min-width: 44rem) {
+  .chat-hero .float-shape[data-tier="3"] {
+    display: inline;
+  }
+}
+
+/* The onboarding hero (`StepHero`) thins its shapes the same way, by its own width: it is the size
+   container, and the shapes are its descendants, so the queries below read it and no wider ancestor. They
+   are unnamed, like the Chat hero's; a named container is the composer's alone (`lib/composer-layout.test.tsx`).
+   All of its shapes sit in the bands either side of the character (`hero` in floating-shapes.tsx);
+   tier 1 always, 2 from 26rem, 3 from 44rem. */
+.onboarding-hero {
+  container-type: inline-size;
+}
+
+.onboarding-hero .float-shape[data-tier="2"],
+.onboarding-hero .float-shape[data-tier="3"] {
+  display: none;
+}
+
+@container (min-width: 26rem) {
+  .onboarding-hero .float-shape[data-tier="2"] {
+    display: inline;
+  }
+}
+
+@container (min-width: 44rem) {
+  .onboarding-hero .float-shape[data-tier="3"] {
+    display: inline;
+  }
+}
+
+.float-shapes-live .float-shape {
+  pointer-events: auto;
+  cursor: pointer;
+  transform: translate(calc(var(--px, 0) * var(--depth, 0) * 1px), calc(var(--py, 0) * var(--depth, 0) * 1px));
+  transition: transform var(--motion-4) var(--ease-out);
+}
+
+/* Off screen or in a hidden tab, whatever still moves in the hero stands still. The shapes have no
+   loop left to pause; that is the mascot. Entrances are not listed: they are finite, and pausing
+   one would leave its element at the invisible first keyframe. */
+.chat-hero[data-paused="true"] .chat-hero-panel :is(.chat-mascot, .chat-mascot *) {
+  animation-play-state: paused;
+}
+
 .hero-glow {
   position: relative;
 }
@@ -1466,7 +1963,7 @@ aside nav > p {
   height: 7px;
   border-radius: 50%;
   background: var(--mode, var(--accent));
-  animation: nx-pulse var(--motion-pulse) var(--ease-wave) infinite;
+  animation: nx-pulse var(--motion-pulse) var(--ease-busy) infinite;
 }
 
 .pulse-dots > span:nth-child(2) {
@@ -1502,184 +1999,10 @@ aside nav > p {
 }
 
 
-/* Placeholder mascot. Art is a stand-in in components/placeholder-mascot.tsx.
-   Colour comes from the desk: the mode accent, the soft gradient, and the card lip.
-   Every loop below is named again under prefers-reduced-motion. */
-@keyframes chat-mascot-blink {
-  0%,
-  42%,
-  58%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.15;
-  }
-}
-
-@keyframes chat-mascot-look {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  35% {
-    transform: translateX(-0.8px);
-  }
-  70% {
-    transform: translateX(0.8px);
-  }
-}
-
-@keyframes chat-mascot-wave {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(-18deg);
-  }
-}
-
-@keyframes chat-mascot-bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-1.5px);
-  }
-}
-
-@keyframes chat-mascot-tap {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(1.5px);
-  }
-}
-
-@keyframes chat-mascot-sweep {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(1.5px, -1.5px);
-  }
-}
-
-@keyframes chat-mascot-tick {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
-  }
-}
-
-@keyframes chat-mascot-bars {
-  0%,
-  100% {
-    transform: scaleY(1);
-  }
-  50% {
-    transform: scaleY(0.7);
-  }
-}
-
-@keyframes chat-mascot-stamp {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(0.86);
-  }
-}
-
-@keyframes chat-mascot-nod {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(8deg);
-  }
-}
-
-@keyframes chat-mascot-brush {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(-14deg);
-  }
-}
-
-@keyframes chat-mascot-clap {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  45% {
-    transform: rotate(-16deg);
-  }
-}
-
-@keyframes chat-mascot-snip {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(16deg);
-  }
-}
-
-@keyframes chat-mascot-point {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-1.5px);
-  }
-}
-
-@keyframes chat-mascot-cheer {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-2px) scale(1.06);
-  }
-}
-
-@keyframes chat-mascot-droop {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(4deg);
-  }
-}
-
-@keyframes chat-mascot-zs {
-  0% {
-    opacity: 0.2;
-    transform: translate(0, 1px);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(1px, -2px);
-  }
-}
+/* The mascot is the Nultron character: its size, poses and motion live in
+   components/nultron/ (nultron.css, imported by the component). What this file keeps is the desk's
+   side of it: the hero orb below and the ambient-pause and reduced-motion rules at the end, which
+   reach the mascot through `.chat-mascot` and `data-busy`. */
 
 @keyframes composer-send-ack {
   from {
@@ -1690,195 +2013,6 @@ aside nav > p {
   }
 }
 
-.chat-mascot {
-  display: inline-flex;
-  flex: none;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  justify-content: center;
-  color: var(--mode, var(--accent));
-  background: var(--grad-soft);
-  border: 2px solid color-mix(in srgb, var(--mode, var(--accent)) 28%, var(--line));
-  border-radius: 14px;
-  box-shadow: var(--lip);
-}
-
-.chat-mascot svg {
-  width: 28px;
-  height: 28px;
-}
-
-.chat-mascot[data-placement="beside"] {
-  width: 32px;
-  height: 32px;
-  border-radius: 12px;
-}
-
-.chat-mascot[data-placement="beside"] svg {
-  width: 24px;
-  height: 24px;
-}
-
-.chat-mascot-body {
-  fill: var(--accent-soft);
-}
-
-.chat-mascot[data-state="error"] {
-  color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
-}
-
-.chat-mascot-mouth,
-.chat-mascot-shut,
-.chat-mascot-arm,
-.chat-mascot-prop {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.chat-mascot-mouth,
-.chat-mascot-shut,
-.chat-mascot-arm,
-.chat-mascot-prop {
-  opacity: 0;
-}
-
-.chat-mascot[data-mouth="idle"] .chat-mascot-mouth-idle,
-.chat-mascot[data-mouth="talk"] .chat-mascot-mouth-talk,
-.chat-mascot[data-mouth="smile"] .chat-mascot-mouth-smile,
-.chat-mascot[data-mouth="sad"] .chat-mascot-mouth-sad,
-.chat-mascot[data-mouth="sleep"] .chat-mascot-mouth-sleep,
-.chat-mascot[data-pose="sleep"] .chat-mascot-shut,
-.chat-mascot[data-pose="wave"] .chat-mascot-arm,
-.chat-mascot[data-pose="writing"] .chat-mascot-arm,
-.chat-mascot[data-pose="writing"] .chat-mascot-prop-writing,
-.chat-mascot[data-pose="searching"] .chat-mascot-prop-searching,
-.chat-mascot[data-pose="calculating"] .chat-mascot-prop-calculating,
-.chat-mascot[data-pose="charting"] .chat-mascot-prop-charting,
-.chat-mascot[data-pose="reviewing"] .chat-mascot-prop-reviewing,
-.chat-mascot[data-pose="listening"] .chat-mascot-prop-listening,
-.chat-mascot[data-pose="painting"] .chat-mascot-prop-painting,
-.chat-mascot[data-pose="filming"] .chat-mascot-prop-filming,
-.chat-mascot[data-pose="editing"] .chat-mascot-prop-editing,
-.chat-mascot[data-pose="presenting"] .chat-mascot-prop-presenting,
-.chat-mascot[data-pose="sleep"] .chat-mascot-prop-sleep {
-  opacity: 1;
-}
-
-.chat-mascot[data-pose="sleep"] .chat-mascot-eyes {
-  opacity: 0;
-}
-
-.chat-mascot-prop rect {
-  fill: color-mix(in srgb, currentColor 16%, transparent);
-}
-
-.chat-mascot[data-state="wave"] .chat-mascot-arm {
-  transform-origin: 22px 14px;
-  animation: chat-mascot-wave calc(var(--motion-4) * 2) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="idle"] .chat-mascot-eyes {
-  animation: chat-mascot-blink calc(var(--motion-4) * 4) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="idle"] .chat-mascot-look {
-  animation: chat-mascot-look calc(var(--motion-4) * 8) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="thinking"] .chat-mascot-eyes {
-  animation: chat-mascot-blink calc(var(--motion-4) * 3) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="thinking"] .chat-mascot-face {
-  animation: chat-mascot-bob calc(var(--motion-4) * 3) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="writing"] .chat-mascot-arm,
-.chat-mascot[data-state="answering"] .chat-mascot-arm {
-  transform-origin: 22px 16px;
-  animation: chat-mascot-tap calc(var(--motion-4) * 2) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="searching"] .chat-mascot-prop-searching {
-  animation: chat-mascot-sweep calc(var(--motion-4) * 3) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="calculating"] .chat-mascot-prop-calculating {
-  animation: chat-mascot-tick calc(var(--motion-4) * 2) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="charting"] .chat-mascot-prop-charting {
-  transform-origin: center bottom;
-  animation: chat-mascot-bars calc(var(--motion-4) * 3) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="reviewing"] .chat-mascot-prop-reviewing {
-  transform-origin: 26px 18px;
-  animation: chat-mascot-stamp calc(var(--motion-4) * 3) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="listening"] .chat-mascot-prop-listening {
-  transform-origin: 25px 14px;
-  animation: chat-mascot-nod calc(var(--motion-4) * 4) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="painting"] .chat-mascot-prop-painting {
-  transform-origin: 24px 20px;
-  animation: chat-mascot-brush calc(var(--motion-4) * 3) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="filming"] .chat-mascot-prop-filming {
-  transform-origin: 25px 16px;
-  animation: chat-mascot-clap calc(var(--motion-4) * 2) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="editing"] .chat-mascot-prop-editing {
-  transform-origin: 25px 18px;
-  animation: chat-mascot-snip calc(var(--motion-4) * 2) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="presenting"] .chat-mascot-prop-presenting {
-  animation: chat-mascot-point calc(var(--motion-4) * 3) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="celebrating"] .chat-mascot-face {
-  transform-origin: 15px 14px;
-  animation: chat-mascot-cheer calc(var(--motion-4) * 2) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="error"] .chat-mascot-face {
-  transform-origin: 15px 14px;
-  animation: chat-mascot-droop calc(var(--motion-4) * 4) var(--ease-out) infinite;
-}
-
-.chat-mascot[data-state="sleep"] .chat-mascot-prop-sleep {
-  animation: chat-mascot-zs calc(var(--motion-4) * 4) var(--ease-out) infinite;
-}
-
-.icon-orb-solid .chat-mascot {
-  width: 32px;
-  height: 32px;
-  color: inherit;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-.icon-orb-solid .chat-mascot-body {
-  fill: color-mix(in srgb, currentColor 18%, transparent);
-}
-
-.icon-orb-solid .chat-mascot-prop,
-.icon-orb-solid .chat-mascot-arm {
-  display: none;
-}
-
 .composer-sending [data-testid="composer-send"] {
   animation: composer-send-ack var(--motion-2) var(--ease-out);
 }
@@ -1886,6 +2020,39 @@ aside nav > p {
 .formatted-md a.chat-embed {
   color: inherit;
   text-decoration: none;
+}
+
+/* ===========================================================================
+   Ambient pause. `lib/ambient-motion.ts` writes `data-ambient="paused"` on <html> whenever the
+   window is hidden, blurred, or has had no input for 12 seconds, and names which one in
+   `data-ambient-reason` (idle | blurred | hidden).
+
+   Decoration no longer loops (2026-09-29): the shapes settle once on arrival and rest, and an
+   empty-state scene only pops in, so the only `infinite` animations left are status, the working
+   dots and a mascot at a job, and `lib/motion-tokens.test.ts` fails on any other. Without the GPU
+   one loop costs a full software-composited frame sixty times a second, and a pause that waits for
+   12 quiet seconds cannot help a desk somebody is using: with ten decorative loops running, an
+   active /chat held 11% of the machine.
+
+   `!important` keeps this independent of specificity: the mascot's `animation` shorthands reset
+   `animation-play-state`, and one of them tied a plain pause. Only loops are listed. An entrance is
+   finite, and pausing one leaves its element stuck at the invisible first keyframe.
+   =========================================================================== */
+
+/* A mascot that is not at a running job stands still in every state but active. (Decoration proper
+   has no rule here any more: it does not loop. The shapes settle once on arrival and rest.) A mascot
+   at a job is status and is handled below (`data-busy`, from `isMascotBusy`). */
+html[data-ambient="paused"] :is(.chat-mascot:not([data-busy]), .chat-mascot:not([data-busy]) *) {
+  animation-play-state: paused !important;
+}
+
+/* Status: the working dots and the mascot at a job say "still running". Someone watching a long run
+   with their hands off the mouse is `idle`, and a window beside another is `blurred` yet still on
+   screen; a frozen indicator in either would read as a hung app. They are stepped (`--ease-busy`),
+   so they are cheap, and they stop only when the window is not visible at all. */
+html[data-ambient="paused"][data-ambient-reason="hidden"]
+  :is(.pulse-dots > span, .chat-mascot[data-busy], .chat-mascot[data-busy] *) {
+  animation-play-state: paused !important;
 }
 
 /* ===========================================================================
@@ -1908,36 +2075,24 @@ aside nav > p {
   }
 
   .pulse-dots > span,
-  .desk-canvas::before,
-  .icon-float,
-  .illustration-float,
-  .float-shape,
-  .float-shape-spin,
   .tile-bounce,
   .page-enter,
-  .chat-mascot[data-state="wave"] .chat-mascot-arm,
-  .chat-mascot[data-state="idle"] .chat-mascot-eyes,
-  .chat-mascot[data-state="idle"] .chat-mascot-look,
-  .chat-mascot[data-state="thinking"] .chat-mascot-eyes,
-  .chat-mascot[data-state="thinking"] .chat-mascot-face,
-  .chat-mascot[data-state="writing"] .chat-mascot-arm,
-  .chat-mascot[data-state="answering"] .chat-mascot-arm,
-  .chat-mascot[data-state="searching"] .chat-mascot-prop-searching,
-  .chat-mascot[data-state="calculating"] .chat-mascot-prop-calculating,
-  .chat-mascot[data-state="charting"] .chat-mascot-prop-charting,
-  .chat-mascot[data-state="reviewing"] .chat-mascot-prop-reviewing,
-  .chat-mascot[data-state="listening"] .chat-mascot-prop-listening,
-  .chat-mascot[data-state="painting"] .chat-mascot-prop-painting,
-  .chat-mascot[data-state="filming"] .chat-mascot-prop-filming,
-  .chat-mascot[data-state="editing"] .chat-mascot-prop-editing,
-  .chat-mascot[data-state="presenting"] .chat-mascot-prop-presenting,
-  .chat-mascot[data-state="celebrating"] .chat-mascot-face,
-  .chat-mascot[data-state="error"] .chat-mascot-face,
-  .chat-mascot[data-state="sleep"] .chat-mascot-prop-sleep {
+  .chat-mascot,
+  .chat-mascot * {
     animation: none !important;
   }
 
   .confetti {
+    display: none;
+  }
+
+  .float-shapes-live .float-shape,
+  .chat-hero-orb:hover,
+  .chat-hero-orb:active {
+    transform: none !important;
+  }
+
+  .chat-hero-panel::after {
     display: none;
   }
 
