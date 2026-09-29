@@ -13,7 +13,7 @@
     "statusConnected": "Kunci model terhubung",
     "statusSignedIn": "Sudah masuk",
     "statusReady": "Siap bekerja",
-    "statusNeedsKey": "Hubungkan kunci untuk mulai langsung",
+    "statusNeedsKey": "Hubungkan kunci agar aktif",
     "statusGrace": "Kunci model terhubung (luring, terakhir dicek {date})",
     "whatsThis": "Apa ini?",
     "whatsThisBody": "Kunci gateway menghubungkan meja ini ke model di akun Anda. Tempel sekali di Pengaturan. Kunci tetap di meja ini dan tidak ditampilkan lagi.",
@@ -42,7 +42,11 @@
       },
       "fillsComposer": "Mengisi kotak dengan prompt awal."
     },
-    "recheck": "Periksa lagi"
+    "recheck": "Periksa lagi",
+    "mascotHello": "Sapa"
+  },
+  "header": {
+    "menu": "Detail obrolan"
   },
   "account": {
     "label": "Akun"
@@ -164,7 +168,9 @@
     "think": "Nalar",
     "fallback": "Pilih model",
     "groups": {
-      "recommended": "Disarankan"
+      "recommended": "Disarankan",
+      "other": "Lainnya",
+      "embeddings": "Embedding"
     },
     "noMatch": "Tidak ada model yang cocok dengan “{query}”",
     "noMatchEmpty": "Tidak ada model yang cocok dengan pencarian Anda"

@@ -5,12 +5,13 @@ import { useRouter } from "@/lib/nav";
 import { ChatAccountChip } from "@/components/chat-account-chip";
 import { ChatComposer } from "@/components/chat-composer";
 import { ChatContextChip } from "@/components/chat-context-chip";
+import { ChatHeader } from "@/components/chat-header";
 import { ChatLauncher } from "@/components/chat-launcher";
 import { ChatUsageChip } from "@/components/chat-usage-chip";
 import { estimateContextParts, estimateConversationTokens, textFromMessageContent } from "@/lib/estimate-tokens";
 import type { ContextPart } from "@/components/chat-context-chip";
 import { ChatTurn, messageHasDisplayableContent, type LiveTool } from "@/components/chat-turn";
-import { PlaceholderMascot } from "@/components/placeholder-mascot";
+import { NultronMascot } from "@/components/nultron/nultron-mascot";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { apiFetch } from "@/lib/api-client";
@@ -395,29 +396,17 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
 
   return (
     <main className="flex h-full min-h-0 flex-col" data-testid="chat-home">
-      <div
-        className="flex h-14 w-full shrink-0 items-center justify-between gap-4 px-6"
-        data-testid="chat-header"
-      >
-        <h1 className={`${empty ? "text-sm" : "text-2xl"} font-medium tracking-[var(--track)] text-[var(--text)]`}>
-          {isDefaultChat ? t("chat.title") : agentName}
-        </h1>
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 text-xs">
-          {hasReply ? (
-            <ChatContextChip
-              usedTokens={contextTokens}
-              contextLength={selectedModel?.contextLength}
-              parts={contextParts}
-            />
-          ) : null}
-          {hasReply ? <ChatUsageChip /> : null}
-          <ChatAccountChip />
-        </div>
-      </div>
+      <ChatHeader title={isDefaultChat ? t("chat.title") : agentName} compact={empty}>
+        {hasReply ? (
+          <ChatContextChip usedTokens={contextTokens} contextLength={selectedModel?.contextLength} parts={contextParts} />
+        ) : null}
+        {hasReply ? <ChatUsageChip /> : null}
+        <ChatAccountChip />
+      </ChatHeader>
 
       {error ? (
-        <div className="flex w-full items-start gap-3 px-6">
-          {running || thinking || tools.length > 0 || streaming ? null : <PlaceholderMascot state="error" />}
+        <div className="flex w-full items-start gap-3 px-[var(--chat-gutter)]">
+          {running || thinking || tools.length > 0 || streaming ? null : <NultronMascot state="error" decorative />}
           <p className="text-sm text-[var(--danger)]" data-testid="chat-error" role="alert">
             {error}
           </p>
@@ -434,7 +423,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           }
           pinRef.current = isPinnedToEnd(el.scrollTop, el.scrollHeight, el.clientHeight);
         }}
-        className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain px-6 ${empty ? "" : "space-y-4 py-4"}`}
+        className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain px-[var(--chat-gutter)] ${empty ? "" : "space-y-4 py-4"}`}
         data-testid="message-list"
       >
         {empty && !error ? <ChatLauncher onSuggest={setComposerDraft} /> : null}
@@ -447,7 +436,15 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           <div data-testid="assistant-live">
             <ChatTurn
               role="assistant"
-              live={{ thinking, tools, streaming, running, thinkingEnabled, failed: sendFailed }}
+              live={{
+                thinking,
+                tools,
+                streaming,
+                running,
+                thinkingEnabled,
+                failed: sendFailed,
+                firstTurn: messages.every((message) => message.role !== "assistant"),
+              }}
             />
           </div>
         ) : null}

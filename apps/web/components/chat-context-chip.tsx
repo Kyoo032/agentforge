@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatContextLength } from "@agentforge/core/preferred";
+import { useChatHeaderLayout } from "@/components/chat-header-layout";
 import { t } from "@/lib/i18n";
 
 const MUTED = "text-[var(--text-3)]";
@@ -52,8 +53,17 @@ function placePanel(trigger: HTMLElement): PanelPos {
 export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<PanelPos | null>(null);
+  // In the header's "Chat details" menu the breakdown unfolds inside this chip's own row instead of
+  // opening a popover: a popover opened from inside a menu would nest one focus trap in another.
+  const layout = useChatHeaderLayout();
+  const inMenu = layout.presentation === "menu";
+  const menuOpen = layout.menuOpen;
+  // The details are open for the header layout they were opened in only. The header changing how it
+  // presents its chips, or its menu opening or shutting, starts them closed again with no effect to
+  // run, so they are never left open in the row of a shut menu, or when it is next opened.
+  const [openEpoch, setOpenKey] = useState<number | null>(null);
+  const open = openEpoch === layout.epoch;
   const used = Math.max(0, usedTokens);
   const window_ = contextLength && contextLength > 0 ? contextLength : undefined;
   const left = window_ != null ? Math.max(0, window_ - used) : undefined;
@@ -71,7 +81,7 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
       : [{ label: t("chat.context.conversation"), detail: t("chat.context.conversationDetail"), tokens: used }];
 
   useEffect(() => {
-    if (!open) {
+    if (!open || inMenu) {
       return;
     }
     function place() {
@@ -91,11 +101,11 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
       if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) {
         return;
       }
-      setOpen(false);
+      setOpenKey(null);
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setOpen(false);
+        setOpenKey(null);
       }
     }
     window.addEventListener("pointerdown", onPointerDown);
@@ -109,10 +119,51 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [open, rows.length]);
+  }, [open, inMenu, rows.length]);
+
+  // The same breakdown in both places it can appear: the popover beside the bar, or a row of the menu.
+  const breakdown = (
+    <>
+      <div className="mb-3 flex items-baseline gap-3">
+        <span className="panel-label">{t("chat.context.window")}</span>
+        <span className="ml-auto shrink-0 text-sm font-medium tabular-nums">
+          {window_ != null
+            ? `${formatContextLength(used)} / ${formatContextLength(window_)}`
+            : t("chat.context.used", { n: formatContextLength(used) })}
+        </span>
+      </div>
+      <div className="mb-3.5 flex h-2 overflow-hidden bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]">
+        <span className="h-full bg-accent" style={{ width: `${(window_ ? fraction * 100 : 100).toFixed(1)}%` }} />
+      </div>
+      <div className="flex flex-col">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-start gap-2 border-b border-[var(--line)] py-1.5 text-xs">
+            <span className="mt-1 h-2 w-2 flex-none rounded-sm bg-accent" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[var(--text)]">{row.label}</span>
+              {row.detail ? <span className={`block ${MUTED}`}>{row.detail}</span> : null}
+            </span>
+            <span className="w-[52px] shrink-0 pt-px text-right tabular-nums">{formatContextLength(row.tokens)}</span>
+          </div>
+        ))}
+        <div className={`flex items-start gap-2 py-1.5 text-xs ${MUTED}`}>
+          <span className="mt-1 h-2 w-2 flex-none rounded-sm border border-divider" aria-hidden="true" />
+          <span className="min-w-0 flex-1">{t("chat.context.free")}</span>
+          <span className="w-[52px] shrink-0 text-right tabular-nums">
+            {left != null ? formatContextLength(left) : "—"}
+          </span>
+        </div>
+      </div>
+      {window_ && fraction >= 0.8 ? (
+        <p className="mt-3 text-xs text-[var(--accent)]">{t("chat.context.approaching")}</p>
+      ) : (
+        <p className={`mt-3 text-xs ${MUTED}`}>{t("chat.context.estimate")}</p>
+      )}
+    </>
+  );
 
   const panel =
-    open && pos
+    open && !inMenu && pos
       ? createPortal(
           <div
             ref={panelRef}
@@ -122,73 +173,50 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
             aria-label={t("chat.context.window")}
             style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight }}
           >
-            <div className="mb-3 flex items-baseline gap-3">
-              <span className="panel-label">{t("chat.context.window")}</span>
-              <span className="ml-auto shrink-0 text-sm font-medium tabular-nums">
-                {window_ != null
-                  ? `${formatContextLength(used)} / ${formatContextLength(window_)}`
-                  : t("chat.context.used", { n: formatContextLength(used) })}
-              </span>
-            </div>
-            <div className="mb-3.5 flex h-2 overflow-hidden bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]">
-              <span className="h-full bg-accent" style={{ width: `${(window_ ? fraction * 100 : 100).toFixed(1)}%` }} />
-            </div>
-            <div className="flex flex-col">
-              {rows.map((row) => (
-                <div key={row.label} className="flex items-start gap-2 border-b border-[var(--line)] py-1.5 text-xs">
-                  <span className="mt-1 h-2 w-2 flex-none rounded-sm bg-accent" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[var(--text)]">{row.label}</span>
-                    {row.detail ? <span className={`block ${MUTED}`}>{row.detail}</span> : null}
-                  </span>
-                  <span className="w-[52px] shrink-0 pt-px text-right tabular-nums">
-                    {formatContextLength(row.tokens)}
-                  </span>
-                </div>
-              ))}
-              <div className={`flex items-start gap-2 py-1.5 text-xs ${MUTED}`}>
-                <span className="mt-1 h-2 w-2 flex-none rounded-sm border border-divider" aria-hidden="true" />
-                <span className="min-w-0 flex-1">{t("chat.context.free")}</span>
-                <span className="w-[52px] shrink-0 text-right tabular-nums">
-                  {left != null ? formatContextLength(left) : "—"}
-                </span>
-              </div>
-            </div>
-            {window_ && fraction >= 0.8 ? (
-              <p className="mt-3 text-xs text-[var(--accent)]">{t("chat.context.approaching")}</p>
-            ) : (
-              <p className={`mt-3 text-xs ${MUTED}`}>{t("chat.context.estimate")}</p>
-            )}
+            {breakdown}
           </div>,
           document.body,
         )
       : null;
 
+  const rowDetail =
+    open && inMenu && menuOpen ? (
+      <div
+        className="chat-header-detail"
+        data-testid="chat-context-breakdown"
+        role="group"
+        aria-label={t("chat.context.window")}
+      >
+        {breakdown}
+      </div>
+    ) : null;
+
   return (
-    <div className="relative ml-auto flex-none">
+    <div className="relative min-w-0 max-w-full">
       <button
         ref={triggerRef}
         type="button"
-        className="chip wash whitespace-nowrap"
+        className="chip wash max-w-full whitespace-nowrap"
         data-testid="chat-context"
         title={title}
         aria-expanded={open}
-        aria-haspopup="dialog"
+        aria-haspopup={inMenu ? undefined : "dialog"}
         onClick={() => {
           if (open) {
-            setOpen(false);
+            setOpenKey(null);
             return;
           }
           const trigger = triggerRef.current;
-          if (trigger) {
+          if (trigger && !inMenu) {
             setPos(placePanel(trigger));
           }
-          setOpen(true);
+          setOpenKey(layout.epoch);
         }}
       >
-        <span className="text-xs text-[var(--text)]">{ringLabel}</span>
+        <span className="min-w-0 truncate text-xs text-[var(--text)]">{ringLabel}</span>
       </button>
       {panel}
+      {rowDetail}
     </div>
   );
 }

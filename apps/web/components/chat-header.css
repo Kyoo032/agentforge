@@ -1,0 +1,162 @@
+/* The Chat header is one row at every width (owner ruling 2026-09-29: "collapse the header chips
+   into one menu"). It used to wrap: the chips took their own row under the title once the header
+   was under 24rem, which made it 115px tall on a narrow desk. Now the chips sit beside the title
+   while they fit, and when they do not they fold into one "Chat details" menu.
+
+   What decides is measured, not a breakpoint: `lib/use-chat-header-fit.ts` compares the title's
+   floor plus the chips' natural width with the header's room and sets `data-mode` to `inline` or
+   `menu` (`lib/chat-header-fit.ts` holds the arithmetic and the hysteresis). These rules only draw
+   the two modes.
+
+   The chips are one element, `.chat-header-controls`, in both. Inline it is a row beside the title.
+   In the menu it is the panel, and when the panel is shut it is the same row, laid out but not
+   seen (`visibility: hidden` also takes it out of the tab order): that keeps every chip mounted
+   once, so nothing they fetch on mount is fetched again, and keeps their natural width measurable.
+   The panel is absolutely placed inside the header, which is inside the desk and so is not clipped
+   by it; it never leaves the desk's box because its width is capped by the header's own. */
+
+.chat-header {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: var(--space-4);
+  min-height: 3.5rem;
+  padding-block: var(--space-2);
+}
+
+/* The title gives way first, with an ellipsis, and only down to the floor the fit code allows. */
+.chat-header-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.chat-header-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin-inline-start: auto;
+}
+
+.chat-header-controls {
+  display: flex;
+  flex: none;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.chat-header-menu-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background-color var(--motion-hover), border-color var(--motion-hover), color var(--motion-hover);
+}
+
+.chat-header-menu-btn:hover,
+.chat-header-menu-btn[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.chat-header-menu-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Menu, shut: the row is still laid out at its natural width so it can be measured, but it takes no
+   room, is not seen and cannot be reached. */
+.chat-header[data-mode="menu"] .chat-header-controls {
+  position: absolute;
+  top: 0;
+  right: var(--chat-gutter);
+  width: max-content;
+  max-width: none;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Menu, open: the same element becomes the panel, under the header and inside the gutters. */
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls {
+  top: calc(100% - var(--space-1));
+  width: min(20rem, calc(100% - 2 * var(--chat-gutter)));
+  max-height: min(32rem, calc(100dvh - 8rem));
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  overflow-y: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--elev-2);
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls:focus-visible {
+  outline: none;
+}
+
+/* Each chip becomes a full-width row with a comfortable tap target. */
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls > * {
+  width: 100%;
+  max-width: 100%;
+}
+
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls .chip {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3);
+  border-color: transparent;
+  border-radius: var(--r-nav);
+  background: transparent;
+  color: var(--text);
+}
+
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls .chip:hover,
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls .chip[aria-expanded="true"] {
+  background: var(--surface-2);
+}
+
+/* A chevron at the row's end says what pressing it does: unfold (down, up once unfolded) or go to
+   another page (right). It is drawn, not a glyph, so it inherits nothing from the label's font. */
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls .chip::after {
+  content: "";
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: auto;
+  border-right: 1.5px solid var(--text-3);
+  border-bottom: 1.5px solid var(--text-3);
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls a.chip::after {
+  transform: rotate(-45deg);
+}
+
+.chat-header[data-mode="menu"][data-open="true"] .chat-header-controls .chip[aria-expanded="true"]::after {
+  transform: translateY(1px) rotate(225deg);
+}
+
+/* A chip's details, unfolded inside its own row instead of as a popover (a popover opened from
+   inside the menu would nest one focus trap in another). */
+.chat-header-detail {
+  margin-top: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--r-nav);
+  background: var(--surface-2);
+}

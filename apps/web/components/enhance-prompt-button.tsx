@@ -122,10 +122,13 @@ export function EnhancePromptButton({
     <>
       <button
         type="button"
-        className={`wash inline-flex h-8 shrink-0 items-center gap-1.5 border bg-transparent px-3 text-xs font-medium hover:bg-[var(--surface-2)] disabled:opacity-45 ${pill ? "rounded-pill" : "rounded-lg"} ${
+        className={`enhance-btn wash inline-flex shrink-0 items-center gap-1.5 border bg-transparent px-3 text-xs font-medium hover:bg-[var(--surface-2)] disabled:opacity-45 ${pill ? "rounded-pill" : "rounded-lg"} ${
           failed ? "border-[var(--danger)] text-[var(--danger)]" : "border-[var(--line)] text-[var(--text)]"
         }`}
         data-tip={failed ? error : actionLabel}
+        // The label can be hidden when the toolbar is narrow (`.composer-toolbar .enhance-btn-label`),
+        // so the button keeps a tooltip and an accessible name of its own.
+        title={failed ? error : actionLabel}
         aria-label={actionLabel}
         aria-describedby={failed ? errorId : undefined}
         aria-pressed={enhanced}
@@ -146,7 +149,7 @@ export function EnhancePromptButton({
           <path d="M12 3.5 13.7 8l4.5 1.7-4.5 1.7L12 15.9l-1.7-4.5L5.8 9.7 10.3 8 12 3.5Z" />
           <path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z" />
         </svg>
-        <span>{failed ? t("common.enhance.failedShort") : actionLabel}</span>
+        <span className="enhance-btn-label">{failed ? t("common.enhance.failedShort") : actionLabel}</span>
       </button>
       {/* Mounted from the first render so the reason is announced when it appears. Visually hidden:
           the button's own error state and its tip carry it on screen, and the toolbars it sits in
