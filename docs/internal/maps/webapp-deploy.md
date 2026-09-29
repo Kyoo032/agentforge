@@ -104,7 +104,7 @@ unless `AGENTFORGE_SERVER` is on. The stack does not set `BIND_HOST`, so the def
 
 ### Front: Caddy
 
-`webapp-deploy/Caddyfile` has two sites. `http://{$DPSBUDDY_DOMAIN}` does nothing but a permanent
+`webapp-deploy/Caddyfile` has two sites. `http://{$NULTRON_DOMAIN}` does nothing but a permanent
 redirect to HTTPS (`Caddyfile:21-23`). The HTTPS site sets TLS 1.2 as the floor (`:28-30`), compresses
 (`:32`), and sends the security header block — CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
 `Referrer-Policy`, the COOP/CORP pair and a fully-off `Permissions-Policy` (`:46-59`) — while stripping

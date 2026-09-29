@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
 #
-# DPSBuddy hosted web app.
+# Nultron hosted web app.
 #
 # Build context is the REPO ROOT, not this folder:
-#   docker build -f webapp-deploy/Dockerfile -t dpsbuddy-web:local .
+#   docker build -f webapp-deploy/Dockerfile -t nultron-web:local .
 #
 # Why the whole workspace ships in the image: every @agentforge/* package exports
 # TypeScript source (packages/host/package.json "exports" -> ./src/index.ts), and

@@ -54,4 +54,6 @@ apps/mobile/ios
 # Docs and scratch
 _ref
 docs
+# tools/: the offline 3D mascot renderer (tools/nultron-3d, with its own node_modules and render scratch); it never runs in the hosted app
+tools
 webapp-deploy/.env

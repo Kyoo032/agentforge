@@ -36,7 +36,7 @@ async function start(options: { ttlMs?: number; tenantId?: string | null } = {})
       rawDeviceCode: raw,
       installId,
       platform: "windows",
-      clientName: "DPSBuddy",
+      clientName: "Nultron",
       clientVersion: "0.14.27",
       tenantId: options.tenantId ?? null,
       ttlMs: options.ttlMs,

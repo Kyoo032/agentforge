@@ -1,7 +1,7 @@
 # @agentforge/portal
 
 A **stand-in for the Toko Token portal** — the control plane at `api.tokotokenai.com` that the
-backend team owns. This one exists so the hosted DPSBuddy web app has a real login to build and
+backend team owns. This one exists so the hosted Nultron web app has a real login to build and
 review against today, and it is **wire-compatible with
 [`docs/internal/portal/`](../../docs/internal/portal/)**: the flow in `device-code-login.md`, the
 data model in `schema.md`, and the schema itself from `migrations/0001-0005`, which it runs
@@ -51,7 +51,7 @@ chance. Put it in the product's `AGENTFORGE_PORTAL_CLIENT_SECRET`. To replace it
 
 ```sh
 pnpm portal:seed -- --email you@example.com \
-  --tenant dpsbuddy --org Kyo --seat-cap 20 \
+  --tenant nultron --org Kyo --seat-cap 20 \
   --redirect https://localhost:3443/auth/callback
 ```
 

@@ -1,5 +1,5 @@
-# DPSBuddy reverse proxy. Caddy obtains and renews TLS automatically for
-# {$DPSBUDDY_DOMAIN} as long as ports 80 and 443 reach this host from the internet.
+# Nultron reverse proxy. Caddy obtains and renews TLS automatically for
+# {$NULTRON_DOMAIN} as long as ports 80 and 443 reach this host from the internet.
 #
 # Caddy runs in the app container's network namespace, so 127.0.0.1:3000 IS the app.
 #
@@ -18,11 +18,11 @@
 # lost in a future edit. There is no site body on :80 other than this: nothing is
 # served, nothing is proxied, and the ACME HTTP-01 challenge is still answered by
 # Caddy itself ahead of this route.
-http://{$DPSBUDDY_DOMAIN} {
+http://{$NULTRON_DOMAIN} {
 	redir https://{host}{uri} permanent
 }
 
-{$DPSBUDDY_DOMAIN} {
+{$NULTRON_DOMAIN} {
 	# N3: TLS 1.2 is the floor. Caddy already defaults here; stated so a future edit
 	# has to argue with it.
 	tls {
@@ -109,7 +109,7 @@ http://{$DPSBUDDY_DOMAIN} {
 	# proxy` to take the site read-only in about a second; comment them back out to
 	# restore writes. The README has the rest of the runbook.
 	# @mutating not method GET HEAD OPTIONS
-	# respond @mutating "DPSBuddy is temporarily read-only." 503
+	# respond @mutating "Nultron is temporarily read-only." 503
 
 	# X-FORWARDED-FOR AND WHO IS ALLOWED TO SET IT.
 	#
@@ -149,7 +149,7 @@ http://{$DPSBUDDY_DOMAIN} {
 		#
 		# Two things this depends on, both in .env:
 		#   AGENTFORGE_SERVER=1
-		#   AGENTFORGE_TRUSTED_ORIGINS=https://<the DPSBUDDY_DOMAIN value, spelled out>
+		#   AGENTFORGE_TRUSTED_ORIGINS=https://<the NULTRON_DOMAIN value, spelled out>
 		#     (scheme included, no Caddy placeholder - .env is read by the app, not by
 		#     Caddy; comma-separated for more than one name. An empty list in server mode
 		#     accepts no write from any browser.)

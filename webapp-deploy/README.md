@@ -2,7 +2,7 @@
 
 > Target host: **Tencent Cloud CVM, Jakarta**. Storage placement: [`docs/internal/web-data-placement-tencent.md`](../docs/internal/web-data-placement-tencent.md). Security requirements and the before-traffic acceptance list: [`docs/internal/web-security-spec.md`](../docs/internal/web-security-spec.md).
 
-The full structure for running DPSBuddy as a hosted web app on Kyo's server: image,
+The full structure for running Nultron as a hosted web app on Kyo's server: image,
 compose stack, reverse proxy, env template, and the scripts for build / deploy / backup
 / restore / logs.
 
@@ -106,7 +106,7 @@ both together.** Without them the context is ~1.4 GB (`node_modules` plus `.git`
   not. Without it, a lost dependency would ship a container that boots, reports healthy, and
   reads every document with the reduced fallback extractor.
   Anything installed later goes to `AGENTFORGE_COMPONENTS_DIR` — `/opt/agentforge/components`,
-  on the separate `dpsbuddy-components` volume, deliberately **not** under `/data`: in server
+  on the separate `nultron-components` volume, deliberately **not** under `/data`: in server
   mode the host refuses to load a native module from inside the tenant data volume, which is what
   lets `/data` be mounted `noexec` (security spec H3). `scripts/components.sh` is how an operator
   looks at this; no tenant can, since the install route answers `403 install_disabled`.
@@ -161,7 +161,7 @@ browser sent has to arrive exactly as sent. That is Caddy's default, which is wh
 `Caddyfile` carries no `header_up Host` line - the earlier `header_up Host 127.0.0.1`
 would now turn every `POST` / `PATCH` / `DELETE` into `403 origin_forbidden`, because
 loopback is not on the allowlist. So set `AGENTFORGE_TRUSTED_ORIGINS` to this site's
-public origin with its scheme (`https://$DPSBUDDY_DOMAIN`, comma-separated for more than
+public origin with its scheme (`https://$NULTRON_DOMAIN`, comma-separated for more than
 one name); an empty list in server mode accepts no write at all. `Origin` must never be
 rewritten by the proxy - that is the CSRF hole the check exists to close.
 
@@ -169,7 +169,7 @@ rewritten by the proxy - that is the CSRF hole the check exists to close.
 
 ```sh
 # from the repo root
-docker build -f webapp-deploy/Dockerfile -t dpsbuddy-web:local .
+docker build -f webapp-deploy/Dockerfile -t nultron-web:local .
 
 # or
 sh webapp-deploy/scripts/build.sh
@@ -180,7 +180,7 @@ sh webapp-deploy/scripts/build.sh
 ```sh
 cd webapp-deploy
 cp .env.example .env
-# edit .env: DPSBUDDY_DOMAIN, AGENTFORGE_SECRETS_KEY
+# edit .env: NULTRON_DOMAIN, AGENTFORGE_SECRETS_KEY
 openssl rand -hex 32          # -> AGENTFORGE_SECRETS_KEY, generate once, keep forever
 
 docker compose -f compose.yml up -d
@@ -191,7 +191,7 @@ let [`scripts/deploy.sh`](scripts/deploy.sh) fetch it from Secrets Manager with 
 instance role (spec S2); it is exported for that one command and never written to
 disk. The `.env` file keeps the non-secret settings.
 
-Caddy obtains and renews TLS automatically for `$DPSBUDDY_DOMAIN`, provided ports 80 and
+Caddy obtains and renews TLS automatically for `$NULTRON_DOMAIN`, provided ports 80 and
 443 reach the server from the internet and the DNS A/AAAA record already points at it.
 
 **Never start this on `:3000` on a development machine.** `:3000` is the isolated webdev
@@ -266,7 +266,7 @@ RPO is one hour (placement doc section 5). Install on the CVM as the deploy user
 
 ```cron
 # m h  dom mon dow  command
-17 * * * * BACKUP_KEY="$(tccli ssm get-secret-value --region ap-jakarta --SecretName dpsbuddy/prod/backup-key --VersionStage SSMCurrent | python3 -c 'import json,sys;print(json.load(sys.stdin)["SecretString"],end="")')" /bin/sh /srv/dpsbuddy/webapp-deploy/scripts/backup.sh >> /var/log/dpsbuddy-backup.log 2>&1
+17 * * * * BACKUP_KEY="$(tccli ssm get-secret-value --region ap-jakarta --SecretName nultron/prod/backup-key --VersionStage SSMCurrent | python3 -c 'import json,sys;print(json.load(sys.stdin)["SecretString"],end="")')" /bin/sh /srv/nultron/webapp-deploy/scripts/backup.sh >> /var/log/nultron-backup.log 2>&1
 ```
 
 The passphrase is fetched with the instance role at each run and never lands in the
@@ -277,7 +277,7 @@ Cloud Monitor custom metric, to that alarm.
 
 ```sh
 # data
-sh webapp-deploy/scripts/restore.sh backups/dpsbuddy-data-20260918T120000Z.tar.gz
+sh webapp-deploy/scripts/restore.sh backups/nultron-data-20260918T120000Z.tar.gz
 
 # code
 git -C .. checkout <previous-sha>        # run on the server, by hand
@@ -291,6 +291,85 @@ you pass `--yes`.
 
 Rolling back code is a rebuild at an older sha. There is no image registry yet, so there
 is no `docker pull <old-tag>` path; adding one is a migration-plan item.
+
+## Migrating from the DPSBuddy names
+
+The product is called Nultron now, and this folder follows: compose project `nultron-web`,
+image `nultron-web:local`, volumes `nultron-data` and `nultron-components`, `NULTRON_DOMAIN`,
+backups named `nultron-data-*`, secrets under `nultron/prod/`. A server that was deployed
+under the old names (project `dpsbuddy-web`, volumes `dpsbuddy-data` and
+`dpsbuddy-components`, `DPSBUDDY_DOMAIN`) does not pick any of this up by itself. Compose
+prefixes every volume with the project name, so the new stack starts on empty volumes
+(`nultron-web_nultron-data`, `nultron-web_nultron-components`, `nultron-web_caddy-data`)
+and the data has to be copied across once. Nothing below deletes the old volumes.
+
+1. Take a backup with the old scripts, and stop the old stack by project name. Do this
+   before pulling the new `compose.yml`, or the old containers keep ports 80 and 443.
+
+   ```sh
+   export BACKUP_KEY=...                        # from the old Secrets Manager entry
+   sh webapp-deploy/scripts/backup.sh
+   docker compose -p dpsbuddy-web -f webapp-deploy/compose.yml down   # no -v: the volumes stay
+   ```
+
+2. Pull the new checkout, build, and let Compose create the empty new volumes
+   (this creates the containers but starts nothing).
+
+   ```sh
+   git pull --ff-only
+   cd webapp-deploy
+   sh scripts/build.sh
+   docker compose -f compose.yml create
+   ```
+
+3. Copy each old volume into its new one. `/from/.` includes dotfiles such as
+   `.master-key`, and `cp -a` keeps ownership and modes.
+
+   ```sh
+   docker run --rm -v dpsbuddy-web_dpsbuddy-data:/from:ro -v nultron-web_nultron-data:/to alpine sh -c 'cp -a /from/. /to/'
+   docker run --rm -v dpsbuddy-web_dpsbuddy-components:/from:ro -v nultron-web_nultron-components:/to alpine sh -c 'cp -a /from/. /to/'
+   docker run --rm -v dpsbuddy-web_caddy-data:/from:ro -v nultron-web_caddy-data:/to alpine sh -c 'cp -a /from/. /to/'
+   ```
+
+   The last one keeps Caddy's certificate and ACME account; skip it and Caddy requests a
+   new certificate on first start. Check the copy before going on:
+   `docker run --rm -v nultron-web_nultron-data:/d alpine sh -c 'ls -la /d; du -s /d'`,
+   and compare with the same command on the old volume.
+
+4. In `.env`, rename `DPSBUDDY_DOMAIN` to `NULTRON_DOMAIN` (same value):
+   `sed -i 's/^DPSBUDDY_DOMAIN=/NULTRON_DOMAIN=/' .env`. Nothing else in `.env` changes,
+   and `AGENTFORGE_SECRETS_KEY` must keep its current value: a new key cannot read the
+   copied `settings.enc`.
+
+5. Rename the secret-manager entries. Create `nultron/prod/agentforge-secrets-key` and
+   `nultron/prod/backup-key` with the same secret values as the old `dpsbuddy/prod/...`
+   entries, then point `SSM_SECRET_AGENTFORGE_SECRETS_KEY` and `SSM_SECRET_BACKUP_KEY` in
+   `.env` at the new names. Update the backup cron line to the new secret name and log
+   file (see "Hourly cron"). COS bucket names do not change with the product name, so
+   keep the current `COS_BACKUP_BUCKET` and `COS_MEDIA_BUCKET` values. Old
+   `dpsbuddy-data-*.tar.gz.enc` backups are no longer matched by the retention prune;
+   rename or delete them by hand.
+
+6. Start the new stack and check it.
+
+   ```sh
+   sh scripts/deploy.sh --no-pull
+   curl -sI https://$NULTRON_DOMAIN | head -1
+   ```
+
+   Once the site has been up for a while and a backup from the new stack has landed,
+   remove the old leftovers: `docker volume rm dpsbuddy-web_dpsbuddy-data
+   dpsbuddy-web_dpsbuddy-components dpsbuddy-web_caddy-data
+   dpsbuddy-web_caddy-config`, `docker image rm dpsbuddy-web:local`, the old
+   `dpsbuddy/prod/...` secrets, and the old `dpsbuddy-data-*` backups. Until then the old
+   volumes and backups hold a full copy of every tenant's data and the old secret entries
+   hold a second copy of the wrap key.
+
+The released Enterprise bundle (`Kyoo032/NultronEnt`) renames the same things with the
+project `nultron-ent` (old: `dpsbuddy-ent`) and the image `ghcr.io/kyoo032/nultron-ent`
+(old: `ghcr.io/kyoo032/dpsbuddy-ent`). Substitute those prefixes in the commands above,
+run `docker compose pull` in place of `build.sh`, and make sure the token used for
+`docker login ghcr.io` can read the new package.
 
 ## Logs
 
@@ -332,7 +411,7 @@ Verify from outside the VPC, not from the console:
 
 ```sh
 nmap -Pn -p 1-65535 <public-ip>      # expect 80 and 443 only; 22 only from an allowlisted source
-curl -sI https://$DPSBUDDY_DOMAIN | grep -iE 'strict-transport|content-security|x-content-type'
+curl -sI https://$NULTRON_DOMAIN | grep -iE 'strict-transport|content-security|x-content-type'
 ```
 
 ## Transport filtering
@@ -369,7 +448,7 @@ about the hop it arrived on. If that mount ever moves, these controls move with 
 
 | Rule | Code |
 |---|---|
-| HTTP redirects to HTTPS, permanently | `http://{$DPSBUDDY_DOMAIN}` block in the `Caddyfile` (nothing else is served on :80) |
+| HTTP redirects to HTTPS, permanently | `http://{$NULTRON_DOMAIN}` block in the `Caddyfile` (nothing else is served on :80) |
 | TLS 1.2 minimum | `tls { protocols tls1.2 tls1.3 }` |
 | `Strict-Transport-Security: max-age=31536000; includeSubDomains` (no `preload`: the preload list is a months-long one-way door, so it is a deliberate later step) | `Caddyfile` header block |
 | Only `https://` origins can be trusted; a cleartext entry in the allowlist is dropped | `trustedOrigins` in `packages/core/src/server-mode.ts` |
@@ -466,12 +545,12 @@ the two lines under *Incident response*:
 
 ```caddyfile
 @mutating not method GET HEAD OPTIONS
-respond @mutating "DPSBuddy is temporarily read-only." 503
+respond @mutating "Nultron is temporarily read-only." 503
 ```
 
 ```sh
 docker compose -f webapp-deploy/compose.yml restart proxy
-curl -si -X POST https://$DPSBUDDY_DOMAIN/api/v1/workspaces | head -1   # expect 503
+curl -si -X POST https://$NULTRON_DOMAIN/api/v1/workspaces | head -1   # expect 503
 ```
 
 Reads keep working, so nobody loses access to their own work while you look. Comment the
@@ -487,7 +566,7 @@ leaked - a copy of `.env`, a shell history, a leaked image layer, an SSM audit l
 cannot account for:
 
 1. Generate the new key and put it in Secrets Manager as a **new version** of
-   `dpsbuddy/prod/agentforge-secrets-key`. Do not overwrite the current one yet.
+   `nultron/prod/agentforge-secrets-key`. Do not overwrite the current one yet.
 2. Take a backup (`scripts/backup.sh`). This is the rollback.
 3. Re-wrap: with both keys available, decrypt every `settings.enc` envelope with the old
    key and re-encrypt with the new one. **There is no script for this yet** - writing and
@@ -553,7 +632,7 @@ matter:
 
 | Var | Meaning |
 |---|---|
-| `DPSBUDDY_DOMAIN` | Public hostname Caddy serves and gets a certificate for |
+| `NULTRON_DOMAIN` | Public hostname Caddy serves and gets a certificate for |
 | `AGENTFORGE_SECRETS_KEY` | 32-byte hex wrap key for `settings.enc` and sealed prompts (`openssl rand -hex 32`). Generate once. Changing it makes the vault unreadable |
 | `AGENTFORGE_DATA_DIR` | `/data` — SQLite, settings, media, logs. On the volume |
 | `AGENTFORGE_COMPONENTS_DIR` | `/opt/agentforge/components` — native components, on their own volume. Must not be inside `AGENTFORGE_DATA_DIR`: a server refuses to load a module from there |

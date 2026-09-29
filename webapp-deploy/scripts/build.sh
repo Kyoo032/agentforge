@@ -5,8 +5,8 @@
 set -eu
 . "$(dirname "$0")/_common.sh"
 
-echo "==> building dpsbuddy-web from $REPO_ROOT (sha $(current_sha))"
+echo "==> building nultron-web from $REPO_ROOT (sha $(current_sha))"
 dc build "$@" app
 
 echo "==> image"
-docker image inspect dpsbuddy-web:local --format '{{.RepoTags}}  {{.Size}} bytes  created {{.Created}}'
+docker image inspect nultron-web:local --format '{{.RepoTags}}  {{.Size}} bytes  created {{.Created}}'

@@ -2,6 +2,8 @@
 
 **Status:** runbook, written 2026-09-20, verified against `main` at `b482611`. Every `file:line` below was read in that tree.
 
+**Renamed 2026-09-29.** The product, the compose project, the volumes and the domain variable became Nultron after this page was written, and the page body below was not rewritten. On a fresh server read `NULTRON_DOMAIN` wherever a step says `DPSBUDDY_DOMAIN`, the volumes as `nultron-data` and `nultron-components`, and the secret names as `nultron/prod/...`. The `/srv/dpsbuddy*` paths and `dpsbuddy-*` file names are the layout this page was written for, and the server's own folder names are the operator's choice. A server already running under the old names follows ["Migrating from the DPSBuddy names"](../../webapp-deploy/README.md#migrating-from-the-dpsbuddy-names) instead.
+
 This is the step-by-step for standing the hosted DPSBuddy web app up on a **fresh** Tencent Cloud CVM
 in Jakarta, by hand, from nothing. It is written to be followed top to bottom in one sitting by the
 person at the keyboard. Where a step is a decision rather than a command, it says so and gives the

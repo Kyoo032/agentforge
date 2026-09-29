@@ -32,7 +32,7 @@ async function registerClient(tenantId: string): Promise<string> {
     ops.oauthClients.create({
       clientId: CLIENT_ID,
       tenantId,
-      name: "DPSBuddy",
+      name: "Nultron",
       secret,
       redirectUris: [REDIRECT],
     }),
@@ -61,7 +61,7 @@ function authorizeUrl(state: string, overrides: Record<string, string> = {}): st
 let userSeq = 0;
 async function freshEmail(): Promise<string> {
   userSeq += 1;
-  const email = `user${userSeq}@dpsbuddy.test`;
+  const email = `user${userSeq}@nultron.test`;
   await addUser(portal.store.store, fixture, email);
   return email;
 }
@@ -100,7 +100,7 @@ async function submitCode(agent: Agent, page: string, state: string, code: strin
 
 beforeAll(async () => {
   portal = await startTestPortal();
-  fixture = await seedFixture(portal.store.store, { slug: "dpsbuddy", email: "owner@dpsbuddy.test" });
+  fixture = await seedFixture(portal.store.store, { slug: "nultron", email: "owner@nultron.test" });
   clientSecret = await registerClient(fixture.tenant.id);
 }, 180_000);
 
@@ -244,7 +244,7 @@ describe("the sign-in hops", () => {
     await signIn(createAgent(portal.origin), "state-mail", email);
 
     const subject = portal.mailer.newest()?.subject ?? "";
-    expect(subject).toContain("DPSBuddy");
+    expect(subject).toContain("Nultron");
     // The fixture tenant's name is its slug (`testing/fixtures.ts`), which is the seed's
     // placeholder, not a display name -- so the slug must not reach the subject either.
     expect(subject).not.toContain(fixture.tenant.slug);
@@ -393,7 +393,7 @@ describe("the code form", () => {
   });
 
   it("stops after three sends inside the window and still says nothing", async () => {
-    const email = "burst@dpsbuddy.test";
+    const email = "burst@nultron.test";
     await addUser(portal.store.store, fixture, email);
     const agent = createAgent(portal.origin);
 
@@ -426,7 +426,7 @@ describe("the daily guess budget", () => {
       ops.oauthClients.create({
         clientId: CLIENT_ID,
         tenantId: dayFixture.tenant.id,
-        name: "DPSBuddy",
+        name: "Nultron",
         secret: randomToken(),
         redirectUris: [REDIRECT],
       }),

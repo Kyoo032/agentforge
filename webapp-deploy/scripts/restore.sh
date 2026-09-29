@@ -55,7 +55,7 @@ decrypt_to_stdout | tar -tzf - >/dev/null || {
 }
 
 if [ "$CONFIRM" != "--yes" ]; then
-	echo "This REPLACES everything in the dpsbuddy-data volume with $TARBALL."
+	echo "This REPLACES everything in the nultron-data volume with $TARBALL."
 	printf 'Type the word restore to continue: '
 	read -r answer
 	if [ "$answer" != "restore" ]; then

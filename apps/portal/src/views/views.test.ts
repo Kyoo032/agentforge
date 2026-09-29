@@ -111,8 +111,8 @@ describe("copy", () => {
     expect(t("nope.not.here")).toBe("nope.not.here");
   });
 
-  it("names the product DPSBuddy in both locales", () => {
-    expect(copyPair("product")).toEqual({ en: "DPSBuddy", id: "DPSBuddy" });
+  it("names the product Nultron in both locales", () => {
+    expect(copyPair("product")).toEqual({ en: "Nultron", id: "Nultron" });
   });
 });
 
@@ -201,8 +201,8 @@ describe("pages", () => {
     expect(page.startsWith("<!doctype html>")).toBe(true);
     expect(page).toContain('<html lang="id">');
     expect(page).toContain("Terjadi kesalahan");
-    expect(page).toContain("DPSBuddy");
+    expect(page).toContain("Nultron");
     // The mark rides in the shell, so every screen carries it, not only the sign-in one.
-    expect(page).toContain('<img src="/assets/logo.png" alt="DPSBuddy" width="24" height="24">');
+    expect(page).toContain('<img src="/assets/logo.png" alt="Nultron" width="24" height="24">');
   });
 });

@@ -150,8 +150,8 @@ test("the components root is set, and is not inside the data dir", () => {
   const compose = readDeploy("compose.yml");
   assert.match(compose, new RegExp(`${COMPONENTS_DIR_ENV}: ${COMPONENTS_PATH}`));
   // Its own volume, so an operator install survives a restart and /data stays separable.
-  assert.match(compose, new RegExp(`- dpsbuddy-components:${COMPONENTS_PATH}`));
-  assert.match(compose, /^ {2}dpsbuddy-components:$/m);
+  assert.match(compose, new RegExp(`- nultron-components:${COMPONENTS_PATH}`));
+  assert.match(compose, /^ {2}nultron-components:$/m);
 
   for (const source of [dockerfile, compose]) {
     assert.doesNotMatch(source, new RegExp(`${COMPONENTS_DIR_ENV}[=:] ?/data`), "the components root is back on /data");

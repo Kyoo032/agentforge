@@ -28,7 +28,7 @@ let userSeq = 0;
 
 async function freshEmail(): Promise<string> {
   userSeq += 1;
-  const email = `api${userSeq}@dpsbuddy.test`;
+  const email = `api${userSeq}@nultron.test`;
   await addUser(portal.store.store, fixture, email);
   return email;
 }
@@ -80,7 +80,7 @@ beforeAll(async () => {
     ops.oauthClients.create({
       clientId: CLIENT_ID,
       tenantId: fixture.tenant.id,
-      name: "DPSBuddy",
+      name: "Nultron",
       secret: clientSecret,
       redirectUris: [REDIRECT],
     }),

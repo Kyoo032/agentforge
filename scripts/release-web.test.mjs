@@ -1,5 +1,5 @@
 /**
- * Tests for scripts/release-web.mjs, the Enterprise release to Kyoo032/DPSBuddy-Ent.
+ * Tests for scripts/release-web.mjs, the Enterprise release to Kyoo032/NultronEnt.
  *
  * Node's own runner, like scripts/review-proxy.test.mjs: repo tooling outside every workspace
  * package, so no vitest config collects it. `node --test "scripts/*.test.mjs"` runs it.
@@ -40,11 +40,11 @@ import {
 
 const FULL_SHA = "0b73a68aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const TAG = "ent-2026.09.23";
-const CLEAN_NOTES = "# DPSBuddy Enterprise, 23 September 2026\n\n- The warm desk is live.\n";
-const IMAGE = `ghcr.io/kyoo032/dpsbuddy-ent:${TAG}`;
+const CLEAN_NOTES = "# Nultron Enterprise, 23 September 2026\n\n- The warm desk is live.\n";
+const IMAGE = `ghcr.io/kyoo032/nultron-ent:${TAG}`;
 const CADDY_SOURCE =
-  "# see packages/host/src/http-adapter.ts\n{\n\tadmin off\n}\n\n\n\n{$DPSBUDDY_DOMAIN} {\n\t# comment\n\treverse_proxy 127.0.0.1:3000\n}\n";
-const README = "# DPSBuddy Enterprise\n";
+  "# see packages/host/src/http-adapter.ts\n{\n\tadmin off\n}\n\n\n\n{$NULTRON_DOMAIN} {\n\t# comment\n\treverse_proxy 127.0.0.1:3000\n}\n";
+const README = "# Nultron Enterprise\n";
 /** The git a dry run may run: reads of this repo only. */
 const READ_ONLY_GIT = new Set(["status", "rev-parse", "show"]);
 
@@ -77,12 +77,12 @@ function snapshot(dir) {
 
 /**
  * A fake git. Every call lands in `calls` with its cwd. `clone` makes the target directory with a
- * README, as DPSBuddy-Ent's main has; `commit` snapshots the files in the clone at that moment.
+ * README, as NultronEnt's main has; `commit` snapshots the files in the clone at that moment.
  */
 function fakeGit({ dirty = false, known = [FULL_SHA], calls = [], commits = [], cloneReadme = README } = {}) {
   const handlers = {
     status: (_args, cwd) => {
-      if (cwd.endsWith("DPSBuddy-Ent")) return { status: 0, stdout: "A  compose.yml\n" };
+      if (cwd.endsWith("NultronEnt")) return { status: 0, stdout: "A  compose.yml\n" };
       return { status: 0, stdout: dirty ? " M AGENTS.md\n" : "" };
     },
     "rev-parse": (args) => {
@@ -264,7 +264,7 @@ test("dry run builds the gh argv and the body, and never runs gh", () => {
   ]);
   assert.equal(result.args.length, 9, "no assets, no --draft, nothing after the notes file");
   assert.match(result.args[8], new RegExp(`${TAG}-body\\.md$`));
-  assert.equal(RELEASE_REPO, "Kyoo032/DPSBuddy-Ent");
+  assert.equal(RELEASE_REPO, "Kyoo032/NultronEnt");
   assert.equal(
     result.body,
     `${CLEAN_NOTES.trimEnd()}\n\nSource: agentforge@${FULL_SHA}\nImage: ${IMAGE}\n`,
@@ -303,7 +303,7 @@ test("a real run calls gh once with the dry-run argv, then checks the release is
 
 test("compose.yml pins the image to the tag and builds nothing", () => {
   const compose = renderBundle(TAG, CADDY_SOURCE)["compose.yml"];
-  assert.equal(IMAGE_REPO, "ghcr.io/kyoo032/dpsbuddy-ent");
+  assert.equal(IMAGE_REPO, "ghcr.io/kyoo032/nultron-ent");
   assert.ok(compose.includes(`\n    image: ${IMAGE}\n`), "app image pinned to the tag");
   assert.equal(compose.match(/image: ghcr\.io/g).length, 1, "one pinned app image");
   assert.doesNotMatch(compose, /^\s*build:/m, "the server never builds");
@@ -376,7 +376,7 @@ test("the temp-dir bundle commit holds exactly the four files, as rizky, 'Releas
   assert.equal(d.commits.length, 1);
   const [commit] = d.commits;
   assert.deepEqual(commit.files, { ...renderBundle(TAG, CADDY_SOURCE), "README.md": README });
-  assert.ok(commit.cwd.startsWith(result.workDir) && commit.cwd.endsWith("DPSBuddy-Ent"), "a temp clone");
+  assert.ok(commit.cwd.startsWith(result.workDir) && commit.cwd.endsWith("NultronEnt"), "a temp clone");
   assert.deepEqual(commit.args.slice(-4), ["commit", "--quiet", "-m", `Release ${TAG}`], "plain message, no trailer");
   assert.ok(commit.args.includes("user.name=rizky"));
   const clone = d.gitCalls.find((call) => call.sub === "clone");
@@ -452,7 +452,7 @@ test("the shipped Caddyfile keeps the sign-in code and state out of the access l
 
 test("the proxy gets exactly what the Caddyfile reads, never the whole .env, in both compose files", () => {
   const read = caddyEnvNames(SOURCE_CADDYFILE);
-  assert.deepEqual(read, ["DPSBUDDY_DOMAIN"]);
+  assert.deepEqual(read, ["NULTRON_DOMAIN"]);
   const bundle = renderBundle(TAG, SOURCE_CADDYFILE)["compose.yml"];
   for (const [name, compose] of [
     ["the bundle", bundle],
@@ -463,7 +463,7 @@ test("the proxy gets exactly what the Caddyfile reads, never the whole .env, in 
     assert.deepEqual(environmentNames(proxy), read, `${name}: the proxy's environment`);
     assert.match(serviceBlock(compose, "app"), /^\s*env_file:/m, `${name}: the app still loads .env`);
   }
-  assert.match(serviceBlock(bundle, "proxy"), /DPSBUDDY_DOMAIN: \$\{DPSBUDDY_DOMAIN:\?/, "the bundle needs a domain");
+  assert.match(serviceBlock(bundle, "proxy"), /NULTRON_DOMAIN: \$\{NULTRON_DOMAIN:\?/, "the bundle needs a domain");
 });
 
 // ---------- the same refusal list on the Personal release ----------
@@ -483,11 +483,15 @@ function notesAt(relativePath, text) {
   return file;
 }
 
-/** A dist/ that release-desktop.mjs accepts: one Setup exe, its blockmap, and a latest.yml that matches. */
+/**
+ * A dist/ that release-desktop.mjs accepts: one Setup exe, its blockmap, and a latest.yml that matches.
+ * The exe name comes from the desktop package's own `build.artifactName`, so this fixture follows the
+ * installer name instead of repeating it (release-desktop.mjs's ARTIFACT_PREFIX must agree with it).
+ */
 function fakeDesktopDist() {
-  const { version } = JSON.parse(readFileSync(join(REPO_ROOT, "apps", "desktop", "package.json"), "utf8"));
+  const { version, build } = JSON.parse(readFileSync(join(REPO_ROOT, "apps", "desktop", "package.json"), "utf8"));
   const dist = tempDir("release-desktop-dist-");
-  const exeName = `DPSBuddy Setup ${version}.exe`;
+  const exeName = build.artifactName.replace(/\$\{version\}/, version).replace(/\$\{ext\}/, "exe");
   const exe = Buffer.from("not an installer");
   writeFileSync(join(dist, exeName), exe);
   writeFileSync(join(dist, `${exeName}.blockmap`), "blockmap");
@@ -534,7 +538,7 @@ test("a docs/internal path is caught in any letter case, with either separator, 
 });
 
 test("the desktop release refuses notes that carry a mark, and names the marks", () => {
-  const run = desktopDryRun(notesAt("notes.md", "# DPSBuddy\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n"));
+  const run = desktopDryRun(notesAt("notes.md", "# Nultron\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n"));
   assert.equal(run.status, 1, run.stdout + run.stderr);
   assert.match(run.stderr, /refusing .*notes\.md: it contains "Claude", "Anthropic", "Co-Authored"/);
   assert.doesNotMatch(run.stdout, /dry run/);

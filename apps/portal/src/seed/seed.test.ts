@@ -17,19 +17,19 @@ afterAll(async () => {
   await harness?.close();
 });
 
-const ARGS = ["--email", "kyo@example.test", "--tenant", "dpsbuddy", "--org", "Kyo"];
+const ARGS = ["--email", "kyo@example.test", "--tenant", "nultron", "--org", "Kyo"];
 
 describe("parseSeedArgs", () => {
   it("fills in the documented defaults", () => {
     const args = parseSeedArgs(["--email", "kyo@example.test"]);
-    expect(args.tenantSlug).toBe("dpsbuddy");
+    expect(args.tenantSlug).toBe("nultron");
     // `null`, not the slug: "the operator asked for no name" and "the operator asked for this
     // name" have to be two different values, or a re-run without the flag would reset the name.
     expect(args.tenantName).toBeNull();
     expect(parseSeedArgs(["--email", "kyo@example.test", "--tenant-name", " Kyo Co "]).tenantName).toBe("Kyo Co");
     expect(args.orgName).toBe("Kyo");
     expect(args.seatCap).toBe(20);
-    expect(args.clientId).toBe("dpsbuddy-web");
+    expect(args.clientId).toBe("nultron-web");
     expect(args.redirectUris).toEqual(["https://localhost:3443/auth/callback"]);
   });
 
@@ -188,42 +188,42 @@ describe("runSeed", () => {
    *
    * The review instance's tenant was seeded with no `--tenant-name`, so its display name and its
    * `branding.product_name` were both the slug -- and the 2026-09-21 rebrand needed that row to say
-   * DPSBuddy. Every other correction the operator makes here (`--seat-cap`, `--redirect`) already
+   * Nultron. Every other correction the operator makes here (`--seat-cap`, `--redirect`) already
    * applies on a re-run; the name was the one field where "run the seed again" silently did
    * nothing, which leaves a hand-written UPDATE against a live database as the only way, and that
    * is how data goes missing.
    */
   it("applies a --tenant-name to an existing tenant, name and branding together", async () => {
-    const result = await runSeed(store, parseSeedArgs([...ARGS, "--tenant-name", "DPSBuddy"]));
+    const result = await runSeed(store, parseSeedArgs([...ARGS, "--tenant-name", "Nultron"]));
     expect(result.created.tenant).toBe(false);
     expect(result.tenantRenamed).toBe(true);
-    expect(result.tenantName).toBe("DPSBuddy");
+    expect(result.tenantName).toBe("Nultron");
 
     const [tenant, config] = await store.tx(result.tenantId, async (ops) => [
       await ops.tenants.findById(result.tenantId),
       await ops.tenantConfig.get(result.tenantId),
     ]);
-    expect(tenant?.name).toBe("DPSBuddy");
+    expect(tenant?.name).toBe("Nultron");
     // Both, because `otp/product-name.ts` reads branding FIRST and would otherwise keep printing
     // the old value out of a row nobody thought to look at.
-    expect(config?.branding.product_name).toBe("DPSBuddy");
-    expect(formatSeedReport(result)).toContain("DPSBuddy");
+    expect(config?.branding.product_name).toBe("Nultron");
+    expect(formatSeedReport(result)).toContain("Nultron");
   });
 
   it("is idempotent about the rename: asking for the name it already has changes nothing", async () => {
-    const again = await runSeed(store, parseSeedArgs([...ARGS, "--tenant-name", "DPSBuddy"]));
+    const again = await runSeed(store, parseSeedArgs([...ARGS, "--tenant-name", "Nultron"]));
     expect(again.tenantRenamed).toBe(false);
-    expect(again.tenantName).toBe("DPSBuddy");
+    expect(again.tenantName).toBe("Nultron");
   });
 
   /** The dangerous one: a re-run without the flag must not reset the name back to the slug. */
   it("leaves a chosen name alone when a later run passes no --tenant-name", async () => {
     const result = await runSeed(store, parseSeedArgs(ARGS));
     expect(result.tenantRenamed).toBe(false);
-    expect(result.tenantName).toBe("DPSBuddy");
+    expect(result.tenantName).toBe("Nultron");
 
     const tenant = await store.tx(result.tenantId, (ops) => ops.tenants.findById(result.tenantId));
-    expect(tenant?.name).toBe("DPSBuddy");
+    expect(tenant?.name).toBe("Nultron");
   });
 
   it("keeps the rest of branding when it rewrites product_name", async () => {
@@ -231,20 +231,20 @@ describe("runSeed", () => {
     await store.tx(seeded.tenantId, (ops) =>
       ops.tenantConfig.upsert({
         tenantId: seeded.tenantId,
-        branding: { product_name: "DPSBuddy", accent: "#1b4ee0" },
+        branding: { product_name: "Nultron", accent: "#1b4ee0" },
       }),
     );
 
-    const renamed = await runSeed(store, parseSeedArgs([...ARGS, "--tenant-name", "DPSBuddy Review"]));
+    const renamed = await runSeed(store, parseSeedArgs([...ARGS, "--tenant-name", "Nultron Review"]));
     expect(renamed.tenantRenamed).toBe(true);
 
     const config = await store.tx(renamed.tenantId, (ops) => ops.tenantConfig.get(renamed.tenantId));
-    expect(config?.branding.product_name).toBe("DPSBuddy Review");
+    expect(config?.branding.product_name).toBe("Nultron Review");
     // A rename is not a reset: a branding key this lane knows nothing about survives it.
     expect(config?.branding.accent).toBe("#1b4ee0");
 
     // Put the row back the way the rest of this file expects to find it.
-    await runSeed(store, parseSeedArgs([...ARGS, "--tenant-name", "DPSBuddy"]));
+    await runSeed(store, parseSeedArgs([...ARGS, "--tenant-name", "Nultron"]));
   });
 
   it("seeds an active owner, because there is no invitation flow", async () => {
