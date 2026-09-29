@@ -1,6 +1,7 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-27 for the preview transport and the timeline hint, which read `edit.preview.*` and `edit.timeline.*`. Before that, 2026-09-27 for agent cards: `applyAgentOps` sets `status: "applied"` after `appendOps` succeeds, and the card offers Keep only while `proposed`. A new project name comes from `edit.defaultProjectName` (`Untitled edit` / `Suntingan baru`). Before that: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
+Last verified: 2026-09-29 for § 2 (doctor), in the working tree and not committed: the doctor route and the boot probe are
+async and cached, and the packaged app no longer waits on the probe before the first paint. Before that, 2026-09-27 for the preview transport and the timeline hint, which read `edit.preview.*` and `edit.timeline.*`. Before that, 2026-09-27 for agent cards: `applyAgentOps` sets `status: "applied"` after `appendOps` succeeds, and the card offers Keep only while `proposed`. A new project name comes from `edit.defaultProjectName` (`Untitled edit` / `Suntingan baru`). Before that: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
 scope), § 6 (keyboard guard, drag release), § 10 (review gate, and `render` refused on `/jobs`), § 11 (generate,
 the worker's tenant, the still check), § 12 (export, the desktop save dialog) and the gateway-gate failure row —
 two passes that day, the Edit security fixes and the docs pass that reconciled them. Not driven. Everything else
@@ -51,12 +52,29 @@ with `ffmpeg-install-command` and a `ffmpeg-recheck` button that re-probes via
 
 ### 2. Doctor — ffmpeg and ASR
 
-`handleGetEditDoctor` (`packages/host/src/handlers/edit.ts:110-115`) → `getEditDoctor`
-(`packages/host/src/edit/doctor.ts:55-72`). It returns `{ ffmpeg, asr, fonts }`. `recheck=1` drops the
+`handleGetEditDoctor` (`packages/host/src/handlers/edit.ts:110-115`) → `getEditDoctorAsync`
+(`packages/host/src/edit/doctor.ts:87-93`). It returns `{ ffmpeg, asr, fonts }`. `recheck=1` drops the
 cached probe (`resetFfmpegBinaryCache`) but is throttled to one forced re-probe every
-`RECHECK_MIN_INTERVAL_MS = 2_000` (`doctor.ts:47, :56-59`), because each probe shells out to ffmpeg
-and the caller is a local web page. When ffmpeg is missing the report also carries a per-OS
-`setup` hint (`ffmpegSetupHint`, `doctor.ts:67`).
+`RECHECK_MIN_INTERVAL_MS = 2_000` (`doctor.ts:47, :55-60`), because each probe walks PATH and runs
+ffmpeg and the caller is a local web page. When ffmpeg is missing the report also carries a per-OS
+`setup` hint (`ffmpegSetupHint`, `doctor.ts:69`).
+
+The probe itself is `resolveFfmpegAsync` (`packages/host/src/edit/ffmpeg-binary.ts:340`): `execFile`, so a
+cold PATH walk (`where.exe`, ~200 ms) plus `ffmpeg -version` no longer freezes the host for ~290 ms
+(measured 292 ms blocked before, ≤ 16 ms, one timer tick, after). Sync callers (`getEditDoctor`,
+`doctor.ts:81`, used by the Edit agent's prompt line; `run.ts`, `recipes.ts`, `starter-media.ts`,
+`meeting/audio.ts`) keep `resolveFfmpeg` (`:331`) and read the same cache. The cache is per process,
+keyed on the configured `AGENTFORGE_FFMPEG_PATH` / `AGENTFORGE_FFPROBE_PATH` (`:42-47`), shared by two
+callers that arrive during one walk (`resolveCachedAsync`, `:310`), and dropped by
+`resetFfmpegBinaryCache` (`:54`) — the Check-again route above is its one production caller; the
+component installer has no ffmpeg entry yet (`components/manifest.ts`).
+
+**Packaged boot.** `bootstrapPackaged` (`apps/desktop/main.cjs:641`) writes `host-status.json` without
+`editFfmpeg`, awaits `navigateToUi()`, and only then starts `recordEditFfmpeg` (`:700`), which asks this
+route once (warming the cache) and writes the file again with the block. Before 2026-09-29 the probe was
+awaited ahead of the first paint (269-302 ms of the ~290-320 ms between the host answering and the
+window loading the UI). An absent `editFfmpeg` key therefore means "not probed yet"; `null` means the
+host could not say. `doctor.mjs --desktop` waits up to 3 s for the key.
 
 On the hosted server the handler answers `withoutBinaryPath(report)` instead (`handlers/edit.ts:114`,
 `doctor.ts:36-39`): `ffmpeg.path`, the absolute path of the server's own binary, is dropped, and
@@ -388,7 +406,7 @@ A's `workerWorkspaceId`.
 
 | Failure | Where | What the user gets |
 |---|---|---|
-| ffmpeg missing | `resolveFfmpeg` via `getEditDoctor` | `edit-needs-ffmpeg` banner with an install command and `ffmpeg-recheck`; probe/cut/captions/export refuse |
+| ffmpeg missing | `resolveFfmpegAsync` via `getEditDoctorAsync` (sync: `resolveFfmpeg`) | `edit-needs-ffmpeg` banner with an install command and `ffmpeg-recheck`; probe/cut/captions/export refuse |
 | No gateway key | `hasOpenai` false | `edit-needs-key` in the Generate tab, `edit-generate-submit` disabled; everything else still works |
 | Gateway gate closed | `requireGatewayAllowedFor` on `/agent`, `/generate` and `asr` on `/jobs` (`handlers/edit.ts:401`, `:661`, `:479`); again in the generate worker (`packages/host/src/edit/jobs.ts:226`) | flat `403 gateway_blocked`, no stream; the composer surfaces `edit.errors.agentFailed`. A generate job that meets a closed gate in the worker fails with the gate's message and calls nothing |
 | Unsupported / oversized upload | `assertEditUpload` (`handlers/edit.ts:600-607`) | `400 invalid_request` / `unsupported_content_type` |

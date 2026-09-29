@@ -1,6 +1,6 @@
 # Map — Knowledge Base page
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 7 Map (every `knowledge-map.ts` citation, and
+Last verified: 2026-09-29, working tree, not committed, for § 2's `reload()` and the model row (the catalogue now arrives as `models` plus `modes`, read through `modelsForMode`; the citations in those two paragraphs are re-anchored, the rest of the page is as verified below). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 7 Map (every `knowledge-map.ts` citation, and
 what a re-map that is running or has failed leaves on screen), the Map row of Failure modes, and how the page's
 writes answer (the new paragraph in § 3, and Memory in § 6). Not driven; the host half needs a `:3000` restart.
 Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
@@ -26,11 +26,11 @@ The rail's Account group renders one `RailItem` to `/knowledge` with `testId="mo
 
 ### 2. One read fills the page
 
-`reload()` (`apps/web/components/knowledge-page.tsx:157-188`) fires two requests in parallel: `GET /api/v1/knowledge` and `GET /api/v1/models`. It runs on mount and on every `workspaceId` change (`:190-194`), and again after every mutation the page performs.
+`reload()` (`apps/web/components/knowledge-page.tsx:240-272`) fires two requests in parallel: `GET /api/v1/knowledge` and `GET /api/v1/models`. An effect keyed on the desk id (`:274-278`) runs it on mount and on every desk change, and it runs again after every mutation the page performs.
 
 `handleGetKnowledge` (`packages/host/src/handlers/knowledge.ts:127-149`) answers the whole page in one payload — `soul`, `memories`, `sources`, `models`, `map`, `retrievals`, `graph`, `verified`, `backend` — and sweeps orphan work cards on the way (`sweepOrphanThreadSources`, `packages/host/src/handlers/knowledge.ts:133`). **That name is now an alias** (`packages/host/src/knowledge.ts:704-706`): it calls `sweepOrphanSources` (`:676`), which covers all three origin kinds — `thread`, `artifact` and `media` (`ORIGIN_OWNERS`, `:631`) — drops their traces and stored uploads, and then runs `sweepOrphanGraph` (`packages/host/src/knowledge-graph-prune.ts:110`) to repair nodes, edges and retrieval rows left by builds that had no cascade. Landed 2026-09-17; before it, the sweep was thread-only. The route is **not** gated: a closed gateway gate still renders the page. The graph *itself* is deliberately a second route so that drawing the loop chart never pays for a node list (`packages/host/src/handlers/knowledge.ts:107-110`).
 
-The model row `knowledge-models` (`apps/web/components/knowledge-page.tsx:327`) is rendered on **every** tab. Embedding is seeded from `modes.embedding` of the catalog, Brain and Verifier from `modes.chat` (`:174-187`), each falling back through `seedModel` (`:107-116`): saved id → catalog default → first entry. Changing one calls `persistModels` (`:196-210`), which sets local state first and then `PUT /api/v1/knowledge/models`; the handler (`packages/host/src/handlers/knowledge.ts:272-290`) accepts only string fields and `putKnowledgeModels` (`packages/host/src/knowledge.ts:112-131`) upserts one `knowledge_settings` row per workspace, keeping the current value for anything blank. Picking a model **never** generates — only Map does.
+The model row `knowledge-models` (`apps/web/components/knowledge-page.tsx:459`) is rendered on **every** tab. Embedding is seeded from `modes.embedding` of the catalog and Brain and Verifier from its chat list, both read through `modelsForMode` (`@agentforge/core/mode-catalog`, `:257-263`): since 2026-09-29 the host sends the chat catalogue once, as `models`, and `modes` carries only the lists that differ (image, video, audio, other, music, embedding), so there is no `modes.chat` on the wire. Each falls back through `seedModel` (`:110-118`): saved id → catalog default → first entry. Changing one calls `persistModels` (`:280-294`), which sets local state first and then `PUT /api/v1/knowledge/models`; the handler (`packages/host/src/handlers/knowledge.ts:272-290`) accepts only string fields and `putKnowledgeModels` (`packages/host/src/knowledge.ts:112-131`) upserts one `knowledge_settings` row per workspace, keeping the current value for anything blank. Picking a model **never** generates — only Map does.
 
 ### 3. Sources tab — add, list, delete
 

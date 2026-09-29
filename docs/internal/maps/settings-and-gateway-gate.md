@@ -1,14 +1,16 @@
 # Map — Settings, the gateway gate, and Start over
 
-> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app (current cut `0.15.0`); **Enterprise** is the hosted web app.
+> **Two products, one repo.** **Personal** is the Mac/Windows Nultron app (current cut `0.15.0`); **Enterprise** is the hosted web app.
 > The host-decides/renderer-displays rule below is unchanged and applies to both; the Electron-only transport and wipe details are the Personal app's.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-26 for the onboarding screen, restyled onto the current desk (gradient hello,
+Last verified: 2026-09-29, working tree, not committed, for the first-run guide's record (a `guide` field on `settingsPayload`, `POST /api/v1/settings/guide`, the record inside the sealed payload beside the language, erased by Start over): see "The first-run guide's record" below and [`first-run-desk-and-guide.md`](first-run-desk-and-guide.md); every other line of this page is as verified next. Also 2026-09-29, working tree, not committed, for `settingsPayload` (no `modes`; the range is re-anchored) and the shared settings read, both stated under "Settings per desk". Also 2026-09-29, for the reset wipe list (it gains `models-dev-cache.meta.json`) and every
+`apps/desktop/main.cjs` and `settings.test.ts` citation in this page's Start over section, re-anchored in the working
+tree, not committed, after the ffmpeg probe moved behind the first paint. Not driven. Before that: 2026-09-26 for the onboarding screen, restyled onto the current desk (gradient hello,
 `hero-aurora`, `card-live` example tiles). A fresh desk is a short hello, then the key, then four
 examples that open Chat. The screen does not show the gateway address. The host still decides:
 `allowed` is the only branch, and the examples render only after `resolveGate` says `"app"`. In-app name
-stays `{productName}` (DPSBuddy). Gate derivation, reset, and Settings are untouched.
+stays `{productName}` (Nultron). Gate derivation, reset, and Settings are untouched.
 
 Before that: 2026-09-23 at d4561b8 + uncommitted tree for Start over (a wipe that fails part-way is now
 retried, and the boot log line), the Settings page's load / save / language failures, and every
@@ -78,6 +80,8 @@ tenant, desk **and** user — and read or write `users[userId].locale` inside th
 
 **A new desk inherits the gateway key.** Keys stay per desk, but `handlePostWorkspaces` copies the creating desk's `openaiApiKey` into the new desk's slice before it selects the new desk (`packages/host/src/handlers/workspaces.ts:33-39`, `:99-100`). Without it, creating a desk on a keyed install selected an empty slice, the gate derived `needs_key` / `allowed: false`, and `App` replaced the shell with the key form everywhere (finding 1 of the 0.15.0 verify pass). No verdict is copied because none needs to be: the verdict is the tenant's and keyed by fingerprint. Only the gateway key moves — extras stay empty — and `clearGatewayKeyEverywhere` still clears the copy. Pinned by `packages/host/src/handlers/workspaces.test.ts`. The renderer's guard for desks that are still keyless: `OnboardingDesks` under the key form (`apps/web/components/onboarding-screen.tsx:297`), which selects another desk on the host and applies the gate the host reports for it (`apps/web/lib/onboarding-desks.ts:60-68`). The host still decides; the renderer only offers the desks. When that gate is allowed, the screen shows the examples step instead of opening the desk immediately.
 
+**The first-run guide's record rides in the same payload as the language (2026-09-29).** `UserPrefs` gained `guide` (`{ outcome: "finished" | "skipped" | "closed", at }`, `packages/host/src/settings-store.ts:188`), so it is per user inside a tenant's sealed `settings.enc`, machine-wide on a desk (one user, `local-owner`) and per person on the hosted app. `loadUserGuide` and `saveUserGuide` (`:627`, `:641`) read and write it; `settingsPayload` answers it as `guide: { seen, outcome, at }` (`packages/host/src/handlers/settings.ts:101`); `POST /api/v1/settings/guide` records an outcome (`handlePostGuide`, `packages/host/src/handlers/guide.ts:18`, route `packages/host/src/router.ts:290`) and is deliberately its own route, not a field of `POST /api/v1/settings`, because a settings save revokes the knowledge model row, clears three breakers and re-probes the gateway. It is not gated (`gateway_blocked` never applies to it). **"Start over" removes it for free:** `settings.enc` is the first entry of `HOST_RESET_ENTRIES`, and `packages/host/src/first-run-modes.test.ts` proves the record reads back unseen after a real Start over. "Sign out" (`scope: "key"`) leaves it alone.
+
 **`workspace-id.txt`** (`<localDataDir()>/workspace-id.txt`, `packages/host/src/workspace.ts:19-41`) is the
 stamp that stops a request from landing in the fallback slice. `getTenant(preferredWorkspaceId)`
 (`packages/host/src/tenant.ts:88-103`) reaches `resolveLocalOwner` (`:117-132`) off the hosted path, which calls `adoptLegacySettings(home.id)` on every call (`:124`), and — only
@@ -92,8 +96,17 @@ and the desk reports stub. The defence is a **source-grep test**:
 `apps/desktop` or `apps/web/server.ts` calls `loadSettings` with `()`/`undefined`/`null`/`""`, outside two
 named exceptions (`studio-generate.ts`, `handlers/jobs.ts`, listed at `:22-23`).
 
-**`settingsPayload()`** (`packages/host/src/handlers/settings.ts:85-122`) is what the renderer sees. Keys are
-never in it: `maskSecrets` (`packages/core/src/secrets.ts:251-280`) emits booleans (`hasOpenai`, …) and
+**`settingsPayload()`** (`packages/host/src/handlers/settings.ts:88-128`) is what the renderer sees. **It does not
+carry the model catalogue** (2026-09-29): `modes` left it, and only `defaults` (the per-mode default ids, `:113`)
+stayed. It used to spread `modeCatalogPayload()`, which put the chat list under nine mode names, 261 KB of a
+274 KB answer that the shell reads on every cold load; no reader of this route used a list. The catalogue is
+`GET /api/v1/models`, sent once (`modelCatalogBody`, `packages/host/src/selectable-models.ts:229-249`); the
+tests are `packages/host/src/handlers/models.test.ts`. On the renderer side the shell's gate read and the
+readers that only display the answer (the Chat key pill, the usage chip, the composer's needs-key hook, the
+job-mode model pickers) share one `readSettings` (`apps/web/lib/settings-read.ts`): at most 2 s old, dropped
+by any write this renderer makes (`subscribeToWrites`, `apps/web/lib/api-client.ts`), and never used for the
+Settings page itself, which asks the host afresh. A cold `/chat` made four reads of this route; it now makes
+one. Keys are never in the payload: `maskSecrets` (`packages/core/src/secrets.ts:251-280`) emits booleans (`hasOpenai`, …) and
 fingerprints (`sha256:` + the first 12 hex chars of SHA-256 over the trimmed secret,
 `packages/core/src/security/fingerprint.ts:9-15`). `openaiBaseUrl` in the payload is always
 `resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:263-264`).
@@ -329,13 +342,13 @@ The marker is `reset-pending.json` (`RESET_MARKER_FILE`, `packages/db/src/reset.
 temp-file-then-`renameSync` so a crash cannot leave a half-written marker that parses.
 
 **The wipe list is named entries, never the directory** (`HOST_RESET_ENTRIES`,
-`packages/host/src/handlers/settings.ts:354-380`),
+`packages/host/src/handlers/settings.ts:356-384`),
 because in the packaged app that same folder is Electron's userData / Chromium profile:
 
 ```
 settings.enc  settings.json  .master-key  gateway-gate.json  media
 workspace-id.txt  desk-usage.json  tenants  datasets  edit  legal
-models-cache.json  models-dev-cache.json  components  logs
+models-cache.json  models-dev-cache.json  models-dev-cache.meta.json  components  logs
 ```
 
 plus, always, `SQLITE_ENTRIES` — `agentforge.sqlite`, `-wal`, `-shm` (`packages/db/src/reset.ts:29`), which
@@ -343,8 +356,8 @@ plus, always, `SQLITE_ENTRIES` — `agentforge.sqlite`, `-wal`, `-shm` (`package
 added by `applyPendingDataReset`, because `@agentforge/db` owns it",
 `packages/host/src/handlers/settings.ts:351-352`), and, when `DATABASE_URL` points out of tree, that trio by
 absolute path (`removeDatabaseElsewhere`, `packages/db/src/reset.ts:216-269`). Pinned exactly by
-`packages/host/src/handlers/settings.test.ts:450-471`, which also asserts `host-status.json` and anything
-containing "storage" never appear (`:473-474`), and again — against `TENANT_STATE_FILENAMES` rather than a
+`packages/host/src/handlers/settings.test.ts:451-473`, which also asserts `host-status.json` and anything
+containing "storage" never appear (`:475-476`), and again — against `TENANT_STATE_FILENAMES` rather than a
 literal — by `packages/host/src/tenant-state.test.ts`, so a payload that gains a file can never be left off
 the list. Preserved: `host-status.json`, `Local Storage/`, every other
 Chromium artifact, and `legacy-migrated.json`.
@@ -366,12 +379,12 @@ app opens a fresh database on this same boot, and a retry must not delete that o
 this change the marker was dropped whatever happened, so a locked `.master-key` or `settings.enc` simply stayed
 behind after the owner had confirmed the erase ([SR-77](../security-register.md#sr-77),
 [SR-78](../security-register.md#sr-78)). That env flag is set in exactly two places:
-`apps/web/server-env.ts:14` (webdev) and `apps/desktop/main.cjs:631` inside `bootstrapPackaged()`, before
+`apps/web/server-env.ts:14` (webdev) and `apps/desktop/main.cjs:652` inside `bootstrapPackaged()`, before
 `require("./host.cjs")` — so a test or script that imports `@agentforge/db` can never trigger a wipe as a side
 effect.
 
 **Relaunch.** `relaunchDesktopApp({reset:true})` → preload `relaunch` → `ipcMain.handle("app:relaunch", …)`
-(`apps/desktop/main.cjs:533`), which first checks `isTrustedSender(event, mainWindow)`
+(`apps/desktop/main.cjs:554`), which first checks `isTrustedSender(event, mainWindow)`
 (`apps/desktop/navigation.cjs:109`) and refuses a non-main-frame sender with `{ok:false, reason:"forbidden"}`.
 `relaunchApp(true)` (`apps/desktop/main.cjs:212-241`) consults `lifecycle.relaunchPlan()` (refuses while
 installing an update or already exiting), races `clearRendererState()` — `clearStorageData` + `clearCache` +
@@ -456,7 +469,7 @@ installing an update or already exiting), races `clearRendererState()` — `clea
   route to the key field, the reset card or the status row while `allowed` is false. Recovery is onboarding's
   own key input, its Re-check, or deleting `gateway-gate.json`.
 - **The legacy-migration marker must survive a reset.** `legacy-migrated.json` is not in `HOST_RESET_ENTRIES`
-  and this is load-bearing: `migrateLegacyUserData` (`apps/desktop/main.cjs:744-765`) treats "userData has no
+  and this is load-bearing: `migrateLegacyUserData` (`apps/desktop/main.cjs:765-795`) treats "userData has no
   `agentforge.sqlite`" as a signal to copy an older install forward — exactly the state a fresh-install reset
   produces. Without the marker, the boot after "reset to a fresh install" would silently restore the forgotten
   key, every thread and all media.

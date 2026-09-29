@@ -1,6 +1,6 @@
 # Map — Education
 
-Last verified: 2026-09-27 at c48cff7
+Last verified: 2026-09-27 at c48cff7. On 2026-09-29, on the working tree over aaf249d, only the `mascot-states.ts` citations in the task-routing paragraph were re-anchored after the Nultron mascot rewrite; the rest of the page was not re-read.
 
 Verified by [`features/education.md`](../../../.cursor/skills/verify-agentforge/features/education.md).
 
@@ -16,7 +16,7 @@ None of the four routes call the gateway (`packages/host/src/router.ts:359-362`)
 
 ### Chooser and the rail
 
-`useRailEducationTasks` (`rail-education-tasks.tsx:11`) is `useRailSubmenu("/education")`. The chevron only shows and hides. Each row links to `educationTaskHref` (`education-task.ts:24`). The studio reads `searchParams.get("task")` (`education-studio.tsx:124`). An empty query is the chooser (`:125`). Any other value, including one the catalog does not know, is a task page, and `taskFromParam` still resolves the unknown value to `lesson`. `education-guide-change` (`:380`) links back to `/education` with no query. Quiz's empty desk passes `phase="verifying"` (`:454`), which the mascot map draws as reviewing. A page passes `phase="reading"` (`:462`), which draws as searching. Show and the lesson pass no phase, so they stay on the education home pose, presenting (`apps/web/lib/mascot-states.ts:113`, `:137`, `:124`).
+`useRailEducationTasks` (`rail-education-tasks.tsx:11`) is `useRailSubmenu("/education")`. The chevron only shows and hides. Each row links to `educationTaskHref` (`education-task.ts:24`). The studio reads `searchParams.get("task")` (`education-studio.tsx:124`). An empty query is the chooser (`:125`). Any other value, including one the catalog does not know, is a task page, and `taskFromParam` still resolves the unknown value to `lesson`. `education-guide-change` (`:380`) links back to `/education` with no query. Quiz's empty desk passes `phase="verifying"` (`:454`), which the mascot map draws as reviewing. A page passes `phase="reading"` (`:462`), which draws as searching. Show and the lesson pass no phase, so they stay on the education home pose, presenting (`MASCOT_MODE_HOME.education`, `apps/web/lib/mascot-states.ts:118`; `PHASE_STATE` `verifying` `:133` and `reading` `:121`).
 
 ### Lesson deck
 

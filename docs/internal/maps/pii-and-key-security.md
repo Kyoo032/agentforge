@@ -1,13 +1,13 @@
 # Map — PII masking and key security
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for the new rows of § 5 (the sealed portal refresh token
+Last verified: 2026-09-29 for the one `doctor.mjs` citation in § 3 and the `settingsPayload` range in § 8 (re-anchored after `modes` left the payload, working tree, not committed). Before that: 2026-09-23 at d4561b8 + uncommitted tree for the new rows of § 5 (the sealed portal refresh token
 and the hashed session id). Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
 `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1). The four finance parsers' `guardFinanceInput`
 lines were re-read 2026-09-26 at 083f925.
 
 ## Overview
 
-Two secrets live on a DPSBuddy desk and neither is allowed to leave it in the clear. The owner's **typed text** may contain personal data, so the host swaps local regex matches for `[email]` / `[phone]` / `[id]` / `[card]` — and, since 2026-09-17, `[nik]` / `[npwp]` / `[account]` — on the way into the model while the persisted transcript keeps the original. The owner's **gateway key** is sealed into `settings.enc` under an AES-256-GCM envelope whose wrapping key never appears in the UI, and the only thing the renderer ever learns about it is a boolean and a 12-hex-character SHA-256 prefix.
+Two secrets live on a Nultron desk and neither is allowed to leave it in the clear. The owner's **typed text** may contain personal data, so the host swaps local regex matches for `[email]` / `[phone]` / `[id]` / `[card]` — and, since 2026-09-17, `[nik]` / `[npwp]` / `[account]` — on the way into the model while the persisted transcript keeps the original. The owner's **gateway key** is sealed into `settings.enc` under an AES-256-GCM envelope whose wrapping key never appears in the UI, and the only thing the renderer ever learns about it is a boolean and a 12-hex-character SHA-256 prefix.
 
 The thing to hold onto: **masking is a property of the outbound copy, not of the stored data.** `insertMessage` writes what the owner typed; `createRuntime`'s wrapper masks a shallow copy on its way to `execute`. Nothing ever rewrites the row. The same asymmetry runs the other way for the key: the disk copy is encrypted, the wire copy is a hash, and there is no third copy.
 
@@ -135,7 +135,7 @@ Writer `persistEncrypted` (`:177-183`) → `encryptJson(file, getLocalVaultKey()
 
 ### 8. What `GET /api/v1/settings` may say
 
-`settingsPayload()` (`packages/host/src/handlers/settings.ts:85-122`) spreads `...maskSecrets(settings)` at `:92` and never spreads the raw `StoredSecrets`. `maskSecrets` (`packages/core/src/secrets.ts:251-280`) touches the four key fields in exactly two ways:
+`settingsPayload()` (`packages/host/src/handlers/settings.ts:88-128`) spreads `...maskSecrets(settings)` at `:95` and never spreads the raw `StoredSecrets`. `maskSecrets` (`packages/core/src/secrets.ts:251-280`) touches the four key fields in exactly two ways:
 
 - `Boolean(...)` → `hasOpenai` / `hasGoogle` / `hasAnthropic` / `hasVolcengine` (`:227-230`); `hasToolKeys` is the same idea per tool name (`packages/core/src/tools/credentials.ts:374-385`).
 - `keyFingerprintOrNull(...)` → `openaiKeyFingerprint` and the three extras (`:239-242`).
@@ -155,7 +155,7 @@ Driven on the owner's keyless desk (2026-09-17, `runtime: stub`): the 222,715-by
 
 The UI renders `key-fingerprint` at `apps/web/components/settings-page.tsx:401`, gated at `:399` by `hasOpenai && openaiKeyFingerprint` — both, so a fingerprint without a key cannot paint. `openai-key` is the `type="password"` input at `:377` (placeholder swaps on `hasOpenai`, `:374`), `runtime-status` at `:290`, `privacy-note` at `:419`. The fingerprint state is only ever assigned from the response (`:124-128`); a grep of `apps/web` for `sha256` / `createHash` / `keyFingerprint` finds nothing, so the browser never hashes.
 
-Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.mjs:210-216` reports `keyFingerprint: true` only when `hasOpenai` and the string starts with `sha256:` and has content past the prefix.
+Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.mjs:246-252` reports `keyFingerprint: true` only when `hasOpenai` and the string starts with `sha256:` and has content past the prefix.
 
 ### Failure modes
 

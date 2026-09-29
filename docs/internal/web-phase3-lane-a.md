@@ -131,10 +131,19 @@ outstanding proof.
 
 ## 5. Desk pollution
 
-`unreleased.md` records 104 leftover `edit-idor-<hex>` desks from an older security probe. These tests
-create desks too, but `packages/host/vitest.config.ts` points the whole suite at a throwaway
-`tmpdir()` root reaped by `test/global-setup.ts`, so they never reach the operator's `data/`
-directory.
+`unreleased.md` recorded 104 leftover `edit-idor-<hex>` desks, later 112, and called them "an older
+security probe". They were not a probe: `edit/cross-desk.test.ts` creates one such desk per test (eight
+per run) and never deletes it. Run under `packages/host/vitest.config.ts`, the suite is pointed at a
+throwaway `tmpdir()` root reaped by `test/global-setup.ts`, so it never reaches the operator's `data/`
+directory. Run from anywhere else, `localDataDir()` falls back to `<repo>/data`, the desk `:3000`
+serves, and that is what happened fourteen times: 96 desks on 2026-09-15 (07-08 UTC, before the isolation
+existed) and 16 on 2026-09-17 (01-02 UTC, two runs from another directory). The count never grew after
+that, and running the file from `packages/host` today leaves `data/agentforge.sqlite` at the same 113
+workspaces. Fixed 2026-09-29: the tests that create desks and rely on the host setup for their data dir
+(`cross-desk.test.ts`, `edit-scope.test.ts`) call `assertThrowawayDesk()`
+(`packages/host/src/__fixtures__/throwaway-desk.ts`), so a run against the wrong directory is a red test
+before any desk exists; the 112 desks named exactly `edit-idor-<8 hex>` were removed from the `:3000` desk
+through `DELETE /api/v1/workspaces/:id`.
 
 ## 6. Notes for the other lanes
 

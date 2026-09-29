@@ -15,12 +15,12 @@ Example galleries on Images, Videos, Documents, Research, and Presentation load 
 - The gallery sits above the prompt bar under “Start from a template”.
 - Click a card. A full brief fills the prompt; replace the sample details, then generate if you want.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 
 - Doctor exits 0.
-- `mode-images` (or the target mode tab) is visible on this workspace. Default already has every work mode. If the tab is missing, you are on a desk that hid it — switch to Default or add the tab in Workspaces.
+- `mode-images` (or the target mode tab) is visible on this workspace. An older Default has every work mode, and a fresh Personal desk has Research, Images, Videos and Presentation only. If the tab is missing, you are on a desk that hid it — switch to Default or add the tab in Workspaces (Edit on the desk).
 
 - **Open Images.** Click `mode-images` (or go to `/images` only if the rail tab is visible). `images-studio` is visible. `example-gallery` is visible.
 - **Gallery.** Images: 10 `example-card` entries. Videos / Documents / Research / Presentations: 6 each.
@@ -31,7 +31,7 @@ Preconditions:
 
 ## Gotchas
 
-- Default already has job-mode tabs. Missing `mode-images` on Default is a fail. On a Legal desk it is expected — switch to Default or add the tab in Workspaces.
+- Default already has the job-mode tabs a first desk starts with (Research, Images, Videos, Presentation). Missing `mode-images` on Default is a fail; missing `mode-documents` on a fresh Personal desk is expected. On a Legal desk it is expected — switch to Default or add the tab in Workspaces.
 - `images-studio-gallery` / `videos-studio-gallery` are generated-result galleries, not the example cards.
 - Documents / Presentations starters load a worked offline draft/outline. Template cards only prefill the prompt: `ExampleGallery`'s `onSelect` does nothing but `setPrompt(entry.prompt)` (`apps/web/components/documents-studio.tsx:191`), so a card can never produce `documents-preview` — only `documents-starter` and a live generate can.
 - Prefill targets the mode studio prompt, not Chat `composer-text`.

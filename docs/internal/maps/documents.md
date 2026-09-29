@@ -1,6 +1,6 @@
 # Map — Documents job
 
-Last verified: 2026-09-25 at b4e8110
+Last verified: 2026-09-29, working tree, not committed, for the `useJobModel` paragraph in § 2 (how the model list arrives); the rest as of 2026-09-25 at b4e8110
 
 ## Overview
 
@@ -30,7 +30,7 @@ Consequence, and it bites tests: after one visit to `/documents`, `documents-stu
 | the topic field | `:257-266` | `data-testid="documents-prompt"`, an **`<input type="text">`** |
 | submit | `:267-274` | `data-testid="documents-generate"`, disabled while busy or when the prompt is blank |
 
-`useJobModel("documents")` (`apps/web/lib/use-job-model.ts:18-19`) reads `GET /api/v1/models` and persists the choice into the desk's `documentGenModel` setting — the same field Finance, Market and Legal use (`:19-25`).
+`useJobModel("documents")` (`apps/web/lib/use-job-model.ts:91-125`) reads `GET /api/v1/models` (the catalogue, sent once as `models`; `jobModelAnswer`, `:66-89`, resolves the mode's list through `modelsForMode`) and `GET /api/v1/settings` (through the shared `readSettings`, `apps/web/lib/settings-read.ts`), and the choice persists into the desk's `documentGenModel` setting — the same field Finance, Market and Legal use (`SETTINGS_KEY`, `:20-29`).
 
 **Source material.** The box is collapsed until `documents-source-toggle` is pressed, or until `value.length > 0` opens it on its own (`source-material-field.tsx:21-22`). Beside it sits `ArtifactPicker` (`apps/web/components/artifact-picker.tsx:35`) with `testId="documents-source-picker"`, which derives `documents-source-picker-toggle` (`:92`), `documents-source-picker-panel` (`:99`) and `documents-source-picker-item` (`:116`). Opening it calls `listArtifacts()` for **every** mode (the `mode` prop is not passed, `source-material-field.tsx:46-55`), so a Research dossier, a Finance brief and a Legal memo are all pickable; picking one calls `getArtifact(id)` and drops the whole `body` into `sourceText` (`:50-54`). The web cap `SOURCE_TEXT_MAX_CHARS = 120_000` (`:8`) is a comment-documented mirror of the host's (`packages/host/src/job-source.ts:4`); the field only colours the counter red past it (`:87-93`) — it does not block.
 
@@ -144,7 +144,7 @@ This is **not** `packages/core/src/docx/*` — that toolkit reads, diffs and val
 - **The handoff is consumed once and does not survive a reload.** `takePendingHandoff` deletes the entry (`mode-handoff.ts:54-61`) and the whole bus is a module-level variable (`:42`). If the user reloads between "Make a document" and the pane mounting, the source material is gone. This is stated as a deliberate tradeoff in the file header (`:1-5`): panes stay mounted, so no router state or storage was needed.
 - **The 120k cap silently truncates.** `capSourceText` appends `[source material truncated at cap]` and returns (`job-source.ts:15-20`); no error, no header, no UI signal beyond the field's red counter.
 - **Schema failures are 502s, not 400s.** `parseDocumentDraft` and `parseDocumentSection` throw `invalid_document` at 502 (`document-outline.ts:20,27,34`), while `parseDocumentDraftBody` — the one that reads a *caller-supplied* draft — throws `invalid_request` at 400 (`:73`). Same zod schema, different blame.
-- **Documents and Finance share `documentGenModel`.** `apps/web/lib/use-job-model.ts:19-25` maps `documents`, `finance`, `market` and `legal` all onto `documentGenModel`. Changing the model in the Documents bar changes Finance's default too.
+- **Documents and Finance share `documentGenModel`.** `apps/web/lib/use-job-model.ts:20-29` maps `documents`, `finance`, `market` and `legal` all onto `documentGenModel`. Changing the model in the Documents bar changes Finance's default too.
 - **The Documents model bucket is the chat bucket.** `packages/host/src/selectable-models.ts:167` sets `documents: curated.chat`, so all 110 curated chat models appear in `documents-studio-model`. There is no Documents-specific catalog.
 
 ## Verify

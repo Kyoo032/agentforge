@@ -1,6 +1,7 @@
 # Map — Database and migrations
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for the migrations table and the numbering note (now
+Last verified: 2026-09-29 for the three `apps/desktop/main.cjs` citations (`bootstrapPackaged` lines), re-anchored in the
+working tree, not committed, after the ffmpeg probe moved behind the first paint. Before that: 2026-09-23 at d4561b8 + uncommitted tree for the migrations table and the numbering note (now
 through `0021`), the `auth_sessions` row of the schema families, "Start over, applied at next boot" (every
 `reset.ts` citation, and the partial-failure retry) and the drizzle row of Where things live. Not driven:
 `0021` has run only in its own test suite. Everything else was last verified 2026-09-20 at a053245 + the
@@ -34,7 +35,7 @@ install keep its files", and three inputs decide it, in strict precedence:
    is the data dir (`:9-11`); otherwise the value itself is (`:12`). A settings *file* path and a
    settings *directory* path are both accepted, which is why the extension test exists.
 2. `AGENTFORGE_DATA_DIR` (`:14-17`). What the packaged Electron shell sets, to Electron's
-   `userData` (`apps/desktop/main.cjs:622-624`).
+   `userData` (`apps/desktop/main.cjs:643-645`).
 3. `resolve(process.cwd(), "../../data")` (`:18`) — the repo's `data/` folder, resolved **relative to
    the current working directory**, not to the module. Running a script from the repo root instead of
    from a package directory therefore resolves a different data dir.
@@ -100,7 +101,7 @@ In order:
 
 The two processes allowed to set `AGENTFORGE_APPLY_PENDING_RESET=1` are the webdev server
 (`apps/web/server-env.ts:14`, imported first precisely because ESM hoists imports — `:9-13`) and the
-packaged shell's `bootstrapPackaged()` (`apps/desktop/main.cjs:631`).
+packaged shell's `bootstrapPackaged()` (`apps/desktop/main.cjs:652`).
 
 ### The schema
 
@@ -136,7 +137,7 @@ Two tables exist only in SQL and have no Drizzle declaration, because they are F
 `migrationsFolder()` (`:64-79`) resolves the committed folder: `AGENTFORGE_MIGRATIONS_DIR` when set
 *and existing* (`:66-72`), else `../../packages/db/drizzle` relative to `process.cwd()` (`:73-77`),
 else a throw that lists what it tried (`:87`). The packaged shell sets the env var to
-`process.resourcesPath/drizzle` (`apps/desktop/main.cjs:256-261`, assigned at `:626`).
+`process.resourcesPath/drizzle` (`apps/desktop/main.cjs:261-266`, assigned at `:647`).
 
 What `ensureSchema` then does:
 

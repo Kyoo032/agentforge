@@ -1,6 +1,6 @@
 # Product modes
 
-DPSBuddy’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. Default stores every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
+Nultron’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. The first desk of a fresh **Personal** install stores only Research, Images, Videos and Presentation plus Chat (owner decision, 2026-09-29, see [First-run desk](#first-run-desk-personal)); the first desk of the hosted **Enterprise** app stores every work mode, and an existing desk keeps whatever it has. Editing the current desk on Workspaces, or creating another desk (Legal, Marketing, Students, or custom checkboxes), can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
 
 Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge Toko Token with TokenKu in copy or catalogs. Kernel stays industry-neutral: no `student` / `course` / campus nouns outside `packages/university`.
 
@@ -35,7 +35,7 @@ Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files s
 `resolveWorkspaceModes` in `packages/core/src/agents/product-modes.ts`:
 
 - Stored workspace `productModes` in catalog order, always including Chat.
-- Missing / `null` / empty → all work modes (Default desk).
+- Missing / `null` / empty → all work modes. That is a **read** fallback for a row with nothing stored (a desk from before the column existed), so an existing desk never loses its rail by being read. It is not what a new desk starts with; see [First-run desk](#first-run-desk-personal).
 - Unknown ids including parked `agents` are dropped.
 - Hidden generate-studio URLs redirect to the first visible mode (Chat if present). `/` does the same.
 - `/agents` and `/studio` redirect like hidden modes.
@@ -48,12 +48,30 @@ Redirects:
 - `/workspace` → `/chat`
 - `/agents`, `/studio/**` → `/chat`
 
+## First-run desk (Personal)
+
+Rizky, 2026-09-29: when someone first installs the desktop app, the desk it opens with has **Research, Images, Videos and Presentation**, and nothing else. Chat is the home every desk has and is not one of the "Create" modes, so the stored row is `chat, research, images, videos, presentations`. Knowledge Base, Channels, Workspaces, Usage and Settings are account-rail pages, not modes, and are always there.
+
+It is a hard rule, held by structure and by tests:
+
+- One constant, `FIRST_RUN_MODES` (`packages/core/src/agents/product-modes.ts`), written out literally so a new catalog mode can never join it by accident.
+- One place writes a Personal first desk: `ensureLocalOwner` (`packages/db/src/ensure-local-owner.ts`), through `firstDeskModes(isServerMode())`. That covers a fresh data dir, the seed script, and Start over's "all" scope, whose wipe removes the database so the next boot lands on the same branch.
+- The hosted app is separate on purpose. `ensurePortalOwner` (`packages/db/src/portal-owner.ts`) reads `HOSTED_FIRST_DESK_MODES`, every mode, exactly as before, and `isServerMode()` keeps a hosted process that ever reached the local path on the same list. Rizky has not decided Enterprise's first desk.
+- `packages/host/src/first-run-modes.test.ts` opens a real empty data dir through the real router, and runs two real host processes across a Start over, and fails if the first desk has any other mode. `packages/db/src/first-desk-modes.test.ts` fails if a second place starts writing desk rows.
+- It never rewrites an existing desk. Upgrading from 0.15.1 changes nothing; a desk row with no stored modes still reads as every mode.
+
+The owner adds the rest later: **Workspaces → Edit on the desk → the mode chips → Save** (`PATCH /api/v1/workspaces/:id`). The first-run guide points at that page (below).
+
+## First-run guide
+
+After first-run setup ends, a short guided tour is offered once. Five stops, each a coach mark on a real element: the rail and its tools, Workspaces (how to add more), the Chat composer and model picker, the Knowledge Base, Settings. Every card has Next, Back (not on the first stop), a visible Skip and a close button; Esc closes it, and a click outside does nothing. A stop whose element is not on screen (a collapsed rail, a phone-width window) is a centred card, and the tour goes on. How it ended is stored by the host beside the language, so it never opens on its own again; Settings has **Replay the guide**, and Start over shows it again. Design, states and the files: [`internal/maps/first-run-desk-and-guide.md`](internal/maps/first-run-desk-and-guide.md).
+
 ## Pack seeds
 
 Packs live in their own packages. They seed workspace **preset mode lists**. They do not change kernel schema.
 
 - **Blank** — `chat` (user adds chips; Chat always required)
-- **General / Default** — every work mode
+- **General** — every work mode (a preset for a *new* desk; the Personal first desk does not use it)
 - **Students** (`packages/university`) — `chat`, `documents`, `research`, `images`, `presentations`
 - **Marketing** (`packages/marketing`) — `chat`, `documents`, `images`, `videos`, `presentations`
 - **Legal** (`packages/legal`) — `chat`, `documents`, `research`, `legal`, `presentations`

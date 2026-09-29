@@ -1,6 +1,6 @@
 # Map — Music mode
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 5 (what reaches the relay in custom mode), the
+Last verified: 2026-09-29, working tree, not committed, for the gallery `items` bullet (a track whose file is gone) and the `modes.music` line (the catalogue on the wire). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 5 (what reaches the relay in custom mode), the
 `studio-generate.ts` citations, the studio keeping its picked model after a generate, and the test table.
 Everything else was last verified 2026-09-21 at 4938747. The lyrics change is host-side and needs a `:3000`
 restart before it can be seen; it has not been driven.
@@ -37,7 +37,7 @@ What this page is *not*: transcription (nothing here reads audio) and text-to-sp
 
 Like the Images and Videos GETs it is **ungated** — no `requireGatewayAllowed` — so the page renders fully on a keyless desk.
 
-- `items` ← `listStudioGallery(tenant, "audio")` (`packages/host/src/studio-generate.ts:543-567`). Same function the other two studios use; `StudioKind` was widened to `"image" | "video" | "audio"` (`:54`) and the item now also carries `title`, `style`, `instrumental` and `durationSeconds` from the sidecar.
+- `items` ← `listStudioGallery(tenant, "audio")` (`packages/host/src/studio-generate.ts:566-593`). Same function the other two studios use; `StudioKind` was widened to `"image" | "video" | "audio"` (`:54`) and the item now also carries `title`, `style`, `instrumental` and `durationSeconds` from the sidecar. A track whose file is gone carries `fileMissing: true` (2026-09-29; see [`generate-studios.md`](generate-studios.md) § 2), and the library shows the shared "File missing" tile instead of an `<audio>` that cannot load: `GalleryAudio` (`apps/web/components/gallery-media.tsx:114`, `preload="none"`, used at `apps/web/components/music-studio.tsx:446`); the download link is not rendered for that row.
 - `defaultModel` ← `resolveStudioGenerateDefault({ kind: "music", ... })` — the agent pin, then the Settings pin (`settings.musicGenModel`), then `defaultStudioMusicModel()` (`packages/host/src/studio-generate.ts:157-159`). **Resolved before `models`, on purpose** — see below.
 - `models` ← `withRelayMusicModels(listStudioMusicModels(), [defaultModel])` then `attachMediaPrices(..., "track", ...)`. `"track"` is a new `MediaPriceUnit` (`packages/core/src/models/media-pricing.ts:27`): a flat charge for one finished job, which is how the gateway bills the relay.
 - `ready` ← `studioRouteReady("music_gen", workspaceId)` (`:258-264`).
@@ -59,7 +59,7 @@ The fix is a named constant, not a probe:
 - `RELAY_ONLY_MUSIC_MODEL_IDS` (`packages/core/src/models/media-kind.ts`) — today `["suno_music"]`. Fixed in the repo, like `MUSIC_PREF` beside it: never read from a request, a response or settings, so nothing a gateway says can add an id. Every entry must satisfy `isMusicModelId` or the Music filter would drop it again straight after the merge (`media-kind.test.ts` asserts that).
 - `withRelayMusicModels(models, extraIds?)` (`packages/host/src/selectable-models.ts`) — appends the relay rows the catalog is missing. Immutable, deduped case-insensitively, and **the catalog row always wins a collision**: if the gateway ever does list the id, its own row keeps its price and curation and nothing is appended.
 - `handleGetMusic` resolves `defaultModel` first and passes it as `extraIds`, so an agent or Settings pin naming a relay id this build does not know about is still shown. The picker can always render what generate will actually send.
-- `modeCatalogPayload` merges too, so `/api/v1/models` cannot report `modes.music: []` next to `defaults.music: "suno_music"`.
+- `modeCatalogPayload` merges too, so `/api/v1/models` cannot report `modes.music: []` next to `defaults.music: "suno_music"`. `modes.music` is one of the lists the wire still carries (image, video, audio, other, music, embedding): the chat-shaped modes no longer get a copy (`modelCatalogBody`, `packages/host/src/selectable-models.ts:229-249`).
 
 **No network probe sits on the request path.** A relay-existence check is possible — `GET {origin}/suno/fetch/<bogus id>` returning a structured not-found rather than a route 404 would distinguish "relay mounted" from "relay absent" without billing anything — but it would be a call on every page load to answer what a constant already answers, and `RELAY_MISSING` (§6) already names the exact path tried when a submit 404s. If that is ever wanted, it must be cached and failure-tolerant, and it must fail *open*.
 
