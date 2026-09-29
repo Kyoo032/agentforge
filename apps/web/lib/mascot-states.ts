@@ -1,6 +1,8 @@
 /**
- * Mascot states as data. The SVG in `placeholder-mascot.tsx` is the only art;
- * a new activity is a row here plus a pose layer in that file.
+ * Mascot states as data. Which picture a state shows is a file per state under
+ * `components/nultron/images/` (`manifest.json`); what this file owns is everything the desk decides
+ * about a state: its name, its accessible label (`common.mascot.<state>`), how it moves, and which state
+ * a mode's job phase or a moment of the app calls for.
  */
 
 export const MASCOT_STATES = [
@@ -21,6 +23,10 @@ export const MASCOT_STATES = [
   "presenting",
   "celebrating",
   "error",
+  "surprised",
+  "love",
+  "charging",
+  "lets-go",
 ] as const;
 
 export type MascotState = (typeof MASCOT_STATES)[number];
@@ -47,53 +53,44 @@ export type MascotMode = (typeof MASCOT_MODES)[number];
 
 export type MascotPlacement = "empty" | "beside";
 
-/** Which drawn pose a state uses. `answering` shares the writing pose. */
-export type MascotPose =
-  | "wave"
-  | "idle"
-  | "sleep"
-  | "thinking"
-  | "writing"
-  | "searching"
-  | "calculating"
-  | "charting"
-  | "reviewing"
-  | "listening"
-  | "painting"
-  | "filming"
-  | "editing"
-  | "presenting"
-  | "celebrating"
-  | "error";
+/**
+ * How a state moves. This is the performance contract (the packaged Windows app has no GPU, so one
+ * running CSS loop costs a full software-composited frame sixty times a second):
+ * - `still`: no animation at all (idle, sleep).
+ * - `once`: one finite clip when the state is entered, 600 to 1200 ms, that ends on the still.
+ * - `loop-busy`: loops, stepped, and only while the caller says a job is really running (`data-busy`).
+ *   Without it the state holds its still.
+ */
+export type MascotMotion = "still" | "once" | "loop-busy";
 
-export type MascotMouth = "idle" | "talk" | "smile" | "sad" | "sleep";
-
-export type MascotStateDef = {
-  pose: MascotPose;
-  mouth: MascotMouth;
-  /** `common.mascot.<key>` */
-  labelKey: string;
+export const STATE_MOTION: Record<MascotState, MascotMotion> = {
+  wave: "once",
+  idle: "still",
+  sleep: "still",
+  thinking: "loop-busy",
+  writing: "loop-busy",
+  answering: "loop-busy",
+  searching: "loop-busy",
+  calculating: "loop-busy",
+  charting: "loop-busy",
+  reviewing: "loop-busy",
+  listening: "loop-busy",
+  painting: "loop-busy",
+  filming: "loop-busy",
+  editing: "loop-busy",
+  presenting: "loop-busy",
+  celebrating: "once",
+  error: "once",
+  surprised: "once",
+  love: "once",
+  charging: "loop-busy",
+  "lets-go": "once",
 };
 
-export const MASCOT_STATE_DATA: Record<MascotState, MascotStateDef> = {
-  wave: { pose: "wave", mouth: "smile", labelKey: "common.mascot.wave" },
-  idle: { pose: "idle", mouth: "idle", labelKey: "common.mascot.idle" },
-  sleep: { pose: "sleep", mouth: "sleep", labelKey: "common.mascot.sleep" },
-  thinking: { pose: "thinking", mouth: "idle", labelKey: "common.mascot.thinking" },
-  writing: { pose: "writing", mouth: "talk", labelKey: "common.mascot.writing" },
-  answering: { pose: "writing", mouth: "talk", labelKey: "common.mascot.answering" },
-  searching: { pose: "searching", mouth: "idle", labelKey: "common.mascot.searching" },
-  calculating: { pose: "calculating", mouth: "talk", labelKey: "common.mascot.calculating" },
-  charting: { pose: "charting", mouth: "idle", labelKey: "common.mascot.charting" },
-  reviewing: { pose: "reviewing", mouth: "idle", labelKey: "common.mascot.reviewing" },
-  listening: { pose: "listening", mouth: "smile", labelKey: "common.mascot.listening" },
-  painting: { pose: "painting", mouth: "smile", labelKey: "common.mascot.painting" },
-  filming: { pose: "filming", mouth: "smile", labelKey: "common.mascot.filming" },
-  editing: { pose: "editing", mouth: "talk", labelKey: "common.mascot.editing" },
-  presenting: { pose: "presenting", mouth: "talk", labelKey: "common.mascot.presenting" },
-  celebrating: { pose: "celebrating", mouth: "smile", labelKey: "common.mascot.celebrating" },
-  error: { pose: "error", mouth: "sad", labelKey: "common.mascot.error" },
-};
+/** `common.mascot.<state>`, the catalog key of the accessible name. */
+export function mascotLabelKey(state: MascotState): string {
+  return `common.mascot.${state}`;
+}
 
 /** What the character does on that desk when no phase has arrived yet. */
 export const MASCOT_MODE_HOME: Record<MascotMode, MascotState> = {
@@ -142,6 +139,21 @@ const PHASE_STATE: Record<string, MascotState> = {
   extracting: "listening",
   transcribing: "listening",
 };
+
+/** Every pose a job phase can call for, once each. A job's chip can move to any of these while it runs. */
+export const PHASE_POSES: readonly MascotState[] = [...new Set(Object.values(PHASE_STATE))];
+
+/**
+ * True when a mascot is a status indicator: a `loop-busy` state beside a job the caller says is
+ * running (`NultronMascot` also requires its `busy` prop, because a dropped job stream leaves the
+ * pose behind). Everything else (the hero's idle and wave, a finished job, an empty desk's home
+ * pose) is decoration. The desk's ambient pause stops decoration as soon as nobody is using the
+ * window, but a status indicator keeps moving through a long run with the hands off the mouse and
+ * stops only when the window is hidden (`app/globals.css`, "Ambient pause").
+ */
+export function isMascotBusy(state: MascotState, placement: MascotPlacement): boolean {
+  return placement === "beside" && STATE_MOTION[state] === "loop-busy";
+}
 
 export function isMascotState(value: string | null | undefined): value is MascotState {
   return Boolean(value && (MASCOT_STATES as readonly string[]).includes(value));

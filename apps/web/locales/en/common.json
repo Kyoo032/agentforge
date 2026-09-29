@@ -3,9 +3,13 @@
   "language": "Language",
   "english": "English",
   "bahasa": "Bahasa Indonesia",
-  "restartApp": "Restart DPSBuddy",
-  "restartHint": "Restart DPSBuddy to apply this language.",
+  "restartApp": "Restart Nultron",
+  "restartHint": "Restart Nultron to apply this language.",
   "loading": "Loading…",
+  "mediaMissing": {
+    "title": "File missing",
+    "hint": "This file is no longer available."
+  },
   "enhance": {
     "failedShort": "Enhance failed",
     "failed": "Could not enhance the prompt. Your text is unchanged.",
@@ -55,7 +59,11 @@
     "editing": "Editing",
     "presenting": "Presenting",
     "celebrating": "All done",
-    "error": "Something needs a look"
+    "error": "Something needs a look",
+    "surprised": "Surprised",
+    "love": "Happy to help",
+    "charging": "Charging up",
+    "lets-go": "Off we go"
   },
   "modeHandoff": {
     "fallbackSubject": "the source material",

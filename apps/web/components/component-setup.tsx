@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NultronMascot } from "@/components/nultron/nultron-mascot";
 import type { SetupStage } from "@/lib/components-client";
 import { t } from "@/lib/i18n";
+import { componentSetupMascot, SETUP_NEXT } from "@/lib/mascot-triggers";
 import { useProductBrand } from "@/lib/product-brand";
 import { useComponentSetup, type ComponentSetupView } from "@/lib/use-component-setup";
 
@@ -63,6 +65,7 @@ export function ComponentSetupPanel({ view }: { view: ComponentSetupView }) {
   }
 
   const failed = setup.status === "failed";
+  const face = componentSetupMascot(setup.status);
   const steps = setup.stages.filter((stage) => DONE_STATES.has(stage.state)).length;
 
   return (
@@ -72,11 +75,16 @@ export function ComponentSetupPanel({ view }: { view: ComponentSetupView }) {
       role="status"
       aria-live="polite"
     >
-      <p className="text-sm font-medium text-[var(--text)]">{t("onboarding.components.title", { productName })}</p>
-      <p className="mt-1">
-        {t("onboarding.components.description")}
-        {component.bytes > 0 ? ` ${t("onboarding.components.size", { mb: megabytes(component.bytes) })}` : ""}
-      </p>
+      <div className="flex items-start gap-3">
+        {face ? <NultronMascot state={face} busy={setup.status === "running"} decorative next={SETUP_NEXT} /> : null}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-[var(--text)]">{t("onboarding.components.title", { productName })}</p>
+          <p className="mt-1">
+            {t("onboarding.components.description")}
+            {component.bytes > 0 ? ` ${t("onboarding.components.size", { mb: megabytes(component.bytes) })}` : ""}
+          </p>
+        </div>
+      </div>
       <div
         className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[var(--line)]"
         data-testid="component-setup-progress"

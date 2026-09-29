@@ -69,7 +69,7 @@ describe("isHostedBuild", () => {
 });
 
 describe("injectHostedMarker", () => {
-  const HTML = "<!doctype html>\n<html>\n  <head>\n    <title>DPSBuddy</title>\n  </head>\n  <body></body>\n</html>\n";
+  const HTML = "<!doctype html>\n<html>\n  <head>\n    <title>Nultron</title>\n  </head>\n  <body></body>\n</html>\n";
 
   it("returns the html untouched when this is not the hosted build", () => {
     expect(injectHostedMarker(HTML, false)).toBe(HTML);
@@ -79,7 +79,7 @@ describe("injectHostedMarker", () => {
     const out = injectHostedMarker(HTML, true);
     expect(out).toContain(HOSTED_MARKER_TAG);
     expect(out.indexOf(HOSTED_MARKER_TAG)).toBeLessThan(out.indexOf("</head>"));
-    expect(out).toContain("<title>DPSBuddy</title>");
+    expect(out).toContain("<title>Nultron</title>");
   });
 
   it("produces a page `isHostedBuild` then reads as hosted", () => {
@@ -121,7 +121,8 @@ describe("rootRelativeAssets", () => {
    */
   const BUILT =
     '<!doctype html>\n<html lang="en">\n  <head>\n' +
-    '    <link rel="icon" type="image/png" href="./brand/logo.png" />\n' +
+    '    <link rel="icon" href="./brand/favicon.ico" sizes="16x16 32x32 48x48" />\n' +
+    '    <link rel="apple-touch-icon" sizes="180x180" href="./brand/favicon-180.png" />\n' +
     '    <script type="module" crossorigin src="./assets/index-abc.js"></script>\n' +
     '    <link rel="stylesheet" crossorigin href="./assets/index-abc.css">\n' +
     "  </head>\n  <body></body>\n</html>\n";
@@ -138,7 +139,8 @@ describe("rootRelativeAssets", () => {
     const out = rootRelativeAssets(BUILT);
     expect(out).toContain('src="/assets/index-abc.js"');
     expect(out).toContain('href="/assets/index-abc.css"');
-    expect(out).toContain('href="/brand/logo.png"');
+    expect(out).toContain('href="/brand/favicon.ico"');
+    expect(out).toContain('href="/brand/favicon-180.png"');
     expect(out).not.toContain('"./');
   });
 

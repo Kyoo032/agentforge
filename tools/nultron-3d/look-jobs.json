@@ -1,0 +1,6 @@
+[
+ {"out":"work/look/front.png","view":"full","pose":"ref","size":1024,"ss":3,"bg":"transparent"},
+ {"out":"work/look/threequarter.png","view":"full","pose":"ref","yaw":-30,"pitch":4,"size":1024,"ss":3,"bg":"transparent"},
+ {"out":"work/look/head.png","view":"head","size":1024,"ss":3,"bg":"transparent"},
+ {"out":"work/look/icon-tile.png","view":"icon","size":1024,"ss":3,"bg":"transparent"}
+]

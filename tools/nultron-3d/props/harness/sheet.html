@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>props sheet</title>
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #ffffff; font-family: "Segoe UI", Arial, sans-serif; }
+  canvas { display: block; position: absolute; left: 0; top: 0; }
+  .lab { position: absolute; font-size: 12px; line-height: 1.25; pointer-events: none; white-space: nowrap; }
+  .lab b { font-size: 13px; }
+  .lab.light { color: #34495e; }
+  .lab.dark { color: #cfe6f5; }
+  .banner { position: absolute; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .6; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "../../node_modules/three/build/three.module.js",
+  "three/addons/": "../../node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<script type="module" src="./sheet.js"></script>
+</body>
+</html>

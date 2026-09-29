@@ -4,7 +4,9 @@ import { isRenderableImageUrl, isRenderableVideoUrl } from "@/lib/composer-attac
 import { mediaSrc } from "@/lib/api-client";
 import { FormattedText } from "@/components/formatted-text";
 import { MessageEmbed } from "@/components/message-embed";
-import { PlaceholderMascot, type PlaceholderMascotState } from "@/components/placeholder-mascot";
+import { NultronMascot } from "@/components/nultron/nultron-mascot";
+import { LETS_GO_MS, LIVE_TURN_NEXT, liveTurnMascot } from "@/lib/mascot-triggers";
+import { useHoldOnMount } from "@/lib/use-hold-on-mount";
 import { jobEmbedsFromTools, splitUserFileBlocks } from "@/lib/message-embeds";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { showsToolSpinner, toolActivityLabel, toolCallSummary } from "@/lib/tool-labels";
@@ -28,6 +30,8 @@ type Props = {
     running: boolean;
     thinkingEnabled?: boolean;
     failed?: boolean;
+    /** The thread has no assistant reply yet: this is the first turn of a new chat. */
+    firstTurn?: boolean;
   };
 };
 
@@ -41,18 +45,10 @@ function PulseDots() {
   );
 }
 
-function mascotState(live: NonNullable<Props["live"]>): PlaceholderMascotState {
-  if (live.failed) {
-    return "error";
-  }
-  if (live.streaming) {
-    return "answering";
-  }
-  return "thinking";
-}
-
 export function ChatTurn({ role, content, live }: Props) {
   const isUser = role === "user";
+  // A new chat's first turn opens with the lets-go clip, then the working state takes over.
+  const launching = useHoldOnMount(Boolean(live?.firstTurn), LETS_GO_MS);
   const thinking = live ? live.thinking : thinkingFromContent(content);
   const tools = live ? live.tools : toolsFromContent(content);
   const visibleTools = tools.filter((tool) => tool.status === "started" || tool.status === "completed");
@@ -86,7 +82,14 @@ export function ChatTurn({ role, content, live }: Props) {
         <MessageBody content={content} />
       ) : (
         <div className={live ? "flex items-start gap-3" : "space-y-2"}>
-          {live ? <PlaceholderMascot state={mascotState(live)} /> : null}
+          {live ? (
+            <NultronMascot
+              state={liveTurnMascot({ failed: live.failed, streaming: Boolean(live.streaming), launching })}
+              busy={Boolean(live.running)}
+              decorative
+              next={LIVE_TURN_NEXT}
+            />
+          ) : null}
           <div className="min-w-0 flex-1 space-y-2">
           {showDisclosure ? (
             <details
@@ -225,7 +228,7 @@ function MessageBody({ content, outputOnly = false }: { content?: unknown; outpu
     if (content == null) {
       return null;
     }
-    return <p className="whitespace-pre-wrap text-sm">{JSON.stringify(content)}</p>;
+    return <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{JSON.stringify(content)}</p>;
   }
 
   const parts = outputOnly
@@ -283,13 +286,15 @@ function MediaParts({ parts }: { parts: ContentPart[] }) {
 function UserPlain({ text }: { text: string }) {
   const segments = splitUserFileBlocks(text);
   if (segments.length === 1 && segments[0]?.type === "text") {
-    return <p className="whitespace-pre-wrap text-sm">{segments[0].text}</p>;
+    // `anywhere`: a pasted URL or blob has no space to break at and ran out of the bubble (a
+    // 120-character link measured 1201px of scroll in a 136px bubble at 320px).
+    return <p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{segments[0].text}</p>;
   }
   return (
     <div className="space-y-2">
       {segments.map((segment, index) =>
         segment.type === "text" ? (
-          <p key={index} className="whitespace-pre-wrap text-sm">
+          <p key={index} className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
             {segment.text}
           </p>
         ) : (

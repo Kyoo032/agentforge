@@ -166,7 +166,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
           logoSrc ? (
             <img src={logoSrc} alt={logoAlt} className="h-5 w-5 object-contain" data-testid="product-logo" />
           ) : (
-            <BrandMark size={20} className="text-[var(--rail-accent)]" testId="product-logo" />
+            <BrandMark size={24} alt={logoAlt} testId="product-logo" />
           )
         ) : (
           <span className="min-w-0 flex-1 truncate">{t("workspaces.deskLabel", { name: workspaceName })}</span>

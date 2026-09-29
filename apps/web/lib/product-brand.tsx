@@ -18,7 +18,7 @@ export const DEFAULT_PRODUCT_BRAND: ProductBrand = {
 };
 
 /**
- * The chevron lockup, served from `apps/web/public/brand/`.
+ * The Nultron logo tile at 256 px, served from `apps/web/public/brand/`.
  *
  * The MARK is the only thing the hosted web adds to the brand. The NAME is
  * `DEFAULT_PRODUCT_NAME` -- the same constant `/api/v1/ping` answers `productName` with -- so the
@@ -27,6 +27,17 @@ export const DEFAULT_PRODUCT_BRAND: ProductBrand = {
  * the two apart; deleting the second name deletes the drift rather than managing it.
  */
 export const WEB_LOGO_SRC = "/brand/logo.png";
+
+/**
+ * True when the rail, the desk switcher and the sign-in screen draw the mark that ships with the
+ * renderer (`BrandMark`, size-tuned for 24 and 32 px) rather than `logoSrc`. That is the default
+ * brand on the web (its `logoSrc` is `WEB_LOGO_SRC`, which is the same tile) and the default brand
+ * in the packaged desktop, whose preload also hands over the logo as a data URL. A flavor with its
+ * own name and its own logo (`branding/kemenkeu`, `branding/metranet`) keeps drawing that logo.
+ */
+export function usesBundledMark(brand: ProductBrand): boolean {
+  return brand.logoSrc === WEB_LOGO_SRC || brand.productName === DEFAULT_PRODUCT_NAME;
+}
 
 const BrandContext = createContext<ProductBrand>(DEFAULT_PRODUCT_BRAND);
 
