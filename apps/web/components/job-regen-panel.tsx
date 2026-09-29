@@ -148,6 +148,9 @@ export function JobRegenPanel({
         className="sr-only"
         type="file"
         multiple
+        // The attach button opens this; the input itself is not a tab stop.
+        tabIndex={-1}
+        aria-hidden="true"
         accept={JOB_REGEN_FILE_ACCEPT}
         onChange={(event) => addFiles(event.target.files)}
         data-testid={`${testIdPrefix}-regen-file`}
@@ -157,12 +160,12 @@ export function JobRegenPanel({
           {files.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-1 text-xs text-[var(--text)]"
+              className="flex max-w-full items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-1 text-xs text-[var(--text)]"
             >
-              <span className="max-w-[12rem] truncate">{item.file.name}</span>
+              <span className="min-w-0 max-w-[12rem] truncate">{item.file.name}</span>
               <button
                 type="button"
-                className="text-[var(--text-3)] hover:text-[var(--text)]"
+                className="shrink-0 text-[var(--text-3)] hover:text-[var(--text)]"
                 aria-label={t("documents.regen.removeFile", { name: item.file.name })}
                 disabled={busy}
                 onClick={() => setFiles((current) => current.filter((held) => held.id !== item.id))}

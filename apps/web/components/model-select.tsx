@@ -1,6 +1,7 @@
 "use client";
 
 import { pickerGroups } from "@agentforge/core/preferred";
+import { embeddingsGroupLabel, pickerGroupLabel } from "@/lib/picker-group-label";
 
 type ChatModel = {
   id: string;
@@ -49,7 +50,10 @@ export function ModelSelect({
 }: Props) {
   const selected = models.some((model) => model.id === value) ? value : (models[0]?.id ?? "");
 
-  const groups = flat ? [{ label: "Embeddings", models }] : pickerGroups(models);
+  // The group words are translated here, in the renderer; core sends a stable kind (`pickerGroups`).
+  const groups = flat
+    ? [{ key: "embeddings", label: embeddingsGroupLabel(), models }]
+    : pickerGroups(models).map((group) => ({ key: group.label, label: pickerGroupLabel(group), models: group.models }));
 
   return (
     <select
@@ -60,7 +64,7 @@ export function ModelSelect({
       data-testid={testId}
     >
       {groups.map((group) => (
-        <optgroup key={group.label} label={group.label}>
+        <optgroup key={group.key} label={group.label}>
           {group.models.map((model) => (
             <option key={model.id} value={model.id}>
               {optionLabel(model, showModalities)}

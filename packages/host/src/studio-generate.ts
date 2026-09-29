@@ -110,6 +110,13 @@ export type StudioGalleryItem = {
   style?: string;
   instrumental?: boolean;
   durationSeconds?: number;
+  /**
+   * Present (and `true`) only when the row's file is gone from the desk's store, so `GET
+   * /api/v1/media/:id/file` would answer 404. The row is still listed: it is the owner's data and
+   * nothing here deletes it. The gallery shows a "file missing" tile instead of a player that cannot
+   * load. Absent means present, or not checked (the hosted object store is never probed per row).
+   */
+  fileMissing?: true;
 };
 
 export type StudioGenerateResult = {
@@ -558,7 +565,12 @@ export async function writeStudioLyrics(
 
 export async function listStudioGallery(tenant: TenantContext, kind: StudioKind): Promise<StudioGalleryItem[]> {
   const { listMediaByKind } = await import("./media");
+  const { missingTenantObjects } = await import("./tenant-storage");
   const rows = await listMediaByKind(tenant, kind);
+  const missing = await missingTenantObjects(
+    tenant.tenantId,
+    rows.map((row) => row.storagePath),
+  );
   const items: StudioGalleryItem[] = [];
   for (const row of rows) {
     const meta = await getStudioMediaMeta(tenant.tenantId, row.id);
@@ -574,6 +586,7 @@ export async function listStudioGallery(tenant: TenantContext, kind: StudioKind)
       style: meta?.style,
       instrumental: meta?.instrumental,
       durationSeconds: meta?.durationSeconds,
+      ...(missing.has(row.storagePath) ? { fileMissing: true as const } : {}),
     });
   }
   return items;

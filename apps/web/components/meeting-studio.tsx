@@ -706,13 +706,11 @@ export function MeetingStudio() {
       <div className="mt-8 grid flex-1 gap-6 md:grid-cols-[16rem_1fr]">
         <aside className="space-y-1" data-testid="meeting-list">
           {meetings.length === 0 ? (
-            <div className="px-2 py-6 text-center">
-              <ModeIllustration mode="meeting" />
-              <p className="mt-4 text-sm text-[var(--text-2)]" data-testid="meeting-empty">
-                {t("meeting.empty")}
-                <span className="block text-[var(--text-3)]">{t("meeting.emptyDetail")}</span>
-              </p>
-            </div>
+            // One line only: the character and the "what to do" sentence belong to the main pane beside
+            // it (or under it, on a phone), so an empty desk shows them once.
+            <p className="px-2 py-6 text-center text-sm text-[var(--text-2)]" data-testid="meeting-empty">
+              {t("meeting.empty")}
+            </p>
           ) : null}
           {meetings.map((meeting, index) => (
             <div key={meeting.id} className="enter-rise" style={{ "--i": index } as CSSProperties}>
@@ -878,7 +876,7 @@ export function MeetingStudio() {
               <div className="mt-4">
                 {tab === "transcript" && selected.transcript ? (
                   <pre
-                    className="whitespace-pre-wrap rounded-lg border border-[var(--line)] px-4 py-3 text-sm text-[var(--text-2)]"
+                    className="whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg border border-[var(--line)] px-4 py-3 text-sm text-[var(--text-2)]"
                     data-testid="meeting-transcript"
                   >
                     {selected.transcript.text}

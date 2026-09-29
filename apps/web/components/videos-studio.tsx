@@ -7,6 +7,7 @@ import type { PromptTemplate } from "@agentforge/core/edit";
 import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
+import { GalleryVideo } from "@/components/gallery-media";
 import { VideoExamples } from "@/components/video-examples";
 import { Confetti } from "@/components/confetti";
 import { ModeHeader } from "@/components/mode-header";
@@ -38,6 +39,8 @@ type GalleryItem = {
   prompt?: string;
   aspect?: string;
   model?: string;
+  /** The host's word that the file is gone from the store: the row lists, the player does not mount. */
+  fileMissing?: boolean;
 };
 
 type GalleryResponse = {
@@ -322,7 +325,7 @@ export function VideosStudio() {
             disabled={generating}
             data-testid="videos-studio-prompt"
           />
-          {generating ? <MascotSlot mode="videos" placement="beside" busy /> : null}
+          {generating ? <MascotSlot mode="videos" placement="beside" busy decorative /> : null}
           <button
             type="submit"
             className={
@@ -357,21 +360,23 @@ export function VideosStudio() {
                 className="card-live enter-rise overflow-hidden"
                 style={{ "--i": index } as CSSProperties}
               >
-                <video src={mediaSrc(item.url)} controls className="aspect-video w-full bg-black object-contain" />
+                <GalleryVideo src={mediaSrc(item.url)} missing={item.fileMissing === true} index={index} />
                 <div className="flex items-center justify-between gap-2 px-3 py-2">
                   {item.prompt ? (
                     <p className="min-w-0 truncate text-xs text-[var(--text-2)]">{item.prompt}</p>
                   ) : (
                     <span />
                   )}
-                  <a
-                    href={mediaSrc(item.url)}
-                    download={`agentforge-video-${item.id}.mp4`}
-                    className="shrink-0 text-xs underline text-[var(--text-2)]"
-                    data-testid="videos-studio-download"
-                  >
-                    {t("videos.download")}
-                  </a>
+                  {item.fileMissing ? null : (
+                    <a
+                      href={mediaSrc(item.url)}
+                      download={`agentforge-video-${item.id}.mp4`}
+                      className="shrink-0 text-xs underline text-[var(--text-2)]"
+                      data-testid="videos-studio-download"
+                    >
+                      {t("videos.download")}
+                    </a>
+                  )}
                 </div>
               </li>
             ))}

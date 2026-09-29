@@ -5,6 +5,7 @@
   "untitled": "Tanpa judul",
   "projects": "Proyek",
   "newProject": "Proyek baru",
+  "projectNameLabel": "Nama proyek",
   "openProjectHint": "Buka proyek untuk berbicara dengan editor.",
   "phaseLater": "{label} (Tahap 2+)",
   "jobs": "pekerjaan {count}",

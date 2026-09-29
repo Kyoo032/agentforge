@@ -55,13 +55,40 @@ function titleCaseToken(token: string): string {
   return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
 }
 
+/**
+ * `claude-opus-5-5` is Opus 5.5: an id has no dot to spare, so two short numbers in a row after a
+ * name are one dotted version. Not after a four-digit year, where `2025-12-01` is a date, and not
+ * when the second number has a leading zero (`01`), which no version has.
+ */
+function joinDashedVersions(parts: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i] as string;
+    const next = parts[i + 1];
+    const before = out[out.length - 1];
+    const startsVersion =
+      before !== undefined &&
+      !/^\d{4}$/.test(before) &&
+      /^\d{1,2}$/.test(part) &&
+      next !== undefined &&
+      /^[1-9]\d?$/.test(next);
+    if (startsVersion) {
+      out.push(`${part}.${next}`);
+      i += 1;
+    } else {
+      out.push(part);
+    }
+  }
+  return out;
+}
+
 /** Cleaned display label: strip vendor prefixes/dates, title-case segments. */
 export function friendlyModelLabel(id: string): string {
   let name = leafId(id.trim());
   name = name.replace(VENDOR_PREFIX, "");
   name = name.replace(DATED_SUFFIX, "");
   name = name.replace(SNAPSHOT_NOISE, "");
-  const parts = name.split(/[-_]+/).filter(Boolean);
+  const parts = joinDashedVersions(name.split(/[-_]+/).filter(Boolean));
   return parts.map(titleCaseToken).join(" ");
 }
 

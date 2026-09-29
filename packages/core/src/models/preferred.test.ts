@@ -146,6 +146,21 @@ describe("pickerGroups", () => {
     expect(groups[0]?.models.map((item) => item.id)).toEqual(["gpt-5.6-sol"]);
   });
 
+  it("tags each group with a stable kind, so a renderer translates the words and not the brands", () => {
+    const groups = pickerGroups([
+      model("gpt-5.6-sol"),
+      model("gpt-5.2"),
+      model("claude-sonnet-4-5"),
+      model("omni-fast"),
+    ]);
+    expect(groups.map((group) => [group.kind, group.label])).toEqual([
+      ["recommended", "Recommended"],
+      ["brand", "GPT"],
+      ["brand", "Claude"],
+      ["other", "Other"],
+    ]);
+  });
+
   it("puts the gateway default model first in Recommended", () => {
     const groups = pickerGroups([model("gpt-5.6-sol"), model("default"), model("deepseek-v4-pro")]);
     expect(groups[0]?.models.map((item) => item.id)[0]).toBe("default");

@@ -610,6 +610,48 @@ export async function removeTenantObject(tenantId: string, key: string): Promise
   }
 }
 
+/** How many `stat` calls `missingTenantObjects` keeps in flight: a gallery is a few dozen rows. */
+const PRESENCE_BATCH = 16;
+
+/**
+ * Which of these keys have no object behind them.
+ *
+ * A gallery row outlives its file when the file is deleted outside the app, a data dir is restored
+ * from an older copy, or a write dies between the object and the row. The row then lists fine and
+ * `GET /api/v1/media/:id/file` answers 404, and a page that mounts a player for every row opens one
+ * failing load per stale row. The gallery lists the row anyway (it is the owner's data, and nothing
+ * here deletes it) and marks it, so the page can say so instead of trying to play it.
+ *
+ * **Only on the file backend, where this is a `stat`.** Under COS each answer is a network `HEAD`,
+ * which a list of dozens of rows must not pay on every open, so nothing is reported missing there and
+ * the renderer's own load-error state covers a stale row. A key that is not this tenant's
+ * (`assertObjectKey` refuses it) is a 404 to a reader, so it is reported missing too; any other
+ * failure is "unknown", never "missing": a row must not be marked gone because of a disk hiccup.
+ */
+export async function missingTenantObjects(tenantId: string, keys: readonly string[]): Promise<Set<string>> {
+  const missing = new Set<string>();
+  if (objectStorageKind() !== "file") {
+    return missing;
+  }
+  const store = tenantObjectStore();
+  for (let start = 0; start < keys.length; start += PRESENCE_BATCH) {
+    await Promise.all(
+      keys.slice(start, start + PRESENCE_BATCH).map(async (key) => {
+        try {
+          if ((await store.head(tenantId, key)) === null) {
+            missing.add(key);
+          }
+        } catch (error) {
+          if (error instanceof ApiError && error.code === "not_found") {
+            missing.add(key);
+          }
+        }
+      }),
+    );
+  }
+  return missing;
+}
+
 /**
  * A **local file path** for an object, because some readers cannot be handed bytes.
  *

@@ -140,7 +140,7 @@ function Conversation({ messages }: { messages: ChannelMessage[] }) {
             {" · "}
             {whenLabel(message.at)}
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--text)]">{message.text}</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--text)] [overflow-wrap:anywhere]">{message.text}</p>
         </li>
       ))}
     </ul>

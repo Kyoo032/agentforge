@@ -443,7 +443,9 @@ export function EducationStudio() {
                     data-testid="education-book-text"
                   >
                     <p className="text-sm text-[var(--text-2)]">{book.message}</p>
-                    {book.text ? <pre className="mt-3 whitespace-pre-wrap text-sm">{book.text}</pre> : null}
+                    {book.text ? (
+                      <pre className="mt-3 whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{book.text}</pre>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

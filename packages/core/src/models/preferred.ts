@@ -323,14 +323,24 @@ export function chooseDefaultModel(models: ModelRef[], liveIds: string[] | undef
   ) ?? pickPreferredModel(pool) ?? fallback;
 }
 
-export function pickerGroups<T extends ModelRef>(models: T[]): Array<{ label: string; models: T[] }> {
+/**
+ * What a picker group is, as a stable key the renderer translates. `label` is the English fallback and
+ * the brand's own name for a brand group: GPT, Claude, Gemini and the rest are proper nouns and read
+ * the same in every language. Only the two groups that are words, `recommended` and `other`, have
+ * copy that changes with the desk's language, and core does not own that copy.
+ */
+export type PickerGroupKind = "recommended" | "brand" | "other";
+
+export type PickerGroup<T> = { kind: PickerGroupKind; label: string; models: T[] };
+
+export function pickerGroups<T extends ModelRef>(models: T[]): Array<PickerGroup<T>> {
   const allIds = new Set(models.map((model) => model.id));
   const visible = models.filter((model) => !isPickerHidden(model.id) && !isDatedSnapshot(model.id, allIds));
   const recommended = recommendedChatModels(visible);
   const used = new Set(recommended.map((model) => model.id));
-  const groups: Array<{ label: string; models: T[] }> = [];
+  const groups: Array<PickerGroup<T>> = [];
   if (recommended.length > 0) {
-    groups.push({ label: "Recommended", models: recommended });
+    groups.push({ kind: "recommended", label: "Recommended", models: recommended });
   }
   const rest = visible.filter((model) => !used.has(model.id));
   for (const label of BRAND_GROUP_ORDER) {
@@ -344,7 +354,7 @@ export function pickerGroups<T extends ModelRef>(models: T[]): Array<{ label: st
         return comparePickerIds(a.id, b.id);
       });
     if (items.length > 0) {
-      groups.push({ label, models: items });
+      groups.push({ kind: label === "Other" ? "other" : "brand", label, models: items });
     }
   }
   return groups;

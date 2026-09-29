@@ -5,6 +5,7 @@
   "untitled": "Untitled",
   "projects": "Projects",
   "newProject": "New project",
+  "projectNameLabel": "Project name",
   "openProjectHint": "Open a project to talk to the editor.",
   "phaseLater": "{label} (Phase 2+)",
   "jobs": "jobs {count}",

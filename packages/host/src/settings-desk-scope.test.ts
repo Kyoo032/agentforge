@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { SOURCE_SCAN_BUDGET_MS } from "./__fixtures__/test-budgets";
 
 const HOST_SRC = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HOST_SRC, "../../..");
@@ -84,5 +85,5 @@ describe("settings reads name the desk they run for", () => {
         });
     }
     expect(offenders).toEqual([]);
-  });
+  }, SOURCE_SCAN_BUDGET_MS);
 });

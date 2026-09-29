@@ -62,6 +62,24 @@ describe("curateModel", () => {
     expect(curateModel("deepseek-v4-flash").friendlyLabel).toBe("DeepSeek V4 Flash");
   });
 
+  it("writes a dashed version as a dotted one, and leaves a dashed date alone", () => {
+    // The picker showed these as "Claude Opus 5 5" and "Claude Haiku 4 5" (found driving webdev,
+    // 2026-09-29): an id has no dots to keep, so two short numbers in a row are one version.
+    expect(curateModel("claude-opus-5-5").friendlyLabel).toBe("Claude Opus 5.5");
+    expect(curateModel("claude-haiku-4-5").friendlyLabel).toBe("Claude Haiku 4.5");
+    expect(curateModel("claude-haiku-4-5-20251001").friendlyLabel).toBe("Claude Haiku 4.5");
+    expect(curateModel("claude-opus-4-5-20251101").friendlyLabel).toBe("Claude Opus 4.5");
+    expect(curateModel("grok-4-1-fast-reasoning").friendlyLabel).toBe("Grok 4.1 Fast Reasoning");
+    expect(curateModel("gemini-2-5-flash").friendlyLabel).toBe("Gemini 2.5 Flash");
+    expect(curateModel("doubao-seed-1-6-thinking").friendlyLabel).toBe("Doubao Seed 1.6 Thinking");
+    // A version that already has its dot, and a lone number, are untouched.
+    expect(curateModel("gpt-5.6-luna").friendlyLabel).toBe("GPT 5.6 Luna");
+    expect(curateModel("claude-sonnet-5").friendlyLabel).toBe("Claude Sonnet 5");
+    // 2025-12-01 is a date, not version 12.01.
+    expect(curateModel("qwen3-omni-flash-2025-12-01").friendlyLabel).toBe("Qwen3 Omni Flash 2025 12 01");
+    expect(curateModel("o3-mini-2025-01-31").friendlyLabel).toBe("O3 Mini 2025 01 31");
+  });
+
   it("picks bestFor from the gateway catalog, not id keywords", () => {
     expect(curateModel("gpt-5.6-terra").bestFor).toBe("Everyday chat");
     expect(curateModel("gpt-5.6-sol").bestFor).toBe("Deep reasoning");
