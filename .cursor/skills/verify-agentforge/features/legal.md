@@ -29,7 +29,7 @@ Legal is a matter job: .docx files in, position-aware review, verified deliverab
 - Open `http://127.0.0.1:3000/legal` when the tab is unlocked.
 - Marketing / Students presets do not add this tab unless the owner checks it.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

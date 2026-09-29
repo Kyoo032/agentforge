@@ -1,18 +1,20 @@
 ---
-name: pack-dpsbuddy
+name: pack-nultron
 description: >-
-  Pack and ship DPSBuddy installers on Kyo's Windows desk — isolated NSIS worktree
-  plus Docker macOS dmg/zip, then desktop:release to Kyoo032/DPSBuddy. Maps how each
+  Pack and ship Nultron installers on Kyo's Windows desk — isolated NSIS worktree
+  plus Docker macOS dmg/zip, then desktop:release to Kyoo032/Nultron. Maps how each
   OS owns copy/paste (Ctrl vs Cmd, right-click), menus, quit, secrets, and updater.
   Use when the user says pack, repack, ship, desktop:build, desktop:release, Windows
   and macOS installers, or cut a 0.14.2x release. Not Cloud. Not webdev :3000.
 ---
 
-# Pack DPSBuddy (this Windows PC)
+# Pack Nultron (this Windows PC)
 
-> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.1`, under active development again. `0.15.0` was published 2026-09-23.
+> **Two products, one repo.** **Personal** is the Mac/Windows Nultron app — current cut `0.15.1`, under active development again. `0.15.0` was published 2026-09-23.
 > These pack and release routes serve the Personal app only; the Enterprise web app ships through the deploy route.
 > Decision record: [`web-pivot-2026-09-18.md`](../../../docs/internal/web-pivot-2026-09-18.md).
+>
+> **Renamed 2026-09-29.** The app, installer and bundle are `Nultron` from the first pack after that date: `Nultron.exe`, `Nultron.app`, `Nultron Setup <v>.exe`, `Nultron-<v>-mac-<arch>.dmg|zip`. Anything in `apps/desktop/dist/` cut before it is `DPSBuddy Setup <v>.exe` or `DPSBuddy-<v>-mac-<arch>.*` — archive it before packing, because `release-desktop.mjs` counts every `*Setup*.exe` in `dist/` and fails on two unless `--allow-stale`. `appId` is unchanged. There is no data migration: a DPSBuddy install that updates starts on a fresh desk, an upgrade leaves the old `%APPDATA%\DPSBuddy` folder behind, and only a real uninstall also removes it and `DPSBuddy/wrap-key`. None of this has been packed or driven yet.
 
 Harness, not product. Same class as `verify-agentforge`. Do not vendor into `apps/`, the installer, or the UI.
 
@@ -35,7 +37,7 @@ flowchart TB
     W2["desktop:build → electron-builder --win nsis"]
     W3["env: Windows Node + Python 3.12 + electron/rebuild"]
     W4["out: Setup VERSION.exe + blockmap + latest.yml"]
-    W5["proof: launch win-unpacked DPSBuddy.exe then doctor --desktop"]
+    W5["proof: launch win-unpacked Nultron.exe then doctor --desktop"]
     W1 --> W2 --> W3 --> W4 --> W5
   end
 
@@ -43,14 +45,14 @@ flowchart TB
     M1["cwd: C:\\Users\\rizky\\agentforge"]
     M2["desktop:build:mac:docker --arch all"]
     M3["env: Docker Linux + darwin prebuilds + rcodesign + make-dmg.py"]
-    M4["out: DPSBuddy-VERSION-mac-ARCH.dmg and .zip"]
+    M4["out: Nultron-VERSION-mac-ARCH.dmg and .zip"]
     M5["proof: verify-bundle.py on .app AND dmg/zip — this PC cannot launch a .app"]
     M1 --> M2 --> M3 --> M4 --> M5
   end
 
   subgraph ship [Ship]
     S1[copy Windows artifacts into main dist]
-    S2["desktop-release --require-mac → Kyoo032/DPSBuddy"]
+    S2["desktop-release --require-mac → Kyoo032/Nultron"]
   end
 
   P --> winRoute
@@ -73,14 +75,14 @@ This desk is Windows 11 Home + Docker Desktop (Linux engine via WSL Ubuntu). Tha
 | Surface | Route | This PC proves | Still needs someone else's Mac |
 |---|---|---|---|
 | Hosted Linux web | not pack — `webapp-deploy/compose.yml` from WSL | image builds, healthcheck, Linux natives in the container | Jakarta CVM (SSM, COS, TLS, security group). Not a pack artifact. |
-| Windows desktop | worktree `desktop:build` | launch `win-unpacked\DPSBuddy.exe`, `doctor --desktop`, Ctrl+V **and** right-click paste | nothing for launch. Windows Sandbox would need Pro; Home does not have it. |
-| macOS desktop | `desktop:build:mac:docker --arch all` | `verify-bundle.py` on `.app` **and** dmg/zip (arch, no ELF/PE, darwin natives, ad-hoc sign, symlinks, execute bits), `mac-<v>.sha256` | **yes — every launch.** Gatekeeper Open Anyway, Keychain Always Allow, Cmd+V / right-click, Dock reopen, Cmd+Q, `doctor --desktop` under `~/Library/Application Support/DPSBuddy`. |
+| Windows desktop | worktree `desktop:build` | launch `win-unpacked\Nultron.exe`, `doctor --desktop`, Ctrl+V **and** right-click paste | nothing for launch. Windows Sandbox would need Pro; Home does not have it. |
+| macOS desktop | `desktop:build:mac:docker --arch all` | `verify-bundle.py` on `.app` **and** dmg/zip (arch, no ELF/PE, darwin natives, ad-hoc sign, symlinks, execute bits), `mac-<v>.sha256` | **yes — every launch.** Gatekeeper Open Anyway, Keychain Always Allow, Cmd+V / right-click, Dock reopen, Cmd+Q, `doctor --desktop` under `~/Library/Application Support/Nultron`. |
 
 There is no Mac-out on this box. Docker Desktop builds a dmg; it does not boot macOS. Cua Cloud Fleet has no macOS image. Cua Lume needs Apple Silicon. Hyper-V / Windows Sandbox are not on Home and would not run a `.app` anyway.
 
 A Docker exit 0 is **pack proof**, not **Mac proof**. Until a human on a Mac drives [macos/AGENTS.md](../../../apps/desktop/platform/macos/AGENTS.md) smoke steps 1–11, the cut stays labelled **preview**. 0.14.26 had owner hardware smoke; 0.14.27 still owes it. A repack of the same version does not remove that debt — the new dmg still has to be opened on a Mac.
 
-Send the person: the two `DPSBuddy-<v>-mac-{arm64,x64}.dmg` files (Apple silicon vs Intel), the public notes (Gatekeeper + Keychain), and the smoke list. They run `scripts/macos-app.mjs` or drag the dmg to Applications. They do not need the Windows checkout.
+Send the person: the two `Nultron-<v>-mac-{arm64,x64}.dmg` files (Apple silicon vs Intel), the public notes (Gatekeeper + Keychain), and the smoke list. They run `scripts/macos-app.mjs` or drag the dmg to Applications. They do not need the Windows checkout.
 
 ## How — one shell, two control planes
 
@@ -126,10 +128,10 @@ These are what a human actually presses. Pack must not drop `edit-menu.cjs` / `l
 | Reopen | Relaunch the exe | Click Dock icon; Chat returns, no splash once host booted | `reopenTarget` |
 | Menu bar | Hidden. **Alt** shows Edit. Never `setApplicationMenu(null)` | Always visible App + Edit + Window | `applicationMenuTemplate` |
 | Secrets | Credential Manager `<productName>` / `wrap-key` | Keychain, first prompt **Always Allow** | `wrapKey` |
-| userData | `%APPDATA%\DPSBuddy` | `~/Library/Application Support/DPSBuddy` | `applyProductPaths` |
+| userData | `%APPDATA%\Nultron` | `~/Library/Application Support/Nultron` | `applyProductPaths` |
 | Updates | Check for updates → `latest.yml` | Panel says download the `.dmg`; Check disabled. No `latest-mac.yml` | `auto-update.cjs` |
 | GPU | Hardware acceleration **off** | **on** | `main.cjs` |
-| Install | NSIS `DPSBuddy Setup <v>.exe` | Drag `.dmg` to Applications; Gatekeeper Open Anyway | `package.json` `build` |
+| Install | NSIS `Nultron Setup <v>.exe` | Drag `.dmg` to Applications; Gatekeeper Open Anyway | `package.json` `build` |
 
 Windows smoke after a shell change: [windows/AGENTS.md](../../../apps/desktop/platform/windows/AGENTS.md) (Ctrl+V **and** right-click Paste, composer round-trip, close kills the tree). Mac smoke: [macos/AGENTS.md](../../../apps/desktop/platform/macos/AGENTS.md) (Cmd+V **and** right-click, Dock reopen, Cmd+Q).
 
@@ -154,7 +156,7 @@ Both platforms unless Kyo says Windows-only. Mac stays labelled **preview**.
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 $env:PYTHON = "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe"
 $env:npm_config_python = $env:PYTHON
-node .cursor/skills/pack-dpsbuddy/scripts/preflight.mjs
+node .cursor/skills/pack-nultron/scripts/preflight.mjs
 ```
 
 Use `npx pnpm@9.15.9` (corepack EPERM on this box).
@@ -164,7 +166,7 @@ Use `npx pnpm@9.15.9` (corepack EPERM on this box).
 1. `git fetch origin` and rebase the bump onto `origin/main`.
 2. Ship list: the current `docs/internal/<version>-changelog.md`. Versions are semver: **`0.15.0` is the current cut** (published 2026-09-23); the next maintenance cut would be `0.15.1`. Do not use `0.14.3+`. The old "never `0.15` unless Kyo says so" rule is spent — he said so on 2026-09-23 and 0.15.0 shipped.
 3. Bump only `apps/desktop/package.json` `version`.
-4. Write `docs/public/<version>-notes.md`. Mac notes use **DPSBuddy** names, Gatekeeper, Keychain, **Cmd** shortcuts, manual updates.
+4. Write `docs/public/<version>-notes.md`. Mac notes use **Nultron** names, Gatekeeper, Keychain, **Cmd** shortcuts, manual updates.
 5. Point `AGENTS.md` ship list at that patch.
 6. Commit. Docker packs **HEAD**.
 
@@ -182,7 +184,7 @@ npx pnpm@9.15.9 install --frozen-lockfile
 npx pnpm@9.15.9 desktop:build
 ```
 
-**Windows feedback:** exe + blockmap + `latest.yml`; grep `host.cjs`; launch `dist\win-unpacked\DPSBuddy.exe`; `doctor.mjs --desktop` from **main** checkout (`transport: "ipc"`). If a shell/menu file changed: Ctrl+V **and** right-click Paste on the key field. NSIS `/S` hangs — [traps.md](traps.md).
+**Windows feedback:** exe + blockmap + `latest.yml`; grep `host.cjs`; launch `dist\win-unpacked\Nultron.exe`; `doctor.mjs --desktop` from **main** checkout (`transport: "ipc"`). If a shell/menu file changed: Ctrl+V **and** right-click Paste on the key field. NSIS `/S` hangs — [traps.md](traps.md).
 
 ## 3. macOS env (main checkout + Docker Linux only)
 
@@ -199,14 +201,14 @@ Never `electron-builder --mac` on this host.
 
 ## 4. Combine + release
 
-Copy `DPSBuddy Setup <v>.exe`, `.blockmap`, and `latest.yml` from the **worktree** dist into main `apps/desktop/dist/`.
+Copy `Nultron Setup <v>.exe`, `.blockmap`, and `latest.yml` from the **worktree** dist into main `apps/desktop/dist/`.
 
 ```powershell
 npx pnpm@9.15.9 --filter @agentforge/desktop exec node scripts/release-desktop.mjs --require-mac --dry-run
 npx pnpm@9.15.9 --filter @agentforge/desktop exec node scripts/release-desktop.mjs --require-mac
 ```
 
-Never upload `latest-mac.yml`. Do not `git push` source to DPSBuddy.
+Never upload `latest-mac.yml`. Do not `git push` source to Nultron.
 
 ## Do not
 

@@ -10,7 +10,7 @@ export function presentationLocale(): PresentationLocale {
 
 export function presentationLanguageRule(locale: PresentationLocale): string {
   if (locale === "id") {
-    return "Write every user-facing string (title, heading, subhead, bullets, aside, notes) in professional Bahasa Indonesia (polite Anda / infinitive). Keep brand names DPSBuddy, Toko Token, and TokenKu unchanged. Do not mix English except those brands and proper nouns.";
+    return "Write every user-facing string (title, heading, subhead, bullets, aside, notes) in professional Bahasa Indonesia (polite Anda / infinitive). Keep brand names Nultron, Toko Token, and TokenKu unchanged. Do not mix English except those brands and proper nouns.";
   }
   return "Write every user-facing string (title, heading, subhead, bullets, aside, notes) in English.";
 }

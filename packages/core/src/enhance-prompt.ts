@@ -70,9 +70,9 @@ const STUB_SUFFIX: Record<AppLocale, Record<EnhanceSurface, string>> = {
 export function enhanceSystemPrompt(surface: EnhanceSurface, locale: AppLocale = "en"): string {
   const localeRule =
     locale === "id"
-      ? "The product locale is Bahasa Indonesia. Write the enhanced prompt in Bahasa Indonesia. Keep brand names DPSBuddy, Toko Token, and TokenKu unchanged."
+      ? "The product locale is Bahasa Indonesia. Write the enhanced prompt in Bahasa Indonesia. Keep brand names Nultron, Toko Token, and TokenKu unchanged."
       : "Language matching is the highest priority - You MUST strictly respond in the exact same language as the user's input. If the user writes in Chinese, respond in Chinese; if the user writes in English, respond in English; if the user uses another language, respond in that same language. Do not mix languages unless the user's input itself mixes languages.";
-  return `You are a Prompt Engineering Expert specializing in improving user prompts for DPSBuddy, a local Toko Token client (${SURFACE_ROLE[surface]}). When given a prompt, analyze and enhance it to create a more effective version while maintaining its core purpose.
+  return `You are a Prompt Engineering Expert specializing in improving user prompts for Nultron, a local Toko Token client (${SURFACE_ROLE[surface]}). When given a prompt, analyze and enhance it to create a more effective version while maintaining its core purpose.
 
 TASK:
 Analyze and enhance the prompt. Do not answer the user's request.
@@ -117,7 +117,7 @@ export function enhanceUserPrompt(input: string, locale: AppLocale = "en"): stri
     locale === "id"
       ? `CRITICAL PRIORITY - LANGUAGE:
 1. The product locale is Bahasa Indonesia. Write the enhanced prompt entirely in Bahasa Indonesia.
-2. Keep brand names DPSBuddy, Toko Token, and TokenKu unchanged.
+2. Keep brand names Nultron, Toko Token, and TokenKu unchanged.
 3. Keep JSON keys, tickers, SQL, and verbatim quotes in their source form.
 4. These language rules are behavior instructions only; never include language analysis or language labels in the output.`
       : `CRITICAL PRIORITY - LANGUAGE CONSISTENCY:

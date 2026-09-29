@@ -73,8 +73,8 @@
   "stubTitle": "Stub dossier: {question}",
   "stubSummary": "Offline demo. No web search ran. Confidence: low. Thin evidence: this stand-in exists so Research still produces a dossier when the runtime is stub. Save a Toko Token API key in Settings to research the question from HTTPS pages.",
   "stubFindingHeading": "This is a stub, not a web finding",
-  "stubFindingBody": "DPSBuddy returned this dossier because the runtime is stub. It does not cite live pages for: {question}. Paste a Toko Token key in Settings, then generate again.",
-  "stubSourceTitle": "DPSBuddy stub",
+  "stubFindingBody": "Nultron returned this dossier because the runtime is stub. It does not cite live pages for: {question}. Paste a Toko Token key in Settings, then generate again.",
+  "stubSourceTitle": "Nultron stub",
   "stubSourceNotes": "Synthetic source for the offline demo. Not a page that was read.",
   "stubContradiction": "No source disagreement — search did not run.",
   "stubOpenQuestion": "What changes after a gateway key is saved?"

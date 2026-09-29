@@ -9,7 +9,7 @@ else was last walked on 2026-09-20 at `a053245`, on the Phase 4 branch.
 
 ## Overview
 
-Everything that is true of a DPSBuddy request on the hosted web app and not true of the same
+Everything that is true of a Nultron request on the hosted web app and not true of the same
 request on a desk. One environment variable decides which of the two the process is, and roughly
 a dozen controls hang off it: the session gate, CSRF, the Origin and Host allowlist, the
 HTTPS-only refusal, three rate limiters, the response headers, error masking, and the routes that

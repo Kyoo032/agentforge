@@ -89,12 +89,12 @@ describe("isAllowedMutatingApiRequest", () => {
   });
 });
 
-const WEB_ALLOWLIST = ["https://app.dpsbuddy.com", "http://127.0.0.1:3000"] as const;
+const WEB_ALLOWLIST = ["https://app.nultron.com", "http://127.0.0.1:3000"] as const;
 
 describe("isAllowedWebOrigin", () => {
   it("allows an Origin that is on the allowlist, whatever its case", () => {
-    expect(isAllowedWebOrigin("https://app.dpsbuddy.com", WEB_ALLOWLIST)).toBe(true);
-    expect(isAllowedWebOrigin("HTTPS://APP.DPSBUDDY.COM", WEB_ALLOWLIST)).toBe(true);
+    expect(isAllowedWebOrigin("https://app.nultron.com", WEB_ALLOWLIST)).toBe(true);
+    expect(isAllowedWebOrigin("HTTPS://APP.NULTRON.COM", WEB_ALLOWLIST)).toBe(true);
     expect(isAllowedWebOrigin("http://127.0.0.1:3000", WEB_ALLOWLIST)).toBe(true);
   });
 
@@ -108,47 +108,47 @@ describe("isAllowedWebOrigin", () => {
 
   it("rejects an unlisted origin, a different scheme and a different port", () => {
     expect(isAllowedWebOrigin("https://evil.example", WEB_ALLOWLIST)).toBe(false);
-    expect(isAllowedWebOrigin("http://app.dpsbuddy.com", WEB_ALLOWLIST)).toBe(false);
+    expect(isAllowedWebOrigin("http://app.nultron.com", WEB_ALLOWLIST)).toBe(false);
     expect(isAllowedWebOrigin("http://127.0.0.1:3100", WEB_ALLOWLIST)).toBe(false);
-    expect(isAllowedWebOrigin("https://app.dpsbuddy.com.evil.test", WEB_ALLOWLIST)).toBe(false);
+    expect(isAllowedWebOrigin("https://app.nultron.com.evil.test", WEB_ALLOWLIST)).toBe(false);
     expect(isAllowedWebOrigin("null", WEB_ALLOWLIST)).toBe(false);
   });
 
   it("rejects everything when the allowlist is empty (an unconfigured server)", () => {
-    expect(isAllowedWebOrigin("https://app.dpsbuddy.com", [])).toBe(false);
+    expect(isAllowedWebOrigin("https://app.nultron.com", [])).toBe(false);
   });
 
   it("accepts an Origin that spells out the scheme's default port the allowlist omits", () => {
-    expect(isAllowedWebOrigin("https://app.dpsbuddy.com:443", WEB_ALLOWLIST)).toBe(true);
-    expect(isAllowedWebOrigin("http://app.dpsbuddy.com:80", ["http://app.dpsbuddy.com"])).toBe(true);
-    expect(isAllowedWebOrigin("https://app.dpsbuddy.com", ["https://app.dpsbuddy.com:443"])).toBe(true);
+    expect(isAllowedWebOrigin("https://app.nultron.com:443", WEB_ALLOWLIST)).toBe(true);
+    expect(isAllowedWebOrigin("http://app.nultron.com:80", ["http://app.nultron.com"])).toBe(true);
+    expect(isAllowedWebOrigin("https://app.nultron.com", ["https://app.nultron.com:443"])).toBe(true);
   });
 
   it("rejects a trailing-dot Origin host, which is not the name on the certificate", () => {
-    expect(isAllowedWebOrigin("https://app.dpsbuddy.com.", WEB_ALLOWLIST)).toBe(false);
+    expect(isAllowedWebOrigin("https://app.nultron.com.", WEB_ALLOWLIST)).toBe(false);
   });
 });
 
 describe("isAllowedWebHostHeader", () => {
   it("accepts the host of a trusted origin, with or without its default port", () => {
-    expect(isAllowedWebHostHeader("app.dpsbuddy.com", WEB_ALLOWLIST)).toBe(true);
-    expect(isAllowedWebHostHeader("app.dpsbuddy.com:443", WEB_ALLOWLIST)).toBe(true);
-    expect(isAllowedWebHostHeader(" APP.DPSBUDDY.COM ", WEB_ALLOWLIST)).toBe(true);
+    expect(isAllowedWebHostHeader("app.nultron.com", WEB_ALLOWLIST)).toBe(true);
+    expect(isAllowedWebHostHeader("app.nultron.com:443", WEB_ALLOWLIST)).toBe(true);
+    expect(isAllowedWebHostHeader(" APP.NULTRON.COM ", WEB_ALLOWLIST)).toBe(true);
     expect(isAllowedWebHostHeader("127.0.0.1:3000", WEB_ALLOWLIST)).toBe(true);
   });
 
   it("rejects a Host that is not one of the trusted origins", () => {
     expect(isAllowedWebHostHeader("attacker.example", WEB_ALLOWLIST)).toBe(false);
-    expect(isAllowedWebHostHeader("app.dpsbuddy.com:8443", WEB_ALLOWLIST)).toBe(false);
+    expect(isAllowedWebHostHeader("app.nultron.com:8443", WEB_ALLOWLIST)).toBe(false);
     expect(isAllowedWebHostHeader("127.0.0.1", WEB_ALLOWLIST)).toBe(false);
     expect(isAllowedWebHostHeader("127.0.0.1:3100", WEB_ALLOWLIST)).toBe(false);
-    expect(isAllowedWebHostHeader("app.dpsbuddy.com.evil.test", WEB_ALLOWLIST)).toBe(false);
+    expect(isAllowedWebHostHeader("app.nultron.com.evil.test", WEB_ALLOWLIST)).toBe(false);
   });
 
   it("rejects a missing Host and an empty allowlist", () => {
     expect(isAllowedWebHostHeader(null, WEB_ALLOWLIST)).toBe(false);
     expect(isAllowedWebHostHeader("", WEB_ALLOWLIST)).toBe(false);
-    expect(isAllowedWebHostHeader("app.dpsbuddy.com", [])).toBe(false);
+    expect(isAllowedWebHostHeader("app.nultron.com", [])).toBe(false);
   });
 
   it("accepts the bracketed IPv6 loopback when it is a trusted origin", () => {
@@ -156,8 +156,8 @@ describe("isAllowedWebHostHeader", () => {
   });
 
   it("rejects a trailing-dot Host, the absolute DNS spelling of the same name", () => {
-    expect(isAllowedWebHostHeader("app.dpsbuddy.com.", WEB_ALLOWLIST)).toBe(false);
-    expect(isAllowedWebHostHeader("app.dpsbuddy.com.:443", WEB_ALLOWLIST)).toBe(false);
+    expect(isAllowedWebHostHeader("app.nultron.com.", WEB_ALLOWLIST)).toBe(false);
+    expect(isAllowedWebHostHeader("app.nultron.com.:443", WEB_ALLOWLIST)).toBe(false);
   });
 });
 

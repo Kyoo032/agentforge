@@ -18,10 +18,10 @@ Research is a job: question → planned sub-queries → web search → fetched p
 
 ## How to get to it (user POV)
 
-- Choose Research on the left rail (`mode-research`). Default already has the tab.
+- Choose Research on the left rail (`mode-research`). Default has the tab on a fresh first-run desk and on every older desk.
 - Open `http://127.0.0.1:3000/research` when the tab is unlocked.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

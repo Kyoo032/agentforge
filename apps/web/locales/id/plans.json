@@ -1,7 +1,7 @@
 {
   "kicker": "Paket",
   "title": "Pilih paket",
-  "intro": "Personal adalah aplikasi DPSBuddy untuk Mac dan Windows, pelengkap dari DPS ketika Anda membeli banyak token. Enterprise adalah DPSBuddy berbasis web.",
+  "intro": "Personal adalah aplikasi Nultron untuk Mac dan Windows, pelengkap dari DPS ketika Anda membeli banyak token. Enterprise adalah Nultron berbasis web.",
   "placeholderNotice": "Harga indikatif — belum final.",
   "period": {
     "month": "/ bulan"
@@ -14,17 +14,17 @@
   "tier": {
     "personal": {
       "name": "Personal",
-      "description": "Aplikasi DPSBuddy untuk Mac dan Windows. Pelengkap dari DPS ketika Anda membeli banyak token."
+      "description": "Aplikasi Nultron untuk Mac dan Windows. Pelengkap dari DPS ketika Anda membeli banyak token."
     },
     "enterprise": {
       "name": "Enterprise",
-      "description": "DPSBuddy berbasis web. Berlangganan per pengguna dengan menghubungi DPS. Tidak ada pembelian mandiri."
+      "description": "Nultron berbasis web. Berlangganan per pengguna dengan menghubungi DPS. Tidak ada pembelian mandiri."
     }
   },
   "feature": {
-    "macWindowsApp": "DPSBuddy untuk Mac dan Windows",
+    "macWindowsApp": "Nultron untuk Mac dan Windows",
     "tokenComplement": "Pelengkap dari DPS ketika Anda membeli banyak token",
-    "webProduct": "DPSBuddy berbasis web",
+    "webProduct": "Nultron berbasis web",
     "contactDps": "Hubungi DPS untuk mengaktifkan. Tidak ada pembelian mandiri.",
     "knowledgeStorage": "Kursi mencakup penyimpanan untuk basis pengetahuan terpadu",
     "agentTraffic": "Kursi mencakup lalu lintas pengguna untuk memakai agen",

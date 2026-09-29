@@ -8,7 +8,7 @@
       "args": [
         "-NoProfile",
         "-Command",
-        "if (-not (Test-Path 'C:\\Program Files\\DPSBuddy\\DPSBuddy.exe')) { throw 'Installed DPSBuddy.exe missing' }; (Get-Item 'C:\\Program Files\\DPSBuddy\\DPSBuddy.exe').VersionInfo.ProductVersion"
+        "if (-not (Test-Path 'C:\\Program Files\\Nultron\\Nultron.exe')) { throw 'Installed Nultron.exe missing' }; (Get-Item 'C:\\Program Files\\Nultron\\Nultron.exe').VersionInfo.ProductVersion"
       ],
       "problemMatcher": []
     },

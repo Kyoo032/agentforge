@@ -10,8 +10,8 @@ describe("parseChatTarget", () => {
   });
 
   it("takes an @username, and adds the @ when the owner left it off", () => {
-    expect(parseChatTarget("@dpsbuddy_desk")).toEqual({ kind: "username", value: "@dpsbuddy_desk" });
-    expect(parseChatTarget("dpsbuddy_desk")).toEqual({ kind: "username", value: "@dpsbuddy_desk" });
+    expect(parseChatTarget("@nultron_desk")).toEqual({ kind: "username", value: "@nultron_desk" });
+    expect(parseChatTarget("nultron_desk")).toEqual({ kind: "username", value: "@nultron_desk" });
   });
 
   it("refuses anything that is not one of those two shapes", () => {
@@ -21,7 +21,7 @@ describe("parseChatTarget", () => {
       "@ab",
       "@1startsWithADigit",
       "has space",
-      "https://t.me/dpsbuddy",
+      "https://t.me/nultron",
       "@name/../../etc",
       "12345678901234567890123",
       null,

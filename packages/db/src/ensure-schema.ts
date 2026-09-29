@@ -84,7 +84,7 @@ export function migrationsFolder(): string {
   if (existsSync(fromRoot)) {
     return fromRoot;
   }
-  throw new Error(`DPSBuddy migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`);
+  throw new Error(`Nultron migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`);
 }
 
 function readMigrations(folder: string): Migration[] {

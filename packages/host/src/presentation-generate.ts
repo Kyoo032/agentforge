@@ -173,7 +173,7 @@ export async function generatePresentationOutline(tenant: TenantContext, body: u
   return outline;
 }
 
-const SLIDE_SYSTEM = `You rewrite one slide of a DPSBuddy presentation.
+const SLIDE_SYSTEM = `You rewrite one slide of a Nultron presentation.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 { "kind": "section" | "bullets" | "split" | "close", "heading": string, "subhead": string, "bullets": string[], "aside": string, "notes": string }
 Rules:

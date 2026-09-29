@@ -109,7 +109,7 @@ done
 # ---------- 5. per-arch: pack, sign, zip, dmg, verify ----------
 cd apps/desktop
 rm -rf dist/mac dist/mac-arm64 dist/mac-x64
-rm -f dist/DPSBuddy-"$VERSION"-mac-*.dmg dist/DPSBuddy-"$VERSION"-mac-*.zip
+rm -f dist/Nultron-"$VERSION"-mac-*.dmg dist/Nultron-"$VERSION"-mac-*.zip
 
 for arch in $ARCHES; do
   log "==== $arch ===="
@@ -134,8 +134,8 @@ for arch in $ARCHES; do
     >"/tmp/electron-builder-$arch.log" 2>&1 || { tail -60 "/tmp/electron-builder-$arch.log"; die "electron-builder failed for $arch"; }
   grep -iE "warn|error" "/tmp/electron-builder-$arch.log" | grep -v "skipped macOS" | head -20 || true
 
-  APP="$(find dist -maxdepth 2 -name DPSBuddy.app -type d | head -1)"
-  [ -n "$APP" ] || die "no DPSBuddy.app produced for $arch"
+  APP="$(find dist -maxdepth 2 -name Nultron.app -type d | head -1)"
+  [ -n "$APP" ] || die "no Nultron.app produced for $arch"
   log "app at $APP"
 
   log "ad-hoc signing with rcodesign"
@@ -144,13 +144,13 @@ for arch in $ARCHES; do
   log "verifying bundle"
   python3 "$DOCKER_DIR/verify-bundle.py" --app "$APP" --arch "$arch" --version "$VERSION"
 
-  ZIP="dist/DPSBuddy-$VERSION-mac-$arch.zip"
-  DMG="dist/DPSBuddy-$VERSION-mac-$arch.dmg"
+  ZIP="dist/Nultron-$VERSION-mac-$arch.zip"
+  DMG="dist/Nultron-$VERSION-mac-$arch.dmg"
   log "zip -> $ZIP"
-  (cd "$(dirname "$APP")" && zip -q -r -y -X "../$(basename "$ZIP")" DPSBuddy.app)
+  (cd "$(dirname "$APP")" && zip -q -r -y -X "../$(basename "$ZIP")" Nultron.app)
 
   log "dmg -> $DMG"
-  python3 "$DOCKER_DIR/make-dmg.py" --app "$APP" --out "$DMG" --volume "DPSBuddy $VERSION"
+  python3 "$DOCKER_DIR/make-dmg.py" --app "$APP" --out "$DMG" --volume "Nultron $VERSION"
 
   log "verifying dmg + zip round trip"
   python3 "$DOCKER_DIR/verify-bundle.py" --app "$APP" --arch "$arch" --version "$VERSION" --dmg "$DMG" --zip "$ZIP"
@@ -161,8 +161,8 @@ done
 
 # ---------- 6. hand over ----------
 log "copying artifacts to /out"
-for f in dist/DPSBuddy-"$VERSION"-mac-*.dmg dist/DPSBuddy-"$VERSION"-mac-*.zip; do
+for f in dist/Nultron-"$VERSION"-mac-*.dmg dist/Nultron-"$VERSION"-mac-*.zip; do
   cp "$f" "$OUT/"
 done
-(cd "$OUT" && sha256sum DPSBuddy-"$VERSION"-mac-*.dmg DPSBuddy-"$VERSION"-mac-*.zip | tee "mac-$VERSION.sha256")
-log "done: $(ls "$OUT" | grep -c "DPSBuddy-$VERSION-mac-") artifacts for $HEAD_SHA"
+(cd "$OUT" && sha256sum Nultron-"$VERSION"-mac-*.dmg Nultron-"$VERSION"-mac-*.zip | tee "mac-$VERSION.sha256")
+log "done: $(ls "$OUT" | grep -c "Nultron-$VERSION-mac-") artifacts for $HEAD_SHA"

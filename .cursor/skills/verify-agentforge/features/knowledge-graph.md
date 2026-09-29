@@ -15,7 +15,7 @@ Phase 4 builtin makes the Graph stage two-way. Downstream, every completed Chat 
 - Open `http://127.0.0.1:3000/knowledge` (webdev). This feature needs no sidecar and no `:3100` instance.
 - A `cites` edge appears after a Chat reply that actually cites (`[1]` and friends). With the stub runtime there is no such reply — the stub answers with a tool result or "I need a Toko Token gateway key in Settings to answer that." — so a stub desk can prove the plumbing but not a cite.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

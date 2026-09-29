@@ -34,7 +34,7 @@ describe("redactToken", () => {
 describe("TelegramClient", () => {
   it("identifies the bot behind a token", async () => {
     const sandbox = createBotApiSandbox();
-    await expect(clientOn(sandbox).getMe()).resolves.toMatchObject({ username: "dpsbuddy_sandbox_bot" });
+    await expect(clientOn(sandbox).getMe()).resolves.toMatchObject({ username: "nultron_sandbox_bot" });
     expect(sandbox.calls).toEqual(["getMe"]);
   });
 

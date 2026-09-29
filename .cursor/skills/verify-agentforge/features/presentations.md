@@ -25,10 +25,10 @@ Presentation is a job. The first screen is the template list, then the topic box
 
 ## How to get to it (user POV)
 
-- Choose Presentation on the left rail (`mode-presentations`). Default already has the tab.
+- Choose Presentation on the left rail (`mode-presentations`). Default has the tab on a fresh first-run desk and on every older desk.
 - Open `http://127.0.0.1:3000/presentations` when the tab is unlocked.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

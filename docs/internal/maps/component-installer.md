@@ -4,7 +4,7 @@ Last verified: 2026-09-26 for the onboarding mount (`onboarding-setup-check` on 
 
 ## Overview
 
-The only way DPSBuddy installs a native dependency. The owner never runs a command: a bundled copy is used when it loads, otherwise the host downloads a pinned, hash-checked package into the data dir during onboarding. Modelled on Hermes' bootstrap (manifest → stages → events → completion marker → idempotent). One component today, `anydoc` (the local document reader behind `packages/host/src/file-extract`). It is not an updater, not a plugin system, and ffmpeg is not in it yet.
+The only way Nultron installs a native dependency. The owner never runs a command: a bundled copy is used when it loads, otherwise the host downloads a pinned, hash-checked package into the data dir during onboarding. Modelled on Hermes' bootstrap (manifest → stages → events → completion marker → idempotent). One component today, `anydoc` (the local document reader behind `packages/host/src/file-extract`). It is not an updater, not a plugin system, and ffmpeg is not in it yet.
 
 **On a hosted server it is a different feature with the same parts** (Phase 7, [`../web-phase7-component-installer.md`](../web-phase7-component-installer.md)): the component is the OPERATOR's, installed once per box, and no tenant can start anything. The install route answers `install_disabled` 403, the image build proves it carries every required component, an operator CLI installs one between images, and the host refuses to load a native module out of the tenant data volume at all. **On a hosted server** below is that half; **How it works** is the desk's, unchanged.
 

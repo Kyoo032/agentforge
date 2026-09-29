@@ -21,7 +21,7 @@ import {
 } from "../finance-brief-build";
 import { extractJsonObject } from "../presentation-outline";
 
-export const FINANCE_TASK_SYSTEM = `You write the narrative for one DPSBuddy finance task. Every figure was computed in code and is listed for you; you add none.
+export const FINANCE_TASK_SYSTEM = `You write the narrative for one Nultron finance task. Every figure was computed in code and is listed for you; you add none.
 Return ONLY valid JSON (no markdown fences) with this exact shape:
 {
   "title": string,

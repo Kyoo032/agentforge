@@ -1,7 +1,7 @@
 # Nultron
 
 > **Downloads:** Nultron for Windows and macOS. The current release is **0.15.0**, and the app is under active development.
-> Until the next release the app, its installers and its data folders are still named **DPSBuddy**. They are the same app.
+> The app was called **DPSBuddy** in earlier releases. It is the same app, now named Nultron everywhere: the installers, the app itself and its data folder. Nultron does not import DPSBuddy data. See [Coming from DPSBuddy](#coming-from-dpsbuddy).
 > Teams can also use **Nultron Enterprise**, a hosted web version you sign in to from a browser. Contact DPS for access.
 
 Nultron is a desktop AI workspace. Each kind of work has its own screen in one app: chat, documents, research, finance, data, markets, legal review, meeting minutes, images, video, music, video editing and presentations. Each screen has its own instructions, tools and checks, and gives you a file you can keep. Your threads, files and settings are stored on your own computer.
@@ -53,42 +53,46 @@ On first launch Nultron may download a document reader it needs. The download co
 
 ## Download
 
-From the [latest release](https://github.com/Kyoo032/DPSBuddy/releases/latest):
+From the [latest release](https://github.com/Kyoo032/Nultron/releases/latest):
 
 | Platform | File |
 |---|---|
-| Windows 10 / 11, 64-bit | `DPSBuddy-Setup-<version>.exe` |
-| macOS, Apple silicon (M1 and later) | `DPSBuddy-<version>-mac-arm64.dmg` |
-| macOS, Intel | `DPSBuddy-<version>-mac-x64.dmg` |
+| Windows 10 / 11, 64-bit | `Nultron Setup <version>.exe` |
+| macOS, Apple silicon (M1 and later) | `Nultron-<version>-mac-arm64.dmg` |
+| macOS, Intel | `Nultron-<version>-mac-x64.dmg` |
 
 A release without `.dmg` files is Windows-only. The macOS build is a preview and is not attached to every release.
 
 ## Install on Windows
 
 - The installer is not code-signed yet. If SmartScreen shows "Windows protected your PC", choose **More info → Run anyway**.
-- Installing over an existing copy upgrades it in place. Your threads, settings and saved key are kept.
+- Installing over an existing Nultron copy upgrades it in place. Your threads, settings and saved key are kept.
 - The app updates itself from this repository. **Settings → Check for updates** downloads new releases from here.
 - Video editing uses ffmpeg, which is included in the installer.
 
 ## Install on macOS (preview)
 
-- Open the `.dmg` and drag **DPSBuddy** to Applications.
+- Open the `.dmg` and drag **Nultron** to Applications.
 - The app is not signed by Apple yet.
   - On macOS 15 and later: double-click it, dismiss the warning, then go to **System Settings → Privacy & Security → Open Anyway**.
-  - On macOS 14 and earlier: right-click **DPSBuddy.app**, choose **Open**, then **Open** again.
-  - If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/DPSBuddy.app` in Terminal.
+  - On macOS 14 and earlier: right-click **Nultron.app**, choose **Open**, then **Open** again.
+  - If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/Nultron.app` in Terminal.
 - When macOS asks about the Keychain, choose **Always Allow**.
 - Video editing needs ffmpeg on macOS: run `brew install ffmpeg`. Everything else works without it. If Edit still shows the setup banner, press **Check again** in it. No restart is needed.
-- Updates on macOS are manual: download the new `.dmg` from here and drag it over the old app. Your data stays in `~/Library/Application Support/DPSBuddy`.
+- Updates on macOS are manual: download the new `.dmg` from here and drag it over the old app. Your data stays in `~/Library/Application Support/Nultron`.
 
 ## Uninstall
 
 - **Windows:** uninstalling removes the app, its local data folder and the saved gateway key. If you reinstall, you start again from setup.
-- **macOS:** drag **DPSBuddy.app** to the Trash. To start fresh, also delete `~/Library/Application Support/DPSBuddy` and the `DPSBuddy` item in Keychain Access.
+- **macOS:** drag **Nultron.app** to the Trash. To start fresh, also delete `~/Library/Application Support/Nultron` and the `Nultron` item in Keychain Access.
+
+## Coming from DPSBuddy
+
+Nultron starts on a fresh desk. It does not read the data folder or the saved key of a DPSBuddy install, so paste your gateway key again during setup. The old folder (`%APPDATA%\DPSBuddy` on Windows, `~/Library/Application Support/DPSBuddy` on macOS) is left where it is. On Windows, uninstalling Nultron removes it; on macOS, delete it yourself.
 
 ## Feedback
 
-You can report problems with an installer or an update on the [issues page](https://github.com/Kyoo032/DPSBuddy/issues).
+You can report problems with an installer or an update on the [issues page](https://github.com/Kyoo032/Nultron/issues).
 
 ---
 

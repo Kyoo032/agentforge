@@ -26,11 +26,11 @@ Market is a job: a named desk picked in the left rail, that desk's own watchlist
 - Legal / Marketing / Students presets do not add this tab unless the owner checks it.
 - Nothing to install and nothing to configure beyond the gateway key. Web search is used when a Tavily/Brave key exists and the chosen desk asks for it; otherwise headlines come from Yahoo.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 
-- Doctor exits 0 and `modeKeys` includes `market`.
+- Doctor exits 0. (Until 2026-09-29 this line also said `modeKeys` includes `market`; `market` is a chat-shaped mode and the host no longer repeats the chat catalogue under its name, so the key is gone by design. Check `chatCount` > 0 instead.)
 - `mode-market` is visible on Home. If count is 0, you are on a desk that hid it.
 - Stub proof stops at the rail desks, chips, starters, and the generate refusal. Live generate only if the operator asked and doctor reports `runtime: "ai"` and `hasOpenai: true`. Live needs the internet for Yahoo Finance, the TradingView scanner and (crypto desk only) CoinGecko / Binance; a source that is down shows in `market-failures` and the briefing still builds.
 - The watchlist keys are the operator's state. Read `localStorage` for `agentforge-market-watchlist:*` before touching any chip and restore them at the end, or drive on a throwaway profile.

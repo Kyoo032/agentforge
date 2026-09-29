@@ -67,7 +67,7 @@ describe("SignInScreen", () => {
     const markup = render();
     expect(markup).not.toContain("{productName}");
     expect(markup).toContain(`Sign in to ${DEFAULT_PRODUCT_NAME}`);
-    expect(markup).toContain("Sign in to DPSBuddy");
+    expect(markup).toContain("Sign in to Nultron");
   });
 
   it("shows no banner when the visitor arrived with nothing to explain", () => {

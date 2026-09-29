@@ -75,9 +75,10 @@ function same(a: string, b: string): boolean {
 }
 
 /**
- * True when this desk's stored soul is still, exactly, the pre-DPSBuddy default. Whitespace is
- * tolerated because the Knowledge page round-trips the fields through text inputs; anything the
- * owner actually typed changes one of the four fields and is kept.
+ * True when this desk's stored soul is still, exactly, the old `Forge` default (the one written
+ * before the Soul named the product). Whitespace is tolerated because the Knowledge page
+ * round-trips the fields through text inputs; anything the owner actually typed changes one of the
+ * four fields and is kept.
  */
 export function isLegacyDefaultSoul(soul: KnowledgeSoul): boolean {
   return (

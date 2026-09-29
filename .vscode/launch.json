@@ -4,17 +4,17 @@
     {
       "type": "winapp",
       "request": "launch",
-      "name": "WinApp: Installed DPSBuddy (NSIS)",
+      "name": "WinApp: Installed Nultron (NSIS)",
       "debuggerType": "node",
-      "inputFolder": "C:/Program Files/DPSBuddy",
-      "workingDirectory": "C:/Program Files/DPSBuddy",
+      "inputFolder": "C:/Program Files/Nultron",
+      "workingDirectory": "C:/Program Files/Nultron",
       "args": "--remote-debugging-port=9222",
       "preLaunchTask": "verify-installed-exe"
     },
     {
       "type": "winapp",
       "request": "launch",
-      "name": "WinApp: win-unpacked DPSBuddy",
+      "name": "WinApp: win-unpacked Nultron",
       "debuggerType": "node",
       "inputFolder": "${workspaceFolder}/apps/desktop/dist/win-unpacked",
       "workingDirectory": "${workspaceFolder}/apps/desktop/dist/win-unpacked",
@@ -23,17 +23,17 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Packaged DPSBuddy + CDP",
-      "runtimeExecutable": "C:/Program Files/DPSBuddy/DPSBuddy.exe",
+      "name": "Packaged Nultron + CDP",
+      "runtimeExecutable": "C:/Program Files/Nultron/Nultron.exe",
       "runtimeArgs": ["--remote-debugging-port=9222"],
-      "cwd": "C:/Program Files/DPSBuddy",
+      "cwd": "C:/Program Files/Nultron",
       "console": "integratedTerminal"
     },
     {
       "type": "node",
       "request": "launch",
-      "name": "Packaged DPSBuddy (macOS .app unpacked)",
-      "runtimeExecutable": "${workspaceFolder}/apps/desktop/dist/mac/DPSBuddy.app/Contents/MacOS/DPSBuddy",
+      "name": "Packaged Nultron (macOS .app unpacked)",
+      "runtimeExecutable": "${workspaceFolder}/apps/desktop/dist/mac/Nultron.app/Contents/MacOS/Nultron",
       "runtimeArgs": ["--remote-debugging-port=9222"],
       "cwd": "${workspaceFolder}/apps/desktop/dist/mac",
       "console": "integratedTerminal",
@@ -42,10 +42,10 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Packaged DPSBuddy (macOS /Applications)",
-      "runtimeExecutable": "/Applications/DPSBuddy.app/Contents/MacOS/DPSBuddy",
+      "name": "Packaged Nultron (macOS /Applications)",
+      "runtimeExecutable": "/Applications/Nultron.app/Contents/MacOS/Nultron",
       "runtimeArgs": ["--remote-debugging-port=9222"],
-      "cwd": "/Applications/DPSBuddy.app/Contents/MacOS",
+      "cwd": "/Applications/Nultron.app/Contents/MacOS",
       "console": "integratedTerminal"
     }
   ]

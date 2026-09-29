@@ -6,14 +6,14 @@ import { parsePresentationOutlineBody } from "./presentation-outline";
 describe("buildPresentationPptx", () => {
   it("returns a non-empty pptx buffer and a .pptx filename", async () => {
     const outline = parsePresentationOutlineBody({
-      title: "DPSBuddy Demo",
+      title: "Nultron Demo",
       slides: [
         { heading: "Why", bullets: ["Local owner", "Gateway-first"], notes: "Open strong" },
         { heading: "How", bullets: ["Prompt", "Preview", "Download"], notes: "" },
       ],
     });
     const { buffer, filename } = await buildPresentationPptx(outline);
-    expect(filename).toBe("DPSBuddy-Demo.pptx");
+    expect(filename).toBe("Nultron-Demo.pptx");
     expect(buffer.byteLength).toBeGreaterThan(1000);
     const bytes = new Uint8Array(buffer);
     expect(bytes[0]).toBe(0x50);

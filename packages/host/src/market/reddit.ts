@@ -25,7 +25,7 @@ import { sentimentSample, sentimentSampleSchema, type SentimentSample } from "./
 
 export const REDDIT_ORIGIN = "https://www.reddit.com";
 /** Self-identifying, per Reddit's API rules; no key, no login, no user data. */
-export const REDDIT_USER_AGENT = "DPSBuddy/0.14 (+local desk)";
+export const REDDIT_USER_AGENT = "Nultron/0.15 (+local desk)";
 /** Every subreddit call gives up after this long, whatever the caller's signal says. */
 export const REDDIT_TIMEOUT_MS = 10_000;
 /** A response larger than this is refused unread rather than parsed. */

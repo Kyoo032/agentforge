@@ -26,11 +26,11 @@ Finance is a guided path. `/finance` with no task asks what to do, then one step
 
 ## How to get to it (user POV)
 
-- Choose Finance on the left rail (`mode-finance`). Default already has the tab.
+- Choose Finance on the left rail (`mode-finance`). A desk that already has it shows the tab. A fresh first-run desk starts with Research, Images, Videos and Presentation only, so turn this one on first (Workspaces, Edit on the desk).
 - Open `http://127.0.0.1:3000/finance` when the tab is unlocked. That is the chooser. A card, or the chevron on the Finance row, opens a task.
 - Legal / Marketing / Students presets do not add this tab unless the owner checks it.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

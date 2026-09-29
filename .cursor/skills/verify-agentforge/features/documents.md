@@ -19,10 +19,10 @@ Documents is a job: prompt or starter → section preview → DOCX download. It 
 
 ## How to get to it (user POV)
 
-- Choose Documents on the left rail (`mode-documents`). Default already has the tab.
+- Choose Documents on the left rail (`mode-documents`). A desk that already has it shows the tab. A fresh first-run desk starts with Research, Images, Videos and Presentation only, so turn this one on first (Workspaces, Edit on the desk).
 - Open `http://127.0.0.1:3000/documents` when the tab is unlocked.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

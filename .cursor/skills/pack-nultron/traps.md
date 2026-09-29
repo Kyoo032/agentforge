@@ -17,7 +17,7 @@ Do not use the Hermes venv path; it may be gone.
 
 Agent shells inject this. Electron then runs as Node and the pack/launch is nonsense. `Remove-Item Env:ELECTRON_RUN_AS_NODE` in every pack shell. Preflight fails if it is set.
 
-**The launch shell counts too (0.14.26).** Unsetting it for the build and then starting `DPSBuddy.exe` from a shell that still has it set gives a **silent** failure: the exe runs as plain Node, never boots a window, exits without an error line, and `doctor --desktop` finds nothing to talk to. It looks like a broken pack. `Remove-Item Env:ELECTRON_RUN_AS_NODE` before every launch as well as every build, and check `$env:ELECTRON_RUN_AS_NODE` in the shell you are actually launching from.
+**The launch shell counts too (0.14.26).** Unsetting it for the build and then starting `Nultron.exe` from a shell that still has it set gives a **silent** failure: the exe runs as plain Node, never boots a window, exits without an error line, and `doctor --desktop` finds nothing to talk to. It looks like a broken pack. `Remove-Item Env:ELECTRON_RUN_AS_NODE` before every launch as well as every build, and check `$env:ELECTRON_RUN_AS_NODE` in the shell you are actually launching from.
 
 ## Dirty tree vs Docker
 
@@ -36,18 +36,18 @@ Copy gitignored media from the main checkout after `git worktree add`:
 
 ## NSIS `/S`
 
-`oneClick: false` + `allowToChangeInstallationDirectory: true`. `/S` hangs on a directory UI. Do not wait on it. Packaged proof: launch `apps/desktop/dist/win-unpacked/DPSBuddy.exe`, then `doctor.mjs --desktop`. Human runs `DPSBuddy Setup <v>.exe` for the real install.
+`oneClick: false` + `allowToChangeInstallationDirectory: true`. `/S` hangs on a directory UI. Do not wait on it. Packaged proof: launch `apps/desktop/dist/win-unpacked/Nultron.exe`, then `doctor.mjs --desktop`. Human runs `Nultron Setup <v>.exe` for the real install.
 
 ## macOS dmg `hfsplus ls`
 
-`make-dmg.py` `parse_hfs_ls_name` must keep **spaced** helper names (`DPSBuddy Helper (GPU).app`) and accept numeric dates (`8/12/2026 12:17`, 7 columns) as well as `Jan 01 1980` (8 columns). Symptom if the parser regresses:
+`make-dmg.py` `parse_hfs_ls_name` must keep **spaced** helper names (`Nultron Helper (GPU).app`) and accept numeric dates (`8/12/2026 12:17`, 7 columns) as well as `Jan 01 1980` (8 columns). Symptom if the parser regresses:
 
 ```
-ERROR: /DPSBuddy.app: … ['Contents']
-ERROR: /DPSBuddy.app/Contents/Frameworks: … ['DPSBuddy Helper (GPU).app', …]
+ERROR: /Nultron.app: … ['Contents']
+ERROR: /Nultron.app/Contents/Frameworks: … ['Nultron Helper (GPU).app', …]
 ```
 
-Doubling the HFS+ volume does **not** fix a parser bug. How-to: `apps/desktop/platform/macos/BUILD-DMG-ON-WINDOWS.md`.
+(The 0.14.26 log that taught this said `DPSBuddy.app`; the parser rule is the same under the new name.) Doubling the HFS+ volume does **not** fix a parser bug. How-to: `apps/desktop/platform/macos/BUILD-DMG-ON-WINDOWS.md`.
 
 ## Wrong cwd
 
@@ -78,7 +78,7 @@ Windows artifacts land in the **worktree** `dist/`. Mac artifacts land in the **
 
 ## Two repos
 
-Source commits stay on `Kyoo032/agentforge`. `pnpm desktop:release` creates a GitHub **release** on `Kyoo032/DPSBuddy` (binaries + `docs/public/<v>-notes.md`). Do not `git push` source to DPSBuddy.
+Source commits stay on `Kyoo032/agentforge`. `pnpm desktop:release` creates a GitHub **release** on `Kyoo032/Nultron` (binaries + `docs/public/<v>-notes.md`). Do not `git push` source to Nultron.
 
 ## Repacking the same version
 
@@ -101,3 +101,11 @@ A stash or checkout by any agent wipes every other worker's uncommitted edits in
 ## pnpm hoists platform packages — purge the store, not the links (0.14.27, mac)
 
 `@firecrawl/anydoc` has one optional dependency per platform. On the Linux install inside Docker pnpm fetches the `linux-*` ones, and `asarUnpack` `**/node_modules/@firecrawl/anydoc-*/**` then ships their ELF `.node` files into the Mac app; `verify-bundle` refuses it with `2 non-Mach-O native binaries`. Deleting the sibling symlinks under `.pnpm/@firecrawl+anydoc@<v>/node_modules/@firecrawl/` is **not** enough: pnpm also hoists every package into `node_modules/.pnpm/node_modules/` and keeps the real directory in `node_modules/.pnpm/@firecrawl+anydoc-linux-x64-gnu@<v>/`, and app-builder's `node-dep-tree` walks up into both. `build-mac.sh` now removes the non-darwin store entries and their links once after install, dies if a linux/win32 anydoc `.node` is still reachable, and swaps the pinned darwin package (sha512 from `packages/host/src/components/manifest.ts`) in beside anydoc per arch. Bump the manifest and the script together. It took three packs to learn this; the first two are in `superseded-e2e477e/` and the changelog.
+
+## First Nultron pack (2026-09-29, not yet packed)
+
+The rename changed every artifact name. Three things to watch on the first pack, none proven yet:
+
+- `apps/desktop/dist/` still holds `DPSBuddy Setup 0.15.1.exe`, `DPSBuddy-0.15.1-mac-<arch>.*` and a `win-unpacked/` with `DPSBuddy.exe`. `release-desktop.mjs` counts every `*Setup*.exe` in `dist/` (`SETUP_EXE`), so the old exe beside the new one fails its "more than one Setup exe" gate unless it is archived or `--allow-stale` is passed; preflight lists the old files as stale once the version moves. Archive them into `published-0.15.1/` first.
+- Same `appId`, new `productName`. `apps/desktop/build/installer.nsh` assumes Nultron installs over an existing DPSBuddy as an upgrade and kills a running `DPSBuddy.exe` first, but nobody has driven it: in-place replace or a second install, the Start menu shortcut and the install directory are all unconfirmed. Drive it on Windows before shipping and record the result here.
+- No data migration by decision. A DPSBuddy user who updates starts on a fresh desk under `%APPDATA%\Nultron` with a new `Nultron` / `wrap-key` credential; an upgrade leaves the old `%APPDATA%\DPSBuddy` folder and `DPSBuddy` / `wrap-key` credential behind, and only a real uninstall of Nultron removes them (`installer.nsh`, `customUnInstall`). Check that on the installed app, not on `win-unpacked`.

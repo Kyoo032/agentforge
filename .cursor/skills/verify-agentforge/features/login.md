@@ -19,13 +19,13 @@ The **only** door into a hosted deployment, and it exists nowhere else: webdev a
 - `/sign-in` directly. On a **non**-hosted build that route redirects to `/chat`, and so does `/auth/callback` — both are mounted only where a sign-in can be completed.
 - After signing in: Rail → Settings, below the gateway key block, is `auth-account`.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 **Preconditions, and none of them is optional.**
 
 - This needs the **review instance**, not `:3000`. Webdev is not in server mode and has no portal. Start it from the repo root: `powershell -NoProfile -File scripts\review-instance.ps1 -Start -Production`. Default (no `-Start`) prints what it would launch and exits 0 — read that first.
 - Doctor the instance you started, with `--base https://localhost:3443`. Never drive an instance this run did not doctor.
-- The portal needs a seeded tenant and an OAuth client. `pnpm --filter @agentforge/portal migrate`, then `pnpm --filter @agentforge/portal seed -- --email <you> --tenant dpsbuddy --org Kyo --seat-cap 2 --redirect https://localhost:3443/auth/callback`. **The client secret prints once.** Paste it into `$HOME\.dpsbuddy-review\review.env` as `AGENTFORGE_PORTAL_CLIENT_SECRET`.
+- The portal needs a seeded tenant and an OAuth client. `pnpm --filter @agentforge/portal migrate`, then `pnpm --filter @agentforge/portal seed -- --email <you> --tenant nultron --org Kyo --seat-cap 2 --redirect https://localhost:3443/auth/callback`. **The client secret prints once.** Paste it into `$HOME\.nultron-review\review.env` as `AGENTFORGE_PORTAL_CLIENT_SECRET`.
 - Use a **real browser**, not `fetch` and not curl. See the first gotcha; this is the whole point of the recipe.
 - Never point any of this at `:3000`, and never at `.webdev-data`. The script refuses a data dir inside the checkout, but the rule is yours to keep too.
 

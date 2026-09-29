@@ -45,6 +45,11 @@ OWASP A06-1 and closes A08-1 by removal; both are updated in [SR-16](#sr-16).
 Extended on 2026-09-26 with [SR-81](#sr-81): Research's keyless search calls four pinned public
 APIs. Checked, not an issue.
 
+Extended on 2026-09-29 with [SR-83](#sr-83): the rename to Nultron leaves the old DPSBuddy desk, its
+keychain entry and its server-side names behind. The same day the current-state lines that named the
+old review-harness folder, the proxy's domain variable and the ghcr image were updated in place;
+the rows that record what was found on an earlier date keep the name they were raised under.
+
 ## Summary
 
 | ID | Severity | Title | Status | Gate |
@@ -103,6 +108,7 @@ APIs. Checked, not an issue.
 | [SR-80](#sr-80) | Medium | CI and the dependency-audit gate run only when someone runs `pnpm ci:local`; nothing checks a push on its own | Open — accepted by design (2026-09-24) | Blocks PR merge without a pasted `ci:local` summary |
 | [SR-81](#sr-81) | Low | Keyless Research search sends the masked query to four pinned public APIs | Checked, not an issue (2026-09-26) | — |
 | [SR-82](#sr-82) | Low | Open Slide port must not grow a new outbound host | Checked, not an issue (2026-09-27) | — |
+| [SR-83](#sr-83) | Low | The Nultron rename leaves the old DPSBuddy desk, its keychain entry and its server-side names behind | Open — accepted by design (2026-09-29) | Personal: none. Enterprise: blocks calling the migration done |
 | [SR-01](#sr-01) | Low | `apps/portal/compose.yml` hardcodes `POSTGRES_PASSWORD: portal` | Accepted for dev only | Dev only |
 | [SR-07](#sr-07) | Low | The CSRF token is bound to the session id, so it stops verifying the moment a session changes | Open, lane C | Blocks PR merge |
 | [SR-09](#sr-09) | Low | The two billing variables were missing from `webapp-deploy/.env.example` | Fixed-unverified | Blocks Tencent deploy |
@@ -162,7 +168,7 @@ What is true in mitigation, and each part was checked rather than assumed:
 - **Mailpit was never exposed.** Only the app and the portal got a tunnel; `compose.yml` publishes
   Postgres and Mailpit on `127.0.0.1` only (`apps/portal/compose.yml:16`, `:36-37`).
 - **The data is seeded.** The review app has its own `AGENTFORGE_DATA_DIR` under
-  `$HOME\.dpsbuddy-review` and has never held a real tenant's work.
+  `$HOME\.nultron-review` and has never held a real tenant's work.
 - **The hostnames are ephemeral.** A quick tunnel does not survive a restart of `cloudflared`, and a
   new one gets a new hostname — which then has to be re-seeded as a `--redirect` and re-passed on the
   command line.
@@ -1786,13 +1792,13 @@ Evidence, as the flag was raised: the `proxy` service loaded `env_file: .env` in
 release bundle, there with `required: true`. That `.env` is the app's: the portal client secret, the
 billing webhook secret and, in the release bundle whose `.env.example` lists it
 (`REQUIRED_ENV`, `scripts/release-web.mjs:61-69`), `AGENTFORGE_SECRETS_KEY`. The Caddyfile reads
-one variable, `{$DPSBUDDY_DOMAIN}`.
+one variable, `{$NULTRON_DOMAIN}`.
 
 What goes wrong if ignored: the internet-facing container holds, for no reason, the key to every
 tenant's stored secrets and sign-ins ([SR-64](#sr-64)). A compromise of the proxy, or anybody who can
 `docker inspect` it, has the wrap key.
 
-**Fixed, not driven.** Both compose files give the proxy exactly `DPSBUDDY_DOMAIN`
+**Fixed, not driven.** Both compose files give the proxy exactly `NULTRON_DOMAIN`
 (`webapp-deploy/compose.yml:120-128`; `scripts/release-web.mjs:176-178`). The bundle uses `:?`, so
 compose refuses an unset domain; the source stack uses `:-` because its `.env` is optional, and Caddy
 then refuses to start. Compose still fills the value in from the `.env` beside the file.
@@ -2011,6 +2017,20 @@ Required action: keep asset and font work on the machine. A new host is a new ro
 
 Gate: none. Accepted. No new outbound host in this cut.
 
+### SR-83 {#sr-83}
+
+**The Nultron rename leaves the old DPSBuddy desk, its keychain entry and its server-side names behind.** Both products. Raised 2026-09-29. Open, accepted by design.
+
+Evidence, Personal: the owner decided there is no data migration. `apps/desktop/build/installer.nsh` removes `%APPDATA%\DPSBuddy` and `cmdkey /delete:DPSBuddy/wrap-key` only inside `${ifNot} ${isUpdated}` (`:32-40`), so an upgrade over an installed DPSBuddy keeps both; the comment at `:26-29` says so. `apps/desktop/main.cjs:68-73` leaves DPSBuddy out of `LEGACY_PUBLIC_NAMES` on purpose, so the new app neither reads nor copies the old folder.
+
+Evidence, Enterprise: `webapp-deploy/README.md`, "Migrating from the DPSBuddy names", steps 5 and 6. The secret-manager entries `dpsbuddy/prod/agentforge-secrets-key` and `dpsbuddy/prod/backup-key` are copied to `nultron/prod/...`, not moved, the old `dpsbuddy-data-*.tar.gz.enc` backups stop matching the retention prune, and nothing deletes the old volumes.
+
+What goes wrong if ignored: after an upgrade the previous desk (encrypted threads, files and the saved gateway key) stays on the disk, and its wrap key stays in Credential Manager or Keychain, under a name the new app never reads and never offers to delete. On a shared or handed-on machine that is a gateway key nobody remembers is still there. On the server the wrap key exists twice, in the old and the new secret entry, and the old volumes and backups keep a full copy of every tenant's data.
+
+Required action: the Personal release notes say the old folder is left in place and that uninstalling Nultron on Windows removes it (on macOS the user deletes it and the Keychain item). For Enterprise, finish step 6 of the migration once a backup from the new stack has landed: delete the old volumes, the old `dpsbuddy/prod/...` secrets and the old backups.
+
+Gate: none for Personal, accepted by design. The Enterprise leftovers block calling the migration done, not a deploy. Not driven: no installer or server has run under the new names yet.
+
 ## Low
 
 ### SR-01 {#sr-01}
@@ -2127,11 +2147,11 @@ anything.
 
 **The review harness writes secrets and a TLS key pair outside the repo.** Verified.
 
-Evidence: `scripts/review-proxy.mjs:43` puts the key pair in `$HOME/.dpsbuddy-review/tls`, described
+Evidence: `scripts/review-proxy.mjs:43` puts the key pair in `$HOME/.nultron-review/tls`, described
 at `:42` as "never inside a checkout". The listener is loopback-enforced: `:158-162` refuses any
 non-loopback `--listen` with the reason that off loopback the harness cannot honestly claim every
 request arrived over TLS. `scripts/review-instance.ps1:60` writes `review.env` under
-`$HOME\.dpsbuddy-review` at `:213`, mode 600 where the filesystem supports it (`:25`), generates its
+`$HOME\.nultron-review` at `:213`, mode 600 where the filesystem supports it (`:25`), generates its
 own `AGENTFORGE_SECRETS_KEY` at `:176`, and validates both data directories through
 `Assert-SafeDataDir` at `:421-422`. The ports are 4000, 3100 and 3443 (`:41-43`), all loopback.
 
@@ -2534,7 +2554,7 @@ AGENTS.md ("Three repos") requires both public repos to carry no AI or agent mar
 `docs/internal` notes.
 
 What goes wrong if ignored: an internal changelog, or a line naming the tooling, is published on
-`Kyoo032/DPSBuddy`'s release page.
+`Kyoo032/Nultron`'s release page.
 
 **Fixed, not driven.** Both release scripts share one refusal list and matcher, `scripts/release-marks.mjs`
 (`FORBIDDEN_MARKS`, `:13`; `forbiddenMarksIn`, `:16`; `isInternalDocsPath`, `:28`, which resolves the
@@ -2817,7 +2837,7 @@ Added 2026-09-23:
   processes. ([SR-66](#sr-66))
 - [ ] Caddy's default logger carries no `code` or `state`: a global `log default` filter, checked on a
   real Caddy with a forced upstream error. ([SR-72](#sr-72))
-- [ ] `docker compose exec proxy env` shows `DPSBUDDY_DOMAIN` and none of the app's secrets.
+- [ ] `docker compose exec proxy env` shows `NULTRON_DOMAIN` and none of the app's secrets.
   ([SR-73](#sr-73))
 - [ ] The old machine-wide `<dataDir>/edit/metrics.jsonl` is gone from every box that ran hosted Edit
   before 2026-09-23. ([SR-69](#sr-69))
@@ -2867,7 +2887,7 @@ Status: **mitigated for the release path, open for the Dockerfile.**
 - `webapp-deploy/scripts/deploy.sh` still builds on the server from a `git pull` checkout
   (`deploy.sh:84-95`). That checkout has no webdev data, so the exposure there is lower, but the rule
   is the same.
-- The image `ghcr.io/kyoo032/dpsbuddy-ent` must stay **private** on ghcr until half 1 is fixed. The
+- The image `ghcr.io/kyoo032/nultron-ent` (`ghcr.io/kyoo032/dpsbuddy-ent` until 2026-09-29) must stay **private** on ghcr until half 1 is fixed. Privacy is a setting of the package, so the renamed package needs it set again. The
   server pulls it with a token that can only read packages.
 - 2026-09-23, later the same day: eval output is excluded from the build context as well,
   `packages/host/eval/**/results` (`webapp-deploy/Dockerfile.dockerignore:34-37`).

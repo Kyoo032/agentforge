@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fail closed before a DPSBuddy pack on this Windows desk.
- *   node .cursor/skills/pack-dpsbuddy/scripts/preflight.mjs
+ * Fail closed before a Nultron pack on this Windows desk.
+ *   node .cursor/skills/pack-nultron/scripts/preflight.mjs
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -79,8 +79,9 @@ if (existsSync(dist)) {
   const stale = readdirSync(dist).filter(
     (n) => /Setup.*\.exe$/i.test(n) && !n.includes(version),
   );
+  // Artifacts cut before 2026-09-29 are named DPSBuddy-*; they are stale too.
   const macStale = readdirSync(dist).filter(
-    (n) => /DPSBuddy-.*-mac-/.test(n) && !n.includes(version),
+    (n) => /(?:Nultron|DPSBuddy)-.*-mac-/.test(n) && !n.includes(version),
   );
   if (stale.length || macStale.length) {
     ok(`archive stale dist first: ${[...stale, ...macStale].join(", ")}`);
@@ -97,14 +98,14 @@ console.log(
           cwd: packDir,
           command: "npx pnpm@9.15.9 desktop:build",
           python,
-          artifacts: `dist/DPSBuddy Setup ${version}.exe + .blockmap + latest.yml`,
-          proof: "doctor.mjs --desktop after launching win-unpacked/DPSBuddy.exe",
+          artifacts: `dist/Nultron Setup ${version}.exe + .blockmap + latest.yml`,
+          proof: "doctor.mjs --desktop after launching win-unpacked/Nultron.exe",
         },
         macos: {
           cwd: repoRoot,
           command: "npx pnpm@9.15.9 desktop:build:mac:docker --arch all",
           docker: dockerOs,
-          artifacts: `apps/desktop/dist/DPSBuddy-${version}-mac-<arch>.dmg|zip`,
+          artifacts: `apps/desktop/dist/Nultron-${version}-mac-<arch>.dmg|zip`,
           proof: "container verify-bundle.py (app + dmg + zip); not doctor --desktop",
         },
       },

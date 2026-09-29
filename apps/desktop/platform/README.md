@@ -1,6 +1,6 @@
 # Desktop shell — platform rules
 
-> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.0`, under active development again.
+> **Two products, one repo.** **Personal** is the Mac/Windows Nultron app — current cut `0.15.0`, under active development again.
 > Every rule in this matrix holds for the shipped shell on both products.
 > Decision record: [`web-pivot-2026-09-18.md`](../../../docs/internal/web-pivot-2026-09-18.md).
 
@@ -28,8 +28,8 @@ One Electron shell (`apps/desktop/main.cjs`, `preload.cjs`, `edit-menu.cjs`, `au
 | Wrap key for `settings.enc` | Credential Manager entry `<productName>` / `wrap-key` via keytar | Keychain item with the same service/account via keytar; first access can prompt the user | `main.cjs` `wrapKey` |
 | userData | `%APPDATA%\<productName>` | `~/Library/Application Support/<productName>` | `main.cjs` `applyProductPaths` |
 | Hardware acceleration | Disabled (`app.disableHardwareAcceleration()`) | Enabled | `main.cjs` bottom |
-| Installer | NSIS x64, `build/installer.nsh`; uninstall kills the exe and deletes userData | dmg + zip per arch (`DPSBuddy-<v>-mac-<arch>`), `identity: null` (unsigned, not notarized); first launch needs the Gatekeeper step from the public notes | `package.json` `build` |
-| Updater | electron-updater against `latest.yml` on DPSBuddy; public DPSBuddy flavor only | Off: `updatesEnabled` is false on darwin and the state carries a "download the .dmg" message the renderer shows; no `latest-mac.yml` is published | `auto-update.cjs` `updatesEnabled`, `unsupportedMessage` |
+| Installer | NSIS x64, `build/installer.nsh`; uninstall kills the exe and deletes userData | dmg + zip per arch (`Nultron-<v>-mac-<arch>`), `identity: null` (unsigned, not notarized); first launch needs the Gatekeeper step from the public notes | `package.json` `build` |
+| Updater | electron-updater against `latest.yml` on Nultron; public Nultron flavor only | Off: `updatesEnabled` is false on darwin and the state carries a "download the .dmg" message the renderer shows; no `latest-mac.yml` is published | `auto-update.cjs` `updatesEnabled`, `unsupportedMessage` |
 | Native modules | `@electron/rebuild -f -w better-sqlite3 -w keytar` on Windows | Same command on a Mac, per arch | `package.json` `rebuild-natives` |
 | Packaged proof | `doctor.mjs --desktop` reads `host-status.json` in userData | Same, after `pnpm desktop:build:mac:dir` + `pnpm desktop:mac` on a Mac. Without a Mac, `pnpm desktop:build:mac:docker` gives static proof only (`macos/docker/verify-bundle.py`) | `.cursor/skills/verify-agentforge/scripts/doctor.mjs`, `macos/docker/` |
 | Media | `agentforge://media/<id>` protocol, IPC transport only | Same | `main.cjs` `registerMediaProtocol` |

@@ -105,7 +105,7 @@ function setup(options = {}) {
     app: makeApp(options.app),
     ipcMain,
     BrowserWindow: windows.BrowserWindow,
-    productName: options.productName ?? "DPSBuddy",
+    productName: options.productName ?? "Nultron",
     platform: options.platform ?? "win32",
     autoUpdaterOverride: autoUpdater,
     getMainWindow: () => windows.win,
@@ -117,21 +117,21 @@ function setup(options = {}) {
 
 // ---------- updatesEnabled ----------
 
-assert.equal(updatesEnabled("DPSBuddy", true, "win32"), true);
-assert.equal(updatesEnabled("DPSBuddy", true, "linux"), true);
-assert.equal(updatesEnabled("DPSBuddy", false, "win32"), false);
+assert.equal(updatesEnabled("Nultron", true, "win32"), true);
+assert.equal(updatesEnabled("Nultron", true, "linux"), true);
+assert.equal(updatesEnabled("Nultron", false, "win32"), false);
 assert.equal(updatesEnabled("Kemenkeu AI", true, "win32"), false);
 assert.equal(updatesEnabled("AIHub Metranet", true, "win32"), false);
 assert.equal(updatesEnabled(undefined, true, "win32"), false);
-assert.equal(updatesEnabled("DPSBuddy", true, "darwin"), false, "unsigned mac build never offers an install");
+assert.equal(updatesEnabled("Nultron", true, "darwin"), false, "unsigned mac build never offers an install");
 
 // ---------- unsupportedMessage ----------
 
 const MAC_MANUAL = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
-assert.equal(unsupportedMessage("DPSBuddy", true, "darwin"), MAC_MANUAL);
-assert.equal(unsupportedMessage("DPSBuddy", false, "darwin"), undefined, "dev build keeps the generic line");
+assert.equal(unsupportedMessage("Nultron", true, "darwin"), MAC_MANUAL);
+assert.equal(unsupportedMessage("Nultron", false, "darwin"), undefined, "dev build keeps the generic line");
 assert.equal(unsupportedMessage("Kemenkeu AI", true, "darwin"), undefined, "flavors never mention releases");
-assert.equal(unsupportedMessage("DPSBuddy", true, "win32"), undefined);
+assert.equal(unsupportedMessage("Nultron", true, "win32"), undefined);
 
 // ---------- describeUpdateError ----------
 
@@ -218,7 +218,7 @@ async function main() {
     assert.equal(state.currentVersion, CURRENT);
     assert.equal(ipcMain.invoke("updates:check"), state);
     assert.equal(ipcMain.invoke("updates:download"), state);
-    assert.throws(() => ipcMain.invoke("updates:install"), /installed DPSBuddy app/);
+    assert.throws(() => ipcMain.invoke("updates:install"), /installed Nultron app/);
     assert.deepEqual(autoUpdater.calls, [], "flavor never touches the updater");
   }
 
@@ -229,7 +229,7 @@ async function main() {
     const state = ipcMain.invoke("updates:state");
     assert.equal(state.status, "unavailable");
     assert.equal(state.message, undefined, "dev build carries no platform reason");
-    assert.throws(() => ipcMain.invoke("updates:install"), /installed DPSBuddy app/);
+    assert.throws(() => ipcMain.invoke("updates:install"), /installed Nultron app/);
     assert.deepEqual(autoUpdater.calls, []);
   }
 
@@ -421,7 +421,7 @@ async function main() {
       supported: false,
       status: "unavailable",
     });
-    assert.throws(() => ipcMain.invoke("updates:install"), /installed DPSBuddy app/, "the main frame still sees why");
+    assert.throws(() => ipcMain.invoke("updates:install"), /installed Nultron app/, "the main frame still sees why");
   }
 
   {
@@ -432,7 +432,7 @@ async function main() {
       app: makeApp(),
       ipcMain,
       BrowserWindow: windows.BrowserWindow,
-      productName: "DPSBuddy",
+      productName: "Nultron",
       platform: "win32",
       autoUpdaterOverride: makeAutoUpdater(),
       getMainWindow: () => null,

@@ -7,7 +7,7 @@ export const SAFE_FETCH_DEFAULT_MAX_BYTES = 1_500_000;
 export const SAFE_FETCH_DEFAULT_TIMEOUT_MS = 15_000;
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-const USER_AGENT = "DPSBuddy/1.0 (local research reader)";
+const USER_AGENT = "Nultron/1.0 (local research reader)";
 
 /** What `dns.lookup(host, { all: true })` hands back; narrowed to the one field this file reads. */
 export type ResolvedAddress = { readonly address: string };

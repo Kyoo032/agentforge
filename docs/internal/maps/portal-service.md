@@ -9,7 +9,7 @@ re-anchored the one citation into `packages/host/src/auth/portal-client.ts` that
 ## Overview
 
 `apps/portal` is the stand-in for the Toko Token AI control plane at `api.tokotokenai.com` — the
-service that owns tenants, orgs, users, devices, sessions and seats, and that the hosted DPSBuddy
+service that owns tenants, orgs, users, devices, sessions and seats, and that the hosted Nultron
 web app signs in against. It exists so the product has a **real** login to build and review
 against before the backend team's service does, and it is wire-compatible with
 [`../portal/device-code-login.md`](../portal/device-code-login.md) and

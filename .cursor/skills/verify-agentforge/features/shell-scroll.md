@@ -17,7 +17,7 @@ The desk is the viewport. The document does not scroll, and each page has one sc
 - Open Legal or Finance, scroll down, open Chat, then come back. The page is where you left it.
 - On a wide monitor the Chat column stays a reading width in the middle. Finance uses more of the desk and still has space on both sides. Edit uses the whole desk.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

@@ -1,4 +1,4 @@
-# DPSBuddy
+# Nultron
 
 **Closed beta.** One app, many work harnesses, on the [Toko Token](https://api.tokotokenai.com) OpenAI-compatible gateway.
 
@@ -8,14 +8,14 @@ The goal is multi-harness inside one app. Each kind of work is its own harness: 
 
 ## Two ways to run it
 
-DPSBuddy ships as two products from this one repository. They share the same app and the same harnesses; they differ in where your work lives.
+Nultron ships as two products from this one repository. They share the same app and the same harnesses; they differ in where your work lives.
 
 | | **Personal** | **Enterprise** |
 |---|---|---|
 | What it is | The Mac/Windows app | The hosted web app |
 | Where your work lives | On your own computer | In your organisation's tenant on the server |
 | How you get in | Install it and paste a gateway key | Ask for an invite, then sign in with a one-time code |
-| Ships as | `DPSBuddy-Setup-0.15.0.exe` and the macOS `.dmg` | A hosted URL |
+| Ships as | `Nultron Setup <version>.exe` and the macOS `.dmg` | A hosted URL |
 
 **Personal — the Mac/Windows app (current cut 0.15.0).** Download and install it, then paste your Toko Token gateway key in Settings. Your chats, files and generated media stay on your machine. No account is needed and nothing is uploaded anywhere except the model calls themselves.
 
@@ -75,7 +75,7 @@ pnpm lint         # Biome
 
 **Enterprise (hosted):** `pnpm --filter web build`, then run the host behind the reverse proxy. Deploys are tracked by commit sha.
 
-**Releases:** this repo holds the source for both products. Personal installers are published on [`Kyoo032/DPSBuddy`](https://github.com/Kyoo032/DPSBuddy). The Enterprise deploy bundle (a `compose.yml` pinned to a private `ghcr.io/kyoo032/dpsbuddy-ent` image, `.env.example`, `DEPLOY.md`, `Caddyfile`) and its release notes are published on [`Kyoo032/DPSBuddy-Ent`](https://github.com/Kyoo032/DPSBuddy-Ent) by `node scripts/release-web.mjs`. This is the only local checkout; the two release repos are written only by their release scripts.
+**Releases:** this repo holds the source for both products. Personal installers are published on [`Kyoo032/Nultron`](https://github.com/Kyoo032/Nultron). The Enterprise deploy bundle (a `compose.yml` pinned to a private `ghcr.io/kyoo032/nultron-ent` image, `.env.example`, `DEPLOY.md`, `Caddyfile`) and its release notes are published on [`Kyoo032/NultronEnt`](https://github.com/Kyoo032/NultronEnt) by `node scripts/release-web.mjs`. This is the only local checkout; the two release repos are written only by their release scripts.
 
 There is no mobile app.
 
