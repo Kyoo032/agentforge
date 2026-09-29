@@ -7,6 +7,7 @@ const {
   relaunchPlan,
   legacyMigrationPlan,
   hostStatusRuntime,
+  readEditFfmpeg,
   hasDebugSwitch,
 } = require("./lifecycle.cjs");
 
@@ -152,10 +153,10 @@ assert.deepEqual(
 
 // ---------- hasDebugSwitch: argv a packaged build must refuse to start on ----------
 
-const cleanArgv = ["C:\\Program Files\\DPSBuddy\\DPSBuddy.exe", "--no-sandbox-is-not-a-debugger"];
+const cleanArgv = ["C:\\Program Files\\Nultron\\Nultron.exe", "--no-sandbox-is-not-a-debugger"];
 
 assert.equal(hasDebugSwitch(cleanArgv), false, "an ordinary launch starts normally");
-assert.equal(hasDebugSwitch(["DPSBuddy.exe"]), false);
+assert.equal(hasDebugSwitch(["Nultron.exe"]), false);
 assert.equal(hasDebugSwitch([]), false);
 assert.equal(hasDebugSwitch(undefined), false, "no argv is not a debug launch");
 assert.equal(hasDebugSwitch("--inspect"), false, "only a real array is read");
@@ -170,34 +171,113 @@ for (const flag of [
   "--inspect-port",
   "--inspect-publish-uid",
 ]) {
-  assert.equal(hasDebugSwitch(["DPSBuddy.exe", flag]), true, `${flag} alone must refuse the launch`);
-  assert.equal(hasDebugSwitch(["DPSBuddy.exe", `${flag}=9229`]), true, `${flag}=<value> must refuse the launch`);
+  assert.equal(hasDebugSwitch(["Nultron.exe", flag]), true, `${flag} alone must refuse the launch`);
+  assert.equal(hasDebugSwitch(["Nultron.exe", `${flag}=9229`]), true, `${flag}=<value> must refuse the launch`);
   assert.equal(
-    hasDebugSwitch(["DPSBuddy.exe", "--some-file.txt", flag, "--another"]),
+    hasDebugSwitch(["Nultron.exe", "--some-file.txt", flag, "--another"]),
     true,
     `${flag} is found wherever it sits in argv`,
   );
 }
 
-assert.equal(hasDebugSwitch(["DPSBuddy.exe", "--remote-debugging-port=0"]), true, "port 0 still opens an endpoint");
-assert.equal(hasDebugSwitch(["DPSBuddy.exe", "--remote-allow-origins=*"]), true);
+assert.equal(hasDebugSwitch(["Nultron.exe", "--remote-debugging-port=0"]), true, "port 0 still opens an endpoint");
+assert.equal(hasDebugSwitch(["Nultron.exe", "--remote-allow-origins=*"]), true);
 assert.equal(
-  hasDebugSwitch(["DPSBuddy.exe", "--INSPECT-BRK=5858"]),
+  hasDebugSwitch(["Nultron.exe", "--INSPECT-BRK=5858"]),
   true,
   "Chromium switch parsing is case-insensitive",
 );
 assert.equal(
-  hasDebugSwitch(["DPSBuddy.exe", "  --inspect  "]),
+  hasDebugSwitch(["Nultron.exe", "  --inspect  "]),
   true,
   "surrounding whitespace does not smuggle it past",
 );
 
 assert.equal(
-  hasDebugSwitch(["DPSBuddy.exe", "--inspector-notes.txt"]),
+  hasDebugSwitch(["Nultron.exe", "--inspector-notes.txt"]),
   false,
   "a look-alike that is not an --inspect- switch still starts",
 );
-assert.equal(hasDebugSwitch(["DPSBuddy.exe", "inspect"]), false, "a bare word is a file argument, not a switch");
-assert.equal(hasDebugSwitch(["DPSBuddy.exe", "--remote-debugging"]), false, "only the real switch names count");
+assert.equal(hasDebugSwitch(["Nultron.exe", "inspect"]), false, "a bare word is a file argument, not a switch");
+assert.equal(hasDebugSwitch(["Nultron.exe", "--remote-debugging"]), false, "only the real switch names count");
 
-console.log("lifecycle.test.cjs: ok");
+// ---------- boot order: the ffmpeg probe stays behind the first paint ----------
+//
+// main.cjs needs Electron, so its ordering is pinned from the source text. `bootstrapPackaged` once
+// awaited GET /api/v1/edit/doctor ahead of navigateToUi(): a PATH walk plus `ffmpeg -version`, about
+// 270 ms of the ~290 ms between the host answering and the window loading the UI.
+
+{
+  const main = require("node:fs").readFileSync(require("node:path").join(__dirname, "main.cjs"), "utf8");
+  const start = main.indexOf("async function bootstrapPackaged()");
+  const end = main.indexOf("async function recordEditFfmpeg", start);
+  assert.ok(start > 0 && end > start, "found bootstrapPackaged in main.cjs");
+  const body = main.slice(start, end);
+  assert.equal(
+    body.includes('"/api/v1/edit/doctor"'),
+    false,
+    "bootstrapPackaged must not wait on the Edit doctor itself",
+  );
+  const navigate = body.indexOf("await navigateToUi()");
+  const record = body.indexOf("recordEditFfmpeg(");
+  assert.ok(navigate > 0, "bootstrapPackaged still navigates to the UI");
+  assert.ok(record > navigate, "the ffmpeg probe starts only after navigateToUi() has resolved");
+  assert.equal(/await\s+recordEditFfmpeg/.test(body), false, "and boot never awaits it");
+  const statusWrite = body.indexOf("writeHostStatus(");
+  assert.ok(
+    statusWrite > 0 && statusWrite < navigate,
+    "host-status.json is written before the window loads, without the probe",
+  );
+}
+
+// ---------- readEditFfmpeg: the block boot adds to host-status.json after the window loads ----------
+
+async function editFfmpegCases() {
+  const found = { found: true, path: "C:/tools/ffmpeg.exe", version: "8.1.1" };
+  assert.deepEqual(
+    await readEditFfmpeg(async () => ({ type: "json", status: 200, body: { ffmpeg: found, asr: {}, fonts: [] } })),
+    found,
+    "the doctor's ffmpeg block is carried through untouched",
+  );
+  const missing = { found: false, path: null, version: null, reason: "missing", setup: { platform: "windows" } };
+  assert.deepEqual(
+    await readEditFfmpeg(async () => ({ type: "json", status: 200, body: { ffmpeg: missing } })),
+    missing,
+    "a missing ffmpeg is still an answer, not a failure",
+  );
+  assert.equal(
+    await readEditFfmpeg(async () => {
+      throw new Error("host not ready");
+    }),
+    null,
+    "a doctor that throws leaves null, never an unhandled rejection",
+  );
+  assert.equal(
+    await readEditFfmpeg(() => {
+      throw new Error("threw before returning a promise");
+    }),
+    null,
+    "a synchronous throw is caught too",
+  );
+  assert.equal(await readEditFfmpeg(async () => ({ type: "error", status: 500 })), null, "only a json report counts");
+  assert.equal(
+    await readEditFfmpeg(async () => ({ type: "json", body: {} })),
+    null,
+    "a report with no ffmpeg block is null",
+  );
+  assert.equal(
+    await readEditFfmpeg(async () => ({ type: "json", body: { ffmpeg: "yes" } })),
+    null,
+    "the block must be an object",
+  );
+  assert.equal(await readEditFfmpeg(async () => undefined), null);
+}
+
+editFfmpegCases()
+  .then(() => {
+    console.log("lifecycle.test.cjs: ok");
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

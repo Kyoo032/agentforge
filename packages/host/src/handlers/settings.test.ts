@@ -465,6 +465,7 @@ describe("POST /api/v1/settings/reset", () => {
       "channels",
       "models-cache.json",
       "models-dev-cache.json",
+      "models-dev-cache.meta.json",
       // Downloaded native components and the installer's log: host-written and re-downloadable,
       // so a full "Start over" takes them too.
       "components",

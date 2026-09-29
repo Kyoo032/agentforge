@@ -8,7 +8,7 @@ import { getTenant } from "../tenant";
 import { mediaRelativePath } from "../media-root";
 import { materializeTenantObject, putTenantObject, removeTenantObject } from "../tenant-storage";
 import type { HostRequest, HostResult } from "../types";
-import { getEditDoctor, withoutBinaryPath } from "../edit/doctor";
+import { getEditDoctorAsync, withoutBinaryPath } from "../edit/doctor";
 import { createEditProject, getEditProjectBundle, listEditProjects, mapJob, mapUnplaced } from "../edit/projects";
 import { appendOps, foldProject } from "../edit/ops";
 import { keepCard, undoCard } from "../edit/undo";
@@ -109,7 +109,7 @@ async function saveEditFile(
 
 export async function handleGetEditDoctor(request?: HostRequest): Promise<HostResult> {
   const recheck = request?.query.recheck === "1" || request?.query.recheck === "true";
-  const report = getEditDoctor({ recheck });
+  const report = await getEditDoctorAsync({ recheck });
   // Hosted: the binary's absolute path is the operator's filesystem, not the tenant's business.
   return jsonOk(isServerMode() ? withoutBinaryPath(report) : report);
 }
