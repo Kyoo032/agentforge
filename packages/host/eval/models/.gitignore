@@ -1,0 +1,5 @@
+# Every run writes here: a catalogue snapshot per catalog-diff run and a full probe trace per probe run.
+# They describe the owner's gateway account (which models it lists, how it answered), so they are local
+# evidence and never belong in git. A trace holds no request body, no key and no key fingerprint, but the
+# ids and prices it does hold are the owner's.
+results/
