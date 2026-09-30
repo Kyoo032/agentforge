@@ -108,7 +108,7 @@ describe("loadConfig", () => {
       PORTAL_SMTP_SECURE: "0",
       PORTAL_SMTP_USER: "portal",
       PORTAL_SMTP_PASS: "secret",
-      PORTAL_SMTP_FROM: "DPSBuddy <no-reply@tokotokenai.com>",
+      PORTAL_SMTP_FROM: "Nultron <no-reply@tokotokenai.com>",
     });
     expect(config.production).toBe(true);
     expect(config.smtp.host).toBe("smtp.example.com");

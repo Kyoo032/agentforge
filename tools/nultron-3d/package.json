@@ -1,0 +1,19 @@
+{
+  "name": "nultron-3d",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline three.js scene that renders the Nultron mascot images the app ships. Not part of the pnpm workspace.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "render": "node render-all.mjs --out out",
+    "verify": "node verify-out.mjs out",
+    "sync": "node sync-images.mjs out",
+    "test": "node --test \"poses/test/*.test.mjs\" \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  }
+}

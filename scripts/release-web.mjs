@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Release the Enterprise (hosted web app) to Kyoo032/DPSBuddy-Ent, its deploy-bundle + release repo.
+ * Release the Enterprise (hosted web app) to Kyoo032/NultronEnt, its deploy-bundle + release repo.
  * Modelled on apps/desktop/scripts/release-desktop.mjs, which does the same for the Personal app on
- * Kyoo032/DPSBuddy. Run it after the deploy of <sha> is driven and logged in
+ * Kyoo032/Nultron. Run it after the deploy of <sha> is driven and logged in
  * docs/internal/web-pivot-2026-09-18.md (Deploy log).
  *
  *   node scripts/release-web.mjs --tag ent-2026.09.23 --sha <sha>
@@ -13,11 +13,11 @@
  *      resolves, docs/public/<tag>-notes.md exists and carries none of the five banned marks, and
  *      every file about to be published passes the same check;
  *   2. image: `git archive <sha>` into a temp dir, then from there
- *      `docker build -f webapp-deploy/Dockerfile -t ghcr.io/kyoo032/dpsbuddy-ent:<tag> .` and
+ *      `docker build -f webapp-deploy/Dockerfile -t ghcr.io/kyoo032/nultron-ent:<tag> .` and
  *      `docker push`. Building from the archive, never from this checkout, is what keeps untracked
  *      local state (a webdev data dir with its .master-key, an apps/web/.env.local) out of the image
  *      - the dockerignore only excludes `data` and `.env*` at the repo root;
- *   3. bundle: clone DPSBuddy-Ent into the same temp dir, write compose.yml (image pinned to the
+ *   3. bundle: clone NultronEnt into the same temp dir, write compose.yml (image pinned to the
  *      tag), .env.example, DEPLOY.md and Caddyfile, commit `Release <tag>` as the git user of this
  *      repo with no trailers, push `main`;
  *   4. release: `gh release create <tag>` with the notes + `Source: agentforge@<sha>` +
@@ -50,16 +50,16 @@ import { forbiddenMarksIn } from "./release-marks.mjs";
 // (apps/desktop/scripts/release-desktop.mjs). Re-exported so this module's API does not change.
 export { FORBIDDEN_MARKS, forbiddenMarksIn } from "./release-marks.mjs";
 
-export const RELEASE_REPO = "Kyoo032/DPSBuddy-Ent";
+export const RELEASE_REPO = "Kyoo032/NultronEnt";
 export const RELEASE_REPO_URL = `https://github.com/${RELEASE_REPO}.git`;
 export const SOURCE_REPO_NAME = "agentforge";
-export const IMAGE_REPO = "ghcr.io/kyoo032/dpsbuddy-ent";
+export const IMAGE_REPO = "ghcr.io/kyoo032/nultron-ent";
 /**
  * What the hosted app refuses to boot without (packages/host/src/hosted-env.ts, hostedEnvProblems,
- * with NODE_ENV=production), plus DPSBUDDY_DOMAIN, which the Caddyfile serves.
+ * with NODE_ENV=production), plus NULTRON_DOMAIN, which the Caddyfile serves.
  */
 export const REQUIRED_ENV = [
-  "DPSBUDDY_DOMAIN",
+  "NULTRON_DOMAIN",
   "AGENTFORGE_SECRETS_KEY",
   "AGENTFORGE_TRUSTED_ORIGINS",
   "AGENTFORGE_PORTAL_URL",
@@ -123,8 +123,8 @@ export function releaseBody(notes, fullSha, image) {
 // ---------- the bundle ----------
 
 export function composeFile(tag) {
-  return `# DPSBuddy Enterprise ${tag}. Run it with DEPLOY.md. Generated per release; do not edit here.
-name: dpsbuddy-ent
+  return `# Nultron Enterprise ${tag}. Run it with DEPLOY.md. Generated per release; do not edit here.
+name: nultron-ent
 
 services:
   app:
@@ -146,8 +146,8 @@ services:
     tmpfs:
       - /tmp:mode=1777,size=512m,nosuid,nodev,noexec
     volumes:
-      - dpsbuddy-data:/data
-      - dpsbuddy-components:/opt/agentforge/components
+      - nultron-data:/data
+      - nultron-components:/opt/agentforge/components
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -173,9 +173,9 @@ services:
     network_mode: "service:app"
     depends_on:
       - app
-    # The Caddyfile reads DPSBUDDY_DOMAIN and nothing else, so the secrets in .env stay with the app.
+    # The Caddyfile reads NULTRON_DOMAIN and nothing else, so the secrets in .env stay with the app.
     environment:
-      DPSBUDDY_DOMAIN: \${DPSBUDDY_DOMAIN:?set it in .env}
+      NULTRON_DOMAIN: \${NULTRON_DOMAIN:?set it in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
@@ -200,22 +200,22 @@ services:
     restart: unless-stopped
 
 volumes:
-  dpsbuddy-data:
-  dpsbuddy-components:
+  nultron-data:
+  nultron-components:
   caddy-data:
   caddy-config:
 `;
 }
 
 export function envExample() {
-  return `# DPSBuddy Enterprise: every variable the hosted app refuses to start without.
+  return `# Nultron Enterprise: every variable the hosted app refuses to start without.
 # Copy to .env next to compose.yml and fill each one in. Never commit .env.
 
 # Public hostname. The proxy serves it and obtains its TLS certificate.
-DPSBUDDY_DOMAIN=
+NULTRON_DOMAIN=
 # 32-byte hex wrap key for stored secrets (openssl rand -hex 32). Generate once and keep it.
 AGENTFORGE_SECRETS_KEY=
-# The public origin with its scheme, https://<DPSBUDDY_DOMAIN>. Comma-separated for more than one.
+# The public origin with its scheme, https://<NULTRON_DOMAIN>. Comma-separated for more than one.
 AGENTFORGE_TRUSTED_ORIGINS=
 # Portal base URL (https) and this app's confidential client at that portal.
 AGENTFORGE_PORTAL_URL=
@@ -227,7 +227,7 @@ AGENTFORGE_BILLING_WEBHOOK_SECRET=
 }
 
 export function deployDoc(tag) {
-  return `# Deploy DPSBuddy Enterprise ${tag}
+  return `# Deploy Nultron Enterprise ${tag}
 
 This folder runs one release of the hosted app: the image \`${imageRef(tag)}\`, a Caddy proxy in
 front of it, and volumes for its data. Nothing is built on the server.
@@ -235,11 +235,11 @@ front of it, and volumes for its data. Nothing is built on the server.
 1. \`docker login ghcr.io\` with a GitHub token that can read packages. The image is private.
 2. \`cp .env.example .env\`, fill in every name, and keep \`.env\` off git. Generate
    \`AGENTFORGE_SECRETS_KEY\` once and keep it: a new key cannot read the old data.
-3. Point the DNS record for \`DPSBUDDY_DOMAIN\` at this server and open ports 80 and 443.
+3. Point the DNS record for \`NULTRON_DOMAIN\` at this server and open ports 80 and 443.
 4. \`docker compose pull && docker compose up -d\`
-5. \`docker compose ps\` until \`app\` is \`healthy\`, then open \`https://<DPSBUDDY_DOMAIN>\`.
+5. \`docker compose ps\` until \`app\` is \`healthy\`, then open \`https://<NULTRON_DOMAIN>\`.
 
-Back up the \`dpsbuddy-data\` volume before an upgrade: the database migrates forward only. To roll
+Back up the \`nultron-data\` volume before an upgrade: the database migrates forward only. To roll
 back, check out the previous release tag of this repo and repeat steps 4 and 5.
 `;
 }
@@ -253,7 +253,7 @@ export function caddyfileFrom(source, tag) {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  return `# DPSBuddy Enterprise ${tag}. Generated per release; do not edit here.\n${directives}\n`;
+  return `# Nultron Enterprise ${tag}. Generated per release; do not edit here.\n${directives}\n`;
 }
 
 export function renderBundle(tag, caddySource) {
@@ -407,7 +407,7 @@ function assertTreePublishable(cloneDir) {
 }
 
 function pushBundle(tag, bundle, workDir, deps) {
-  const cloneDir = join(workDir, "DPSBuddy-Ent");
+  const cloneDir = join(workDir, "NultronEnt");
   if (resolve(cloneDir) === resolve(deps.repoRoot)) fail("refusing to push from the source repo");
   const identity = gitIdentity(deps);
   expectOk(
@@ -473,7 +473,7 @@ export function main(argv = process.argv.slice(2), overrides = {}) {
   const bundle = renderBundle(flags.tag, readCaddyfile(fullSha, deps));
   for (const [name, content] of Object.entries(bundle)) assertPublishable(name, content);
   deps.log(`ok - bundle has none of the banned marks`);
-  const workDir = mkdtempSync(join(tmpdir(), "dpsbuddy-ent-release-"));
+  const workDir = mkdtempSync(join(tmpdir(), "nultron-ent-release-"));
   try {
     const bodyFile = join(workDir, `${flags.tag}-body.md`);
     writeFileSync(bodyFile, body, "utf8");

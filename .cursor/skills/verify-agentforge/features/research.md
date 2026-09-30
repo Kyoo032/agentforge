@@ -18,10 +18,10 @@ Research is a job: question → planned sub-queries → web search → fetched p
 
 ## How to get to it (user POV)
 
-- Choose Research on the left rail (`mode-research`). Default already has the tab.
+- Choose Research on the left rail (`mode-research`). Default has the tab on a fresh first-run desk and on every older desk.
 - Open `http://127.0.0.1:3000/research` when the tab is unlocked.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 
@@ -45,6 +45,6 @@ Preconditions:
 - Default desk unlocks Research. A Legal desk also has it. Do not open Studio to unlock the tab.
 - `research-error` never shows an "Open Settings" link. The link is guarded by `!/settings/i.test(error)` (`apps/web/components/research-studio.tsx:101`) and both stock refusals already contain the word "Settings", so the branch is unreachable. Assert the banner text, not a link.
 - Search does not need its own key. A missing Tavily / Brave key does not refuse Research. The keyless path is `packages/core/src/tools/platform/keyless-search.ts` (pinned Wikipedia, OpenAlex, arXiv, Crossref). Stub desks still refuse on the gateway, before any search — which route is a real 503 is SKILL.md “Harness-wide gotchas” G2; read it before asserting a status.
-- `research-studio-model` renders empty and `disabled` for roughly a second after `research-studio` appears; on 2026-09-17 it settled at 101 options in 11 optgroups, default `gpt-5.6-luna`. Wait for a non-empty option list, not for the testid — see SKILL.md “Harness-wide gotchas” G1.
+- `research-studio-model` renders empty and `disabled` for roughly a second after `research-studio` appears; on 2026-09-17 it settled at 101 options in 11 optgroups, default `gpt-5.6-luna` (`gpt-6-luna` since 2026-09-30). Wait for a non-empty option list, not for the testid — see SKILL.md “Harness-wide gotchas” G1.
 - `locales/*/research.json` carries `stubTitle` / `stubSummary` / `stubFinding*` copy for an offline stub dossier. **That path does not exist** — `requireLiveResearch` refuses before anything is generated (`packages/host/src/research-generate.ts:81-83`). Unlike Documents, Research has no offline output. Do not go looking for it.
 - Do not POST `/api/v1/research` as a substitute for the prompt bar on a live proof.

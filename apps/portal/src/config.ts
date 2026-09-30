@@ -92,12 +92,12 @@ const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_SMTP_HOST = "127.0.0.1";
 const DEFAULT_SMTP_PORT = 1025;
 /**
- * The display name on the sign-in mail. DPSBuddy, like every other surface -- this used to carry a
+ * The display name on the sign-in mail. Nultron, like every other surface -- this used to carry a
  * third name, different again from the subject line and from the page under it, which is the same
  * two-names-one-flow bug `src/otp/product-name.ts` was written for, one header higher up.
  * `src/views/brand.test.ts` is the guard that keeps all of them one name.
  */
-const DEFAULT_SMTP_FROM = "DPSBuddy <no-reply@portal.localhost>";
+const DEFAULT_SMTP_FROM = "Nultron <no-reply@portal.localhost>";
 const SIGNING_KEY_BYTES = 32;
 
 function readFlag(env: Env, name: string, problems: string[]): boolean {

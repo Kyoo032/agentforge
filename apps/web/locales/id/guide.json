@@ -1,0 +1,45 @@
+{
+  "dialogLabel": "Tur singkat {productName}",
+  "offer": {
+    "title": "Mau tur singkat?",
+    "body": "{total} perhentian singkat menunjukkan di mana semuanya berada. Sekitar satu menit. Anda bisa melewatinya sekarang, atau menutupnya kapan saja.",
+    "start": "Antar saya berkeliling"
+  },
+  "progress": "Langkah {current} dari {total}",
+  "next": "Lanjut",
+  "back": "Kembali",
+  "skip": "Lewati",
+  "done": "Selesai",
+  "close": "Tutup panduan",
+  "steps": {
+    "modes": {
+      "title": "Alat Anda ada di sini",
+      "bodyOne": "Chat adalah beranda. Di bawahnya ada alat Anda: {tools}. Pilih untuk mulai.",
+      "bodyList": "Chat adalah beranda. Di bawahnya ada {count} alat Anda: {tools}. Pilih satu untuk mulai.",
+      "bodyMany": "Chat adalah beranda. Di bawahnya ada satu alat untuk setiap jenis pekerjaan. Pilih satu untuk mulai.",
+      "bodyNone": "Chat adalah beranda. Anda bisa menambah alat ke meja ini dari Ruang kerja."
+    },
+    "workspaces": {
+      "title": "Tambah alat kapan saja",
+      "bodyMore": "Ingin alat lain, seperti {tools}? Buka Ruang kerja, pilih Ubah pada meja Anda, lalu nyalakan alatnya. Anda bisa mengubahnya kapan saja.",
+      "bodyAll": "Semua alat sudah ada di meja ini. Untuk mengurangi, buka Ruang kerja, pilih Ubah pada meja Anda, lalu matikan sebagian. Anda bisa mengubahnya kapan saja."
+    },
+    "chat": {
+      "title": "Tanyakan apa saja ke Chat",
+      "body": "Di Chat, ketik di kotak bagian bawah lalu tekan Enter. Pemilih model memungkinkan Anda memilih model yang menjawab."
+    },
+    "knowledge": {
+      "title": "Ajari apa yang Anda tahu",
+      "body": "Basis pengetahuan menyimpan catatan, berkas, dan halaman web Anda. Chat memakainya saat menjawab."
+    },
+    "settings": {
+      "title": "Kunci dan bahasa Anda",
+      "body": "Pengaturan menyimpan kunci dan bahasa Anda. Anda bisa memutar ulang panduan ini dari sana kapan saja."
+    }
+  },
+  "replay": {
+    "title": "Panduan",
+    "body": "Tur satu menit melewati navigasi, Ruang kerja, Chat, Basis pengetahuan, dan Pengaturan.",
+    "button": "Putar ulang panduan"
+  }
+}

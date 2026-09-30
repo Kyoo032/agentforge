@@ -13,15 +13,15 @@ Music is the third generate studio (describe-or-lyrics brief, style, title, inst
 - `music-draft-lyrics` shows `music-studio-draft-lyrics` in both modes (driven 2026-09-23). It posts `POST /api/v1/music/lyrics` and fills the lyrics box. **Nothing is stored** — no media row, no gallery tile, no Knowledge card — because it exists so the desk can edit the words before spending a music charge.
 - `music-estimate` shows the pre-generate cost line `music-studio-estimate` and, beside it, `music-studio-takes-note` ("two takes, one charge"). Music is billed flat per job, so the unit is `track`, not `second`. Suno publishes no API list price at all — it sells a consumer subscription — so an id with nothing in the cached gateway catalog omits the price line and **must name no vendor**. Maps: [`music-mode.md`](../../../../docs/internal/maps/music-mode.md) (the spine), [`media-cost-estimate.md`](../../../../docs/internal/maps/media-cost-estimate.md) (the price line), [`renderer-media.md`](../../../../docs/internal/maps/renderer-media.md) (why the gallery `src` is always host-served).
 - `music-voice-unavailable` shows `music-studio-voice-unavailable` inside `music-studio-voice` — a sentence, not a control. The host answers `GET /api/v1/music` with `speechUnavailable: "realtime_only" | "no_audio_models" | null`; the studio renders the matching reason. On this gateway the only TTS id is `qwen3-tts-instruct-flash-realtime`, which speaks WebSocket behind an `openai` endpoint label and cannot be driven from a job route, so the expected reason is `realtime_only`. **There is no voice-over button to press, and its absence is the pass.**
-- `music-library` shows `music-studio-library` with one `music-studio-track` per saved take — an `<audio>` element plus `music-studio-download`. A single generate adds **two** rows, not one.
+- `music-library` shows `music-studio-library` with one `music-studio-track` per saved take — an `<audio preload="none">` element plus `music-studio-download` (`GalleryAudio`, `apps/web/components/gallery-media.tsx`). A take whose file is gone (host `fileMissing`, or a failed load) shows `media-missing` and no download link instead of a player that cannot load; see [videos.md](./videos.md). A single generate adds **two** rows, not one.
 - `music-ingest` — a successful generate also writes one `Music` work card per take to the Knowledge Base (prompt or lyrics, model, style, title, duration, `media:<id>` pointer; no bytes). `music-studio-draft-lyrics` adds nothing. See [knowledge-ingest.md](./knowledge-ingest.md).
 
 ## How to get to it (user POV)
 
-- Choose Music on the left rail (`mode-music`). Default already has the tab.
+- Choose Music on the left rail (`mode-music`). A desk that already has it shows the tab. A fresh first-run desk starts with Research, Images, Videos and Presentation only, so turn this one on first (Workspaces, Edit on the desk).
 - Open `http://127.0.0.1:3000/music` when the tab is unlocked.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

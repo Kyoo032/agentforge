@@ -107,8 +107,10 @@ describe("a pinned model is a choice, not a default", () => {
     expect(useJobModel).toContain("const [pinned, setPinned] = useState(false);");
     expect(useJobModel).toContain("setPinned(false);");
     expect(useJobModel).toContain("return { models, model, pinned, setModel: pickModel };");
-    // The seeding effect must not go through the pinning setter.
-    expect(useJobModel).toContain("setModel(seedJobModel({ models: list, catalogDefault, settingsModel }));");
+    // The seeding effect must not go through the pinning setter: it seeds with the plain state setter,
+    // from what `jobModelAnswer` derived (which itself ends in `seedJobModel`).
+    expect(useJobModel).toContain("setModel(answer.model);");
+    expect(useJobModel).toContain("model: seedJobModel({ models, catalogDefault, settingsModel })");
   });
 
   it("sends modelPinned from the studio only when the person picked one", () => {

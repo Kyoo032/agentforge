@@ -16,7 +16,7 @@ Rail → Account group → **Channels** (`channels-link`), or `http://127.0.0.1:
 
 With no bot connected the page shows the connect form (`channels-bot-token`, `channels-bot-connect`). The composer — `channels-send`, and `channels-needs-bot` beside it while no bot is connected — renders only once a channel is selected (`apps/web/components/channels-page.tsx:350`), so a fresh desk has count 0 for both. The standing privacy warning is the closed `channels-privacy` disclosure (summary "Privacy", `channels-page.tsx:232`) since 0.15.0; open it to read "Everything sent or received here travels through Telegram in the clear…". Driven 2026-09-23 on `:3000` with no token (surface only).
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 **Without a real bot (the normal case).** Start the local Bot API sandbox, point the host at it, and drive the page:
 

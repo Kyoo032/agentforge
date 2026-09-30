@@ -1,0 +1,1066 @@
+{
+  "_meta": {
+    "version": 1,
+    "generatedBy": "poses/build-poses.mjs (edit poses/src/states.mjs, then re-run)",
+    "units": "1 unit = half the body height; angles in degrees; left/right are screen-relative",
+    "conventions": "see the header of rig.js",
+    "clipFps": 12,
+    "states": ["idle","wave","thinking","writing","answering","searching","calculating","charting","reviewing","listening","painting","filming","editing","presenting","celebrating","error","sleep","surprised","love","charging","lets-go"]
+  },
+  "states": {
+    "idle": {
+      "note": "Standing, arms a little out and forward like the reference build view.",
+      "pivots": {
+        "neck": [0,0,0],
+        "antenna": [0,0,0],
+        "shoulder-l": [13,8,0],
+        "elbow-l": [12,0,0],
+        "hand-l": [0,0,0],
+        "shoulder-r": [13,8,0],
+        "elbow-r": [12,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "idle",
+      "handL": "fist",
+      "handR": "fist",
+      "prop": null,
+      "fx": [],
+      "loop": {
+        "fps": 3,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "body": { "offset": [0,0.009,0] },
+            "pivots": { "neck": [-1.2,0,0.8], "antenna": [0,0,5] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "body": { "offset": [0,-0.004,0] },
+            "pivots": { "neck": [0.8,0,-0.8], "antenna": [0,0,-4] }
+          }
+        ]
+      }
+    },
+    "wave": {
+      "note": "Reference Friendly Wave: the viewer-left arm up and out, forearm vertical, open palm to the viewer.",
+      "pivots": {
+        "neck": [0,-3,-4],
+        "antenna": [0,0,6],
+        "shoulder-l": [84.6,6.1,-67.4],
+        "elbow-l": [60.7,0,0],
+        "hand-l": [5.9,-9.6,-0.4],
+        "shoulder-r": [13,8,0],
+        "elbow-r": [12,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "smile",
+      "handL": "open",
+      "handR": "fist",
+      "prop": null,
+      "fx": [
+        { "name": "wave", "pos": [-0.86,1.02,0.16], "rot": [0,0,18], "at": 4, "pop": true }
+      ],
+      "clip": {
+        "fps": 12,
+        "frames": [
+          {
+            "f": 0,
+            "pivots": { "shoulder-l": [13,8,0], "elbow-l": [12,0,0], "hand-l": [0,0,0], "neck": [0,0,0], "antenna": [0,0,0] },
+            "eyes": "open",
+            "mouth": "idle",
+            "handL": "fist"
+          },
+          {
+            "f": 3,
+            "pivots": { "shoulder-l": [77.4,6.3,-60.7], "elbow-l": [55.8,0,0], "hand-l": [5.3,-8.6,-0.4] },
+            "mouth": "smile",
+            "handL": "open",
+            "ease": "out"
+          },
+          {
+            "f": 5,
+            "pivots": { "elbow-l": [42.7,0,0], "hand-l": [5.9,-9.6,-10.4], "neck": [0,-2,-1.8] },
+            "ease": "inout"
+          },
+          {
+            "f": 7,
+            "pivots": { "elbow-l": [76.7,0,0], "hand-l": [5.9,-9.6,9.6], "neck": [0,-2,-5.9] }
+          },
+          {
+            "f": 9,
+            "pivots": { "elbow-l": [42.7,0,0], "hand-l": [5.9,-9.6,-10.4], "neck": [0,-2,-1.8] }
+          },
+          {
+            "f": 11,
+            "pivots": { "elbow-l": [72.7,0,0], "hand-l": [5.9,-9.6,7.6], "neck": [0,-2,-5.4] }
+          },
+          {
+            "f": 13,
+            "pivots": { "elbow-l": [54.7,0,0], "hand-l": [5.9,-9.6,-3.4], "neck": [0,-2,-3.3] }
+          },
+          { "f": 14 }
+        ]
+      }
+    },
+    "thinking": {
+      "note": "Reference Thinking: viewer-right fist tucked under the chin, head tilted up and away, a '?' above.",
+      "pivots": {
+        "neck": [-4,-10,4],
+        "antenna": [0,0,4],
+        "shoulder-l": [13,8,0],
+        "elbow-l": [12,0,0],
+        "hand-l": [0,0,0],
+        "shoulder-r": [117.5,51.4,-19.4],
+        "elbow-r": [66.2,0,0],
+        "hand-r": [-0.1,-1.8,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "idle",
+      "handL": "fist",
+      "handR": "fist",
+      "prop": null,
+      "fx": [
+        { "name": "thinking", "pos": [0.64,1.86,0.05] }
+      ],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "neck": [-2.5,-13,2.5], "antenna": [0,0,9] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "neck": [-5.5,-7,5], "antenna": [0,0,0], "elbow-r": [69.2,0,0] }
+          }
+        ]
+      }
+    },
+    "writing": {
+      "note": "Stylus held upright in the viewer-right hand at chest height, the tablet floating at its tip; head bowed to it.",
+      "pivots": {
+        "neck": [9,6,0],
+        "antenna": [0,0,0],
+        "shoulder-l": [52.3,100.9,-103],
+        "elbow-l": [31.7,0,0],
+        "hand-l": [0.4,2.6,-10.2],
+        "shoulder-r": [53.8,22.4,0.8],
+        "elbow-r": [93.6,0,0],
+        "hand-r": [-44.5,17.3,-11.1],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "idle",
+      "handL": "open",
+      "handR": "hold",
+      "prop": [
+        { "name": "writing", "attach": "grip-r", "pos": [0,0,0], "rot": [90,0,0], "hide": ["tablet"] },
+        { "name": "tablet", "attach": "root", "pos": [0.05,0.82,0.49], "rot": [-20,0,0] }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 6,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "hand-r": [-44.5,23.3,-7.1], "elbow-r": [91.6,0,0], "neck": [10,6,0] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "hand-r": [-44.5,11.3,-15.1], "elbow-r": [95.6,0,0], "neck": [8.5,6,0] }
+          }
+        ]
+      }
+    },
+    "answering": {
+      "note": "Writing pose with the head up toward the user and the mouth talking.",
+      "pivots": {
+        "neck": [2,4,0],
+        "antenna": [0,0,0],
+        "shoulder-l": [52.3,100.9,-103],
+        "elbow-l": [31.7,0,0],
+        "hand-l": [0.4,2.6,-10.2],
+        "shoulder-r": [53.8,22.4,0.8],
+        "elbow-r": [93.6,0,0],
+        "hand-r": [-44.5,17.3,-11.1],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "talk",
+      "handL": "open",
+      "handR": "hold",
+      "prop": [
+        { "name": "writing", "attach": "grip-r", "pos": [0,0,0], "rot": [90,0,0], "hide": ["tablet"] },
+        { "name": "tablet", "attach": "root", "pos": [0.05,0.82,0.49], "rot": [-20,0,0] }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 6,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "mouth": "idle",
+            "pivots": { "neck": [0.5,4,0.5] }
+          },
+          { "f": 2, "mouth": "talk" },
+          {
+            "f": 3,
+            "mouth": "smile",
+            "pivots": { "neck": [3,4,-0.5], "hand-r": [-44.5,22.3,-8.1] }
+          }
+        ]
+      }
+    },
+    "searching": {
+      "note": "Magnifier held up in the viewer-right hand, tipped forward so the lens is in front of the eye; head turned into it.",
+      "pivots": {
+        "neck": [1,7,3],
+        "antenna": [0,0,0],
+        "shoulder-l": [13,8,0],
+        "elbow-l": [12,0,0],
+        "hand-l": [0,0,0],
+        "shoulder-r": [89.7,72.6,-70.2],
+        "elbow-r": [66.1,0,0],
+        "hand-r": [-63.1,26.3,-15.6],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "idle",
+      "handL": "fist",
+      "handR": "hold",
+      "prop": [
+        { "name": "searching", "attach": "grip-r", "pos": [0,0,0], "rot": [125,0,0] }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "shoulder-r": [89.7,68.6,-70.2], "neck": [1,3,3] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "shoulder-r": [89.7,76.6,-70.2], "neck": [1,11,3], "elbow-r": [69.1,0,0] }
+          }
+        ]
+      }
+    },
+    "calculating": {
+      "note": "Calculator held in both hands at the chest, tipped back, head bowed to it.",
+      "pivots": {
+        "neck": [10,0,0],
+        "antenna": [0,0,0],
+        "shoulder-l": [46.2,110.8,-80.5],
+        "elbow-l": [45.7,0,0],
+        "hand-l": [-4.8,-10,-4.9],
+        "shoulder-r": [46.2,110.8,-80.5],
+        "elbow-r": [45.7,0,0],
+        "hand-r": [-4.8,-10,-4.9],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "idle",
+      "handL": "hold",
+      "handR": "hold",
+      "prop": [
+        { "name": "calculating", "attach": "body", "pos": [0,0.35,0.32], "rot": [-22,0,0], "scale": 1 }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "neck": [8,0,0], "hand-r": [-8.8,-10,-4.9] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "neck": [11,2,0], "hand-l": [-8.8,-10,-4.9] }
+          }
+        ]
+      }
+    },
+    "charting": {
+      "note": "Viewer-left index finger pointing at a floating chart screen, head turned to it.",
+      "pivots": {
+        "neck": [0,-8,-3],
+        "antenna": [0,0,0],
+        "shoulder-l": [55.9,32.9,-81.1],
+        "elbow-l": [74.3,0,0],
+        "hand-l": [-4.3,-13.1,-0.8],
+        "shoulder-r": [13,8,0],
+        "elbow-r": [12,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "smile",
+      "handL": "point",
+      "handR": "fist",
+      "prop": [
+        { "name": "charting-screen", "attach": "root", "pos": [-0.8,1.08,0.25], "rot": [0,22,0], "scale": 0.8 }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "elbow-l": [70.3,0,0], "neck": [0,-10,-3] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "elbow-l": [77.3,0,0], "neck": [0,-6,-2] }
+          }
+        ]
+      }
+    },
+    "reviewing": {
+      "note": "Clipboard held up in the viewer-left hand, angled to the viewer; head turned to read it.",
+      "pivots": {
+        "neck": [6,-14,-3],
+        "antenna": [0,0,0],
+        "shoulder-l": [40.5,13.3,-54],
+        "elbow-l": [72.9,0,0],
+        "hand-l": [-11.2,26.8,-18.3],
+        "shoulder-r": [13,8,0],
+        "elbow-r": [12,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "smile",
+      "handL": "hold",
+      "handR": "fist",
+      "prop": [
+        { "name": "reviewing", "attach": "grip-l", "pos": [0,0,0], "rot": [90,0,0] }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 3,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "neck": [8,-12,-3] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "neck": [5,-16,-3], "hand-l": [-8.2,26.8,-18.3] }
+          }
+        ]
+      }
+    },
+    "listening": {
+      "note": "Headphones on, head tipped to the viewer's right with that hand pressed up under the ear cup.",
+      "pivots": {
+        "neck": [0,0,14],
+        "antenna": [0,0,6],
+        "shoulder-l": [13,8,0],
+        "elbow-l": [12,0,0],
+        "hand-l": [0,0,0],
+        "shoulder-r": [84.1,37.5,-106],
+        "elbow-r": [70.8,0,0],
+        "hand-r": [2.2,7.3,-11.8],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "smile",
+      "handL": "fist",
+      "handR": "open",
+      "prop": [
+        { "name": "listening", "attach": "head", "pos": [0,0,0], "rot": [0,0,0] }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "neck": [0,0,9], "antenna": [0,0,-2] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "neck": [0,0,17], "antenna": [0,0,12] }
+          }
+        ]
+      }
+    },
+    "painting": {
+      "note": "Brush in the viewer-left hand reaching toward a small picture floating at the left.",
+      "pivots": {
+        "neck": [3,-8,-3],
+        "antenna": [0,0,0],
+        "shoulder-l": [33.8,23.2,-65.2],
+        "elbow-l": [91.6,0,0],
+        "hand-l": [-39.7,29.6,-25.4],
+        "shoulder-r": [13,8,0],
+        "elbow-r": [12,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "smile",
+      "handL": "hold",
+      "handR": "fist",
+      "prop": [
+        { "name": "painting", "attach": "grip-l", "pos": [0,0,0], "rot": [90,0,0], "hide": ["picture"] },
+        { "name": "picture", "attach": "root", "pos": [-0.94,1.02,0.2], "rot": [0,22,0], "scale": 0.7 }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "hand-l": [-39.7,37.6,-19.4], "elbow-l": [87.6,0,0] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "hand-l": [-39.7,21.6,-31.4], "elbow-l": [95.6,0,0] }
+          }
+        ]
+      }
+    },
+    "filming": {
+      "note": "Clapperboard held in both hands at chest height.",
+      "pivots": {
+        "neck": [4,0,0],
+        "antenna": [0,0,0],
+        "shoulder-l": [53.2,107.5,-80.4],
+        "elbow-l": [39.2,0,0],
+        "hand-l": [-5.1,-8.2,-5.1],
+        "shoulder-r": [53.2,107.5,-80.4],
+        "elbow-r": [39.2,0,0],
+        "hand-r": [-5.1,-8.2,-5.1],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "idle",
+      "handL": "hold",
+      "handR": "hold",
+      "prop": [
+        { "name": "filming", "attach": "body", "pos": [0,0.34,0.36], "rot": [-10,0,0], "scale": 1 }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "body": { "offset": [0,0.006,0] },
+            "pivots": { "neck": [3,2,0] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "body": { "offset": [0,-0.003,0] },
+            "pivots": { "neck": [5,-2,0] }
+          }
+        ]
+      }
+    },
+    "editing": {
+      "note": "Scissors held out in the viewer-right hand, tipped forward, working on the air in front of the chest.",
+      "pivots": {
+        "neck": [4,5,2],
+        "antenna": [0,0,0],
+        "shoulder-l": [13,8,0],
+        "elbow-l": [12,0,0],
+        "hand-l": [0,0,0],
+        "shoulder-r": [45.3,16.4,-45.3],
+        "elbow-r": [101.4,0,0],
+        "hand-r": [-63.1,35.3,-23],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "idle",
+      "handL": "fist",
+      "handR": "hold",
+      "prop": [
+        { "name": "editing", "attach": "grip-r", "pos": [0,0,0], "rot": [90,0,0] }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "hand-r": [-63.1,41.3,-23], "elbow-r": [98.4,0,0] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "hand-r": [-63.1,29.3,-23], "elbow-r": [104.4,0,0] }
+          }
+        ]
+      }
+    },
+    "presenting": {
+      "note": "Pointer in the viewer-right hand aimed up at a board floating at the right; other hand open, palm up.",
+      "pivots": {
+        "neck": [0,8,3],
+        "antenna": [0,0,0],
+        "shoulder-l": [23.4,54.9,-73.1],
+        "elbow-l": [88,0,0],
+        "hand-l": [-1.3,-5.6,-11.9],
+        "shoulder-r": [36.1,29.4,-92.2],
+        "elbow-r": [101.3,0,0],
+        "hand-r": [-59.5,35.6,-26.2],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "smile",
+      "handL": "open",
+      "handR": "hold",
+      "prop": [
+        { "name": "presenting", "attach": "grip-r", "pos": [0,0,0], "rot": [90,0,0], "hide": ["board"] },
+        { "name": "board", "attach": "root", "pos": [0.9,1.12,0.12], "rot": [0,-22,0], "scale": 0.55 }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 4,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "pivots": { "elbow-r": [97.3,0,0], "neck": [0,10,3] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "pivots": { "elbow-r": [104.3,0,0], "hand-l": [-5.3,-5.6,-11.9] }
+          }
+        ]
+      }
+    },
+    "celebrating": {
+      "note": "Reference Good Job / Thumbs Up: viewer-left fist with the thumb up, eyes squeezed happy, sparks.",
+      "pivots": {
+        "neck": [0,-4,-4],
+        "antenna": [0,0,6],
+        "shoulder-l": [73.1,22.7,-79.1],
+        "elbow-l": [72.6,0,0],
+        "hand-l": [-32.5,8.9,-10.3],
+        "shoulder-r": [13,8,0],
+        "elbow-r": [12,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "happy",
+      "mouth": "smile",
+      "handL": "thumb",
+      "handR": "fist",
+      "prop": null,
+      "fx": [
+        { "name": "celebrating", "pos": [-0.7,1.8,0.1], "scale": 0.55, "at": 6, "pop": true }
+      ],
+      "clip": {
+        "fps": 12,
+        "frames": [
+          {
+            "f": 0,
+            "pivots": { "shoulder-l": [13,8,0], "elbow-l": [12,0,0], "hand-l": [0,0,0], "neck": [0,0,0], "antenna": [0,0,0] },
+            "eyes": "open",
+            "mouth": "idle",
+            "handL": "fist"
+          },
+          {
+            "f": 2,
+            "body": { "offset": [0,-0.035,0] },
+            "pivots": { "shoulder-l": [13,8,0], "elbow-l": [12,0,0], "hand-l": [0,0,0], "neck": [6,0,0] },
+            "ease": "out"
+          },
+          {
+            "f": 5,
+            "body": { "offset": [0,0.07,0] },
+            "pivots": { "shoulder-l": [80.3,24.5,-88.6], "elbow-l": [79.9,0,0], "hand-l": [-36.4,10,-11.5], "neck": [-4,-4,-5] },
+            "eyes": "happy",
+            "mouth": "smile",
+            "handL": "thumb",
+            "ease": "out"
+          },
+          {
+            "f": 8,
+            "body": { "offset": [0,-0.012,0] },
+            "pivots": { "shoulder-l": [73.1,22.7,-79.1], "elbow-l": [72.6,0,0], "hand-l": [-32.5,8.9,-10.3] },
+            "ease": "in"
+          },
+          {
+            "f": 10,
+            "body": { "offset": [0,0.008,0] }
+          },
+          { "f": 12 }
+        ]
+      }
+    },
+    "error": {
+      "note": "Reference Sad: head bowed, eyes closed, downturned mouth, shoulders slack, a tear.",
+      "pivots": {
+        "neck": [13,0,-6],
+        "antenna": [8,0,-6],
+        "shoulder-l": [8,6,0],
+        "elbow-l": [18,0,0],
+        "hand-l": [0,0,0],
+        "shoulder-r": [8,6,0],
+        "elbow-r": [18,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [4,0,-1] },
+      "eyes": "closed",
+      "mouth": "sad",
+      "handL": "fist",
+      "handR": "fist",
+      "prop": null,
+      "fx": [
+        { "name": "tear", "pos": [-0.34,1.25,0.54], "at": 9, "pop": true }
+      ],
+      "clip": {
+        "fps": 12,
+        "frames": [
+          {
+            "f": 0,
+            "pivots": {
+              "neck": [0,0,0],
+              "antenna": [0,0,0],
+              "shoulder-l": [13,8,0],
+              "elbow-l": [12,0,0],
+              "hand-l": [0,0,0],
+              "shoulder-r": [13,8,0],
+              "elbow-r": [12,0,0],
+              "hand-r": [0,0,0]
+            },
+            "body": { "lean": [0,0,0] },
+            "eyes": "open",
+            "mouth": "idle"
+          },
+          {
+            "f": 3,
+            "eyes": "closed",
+            "mouth": "sad",
+            "pivots": {
+              "neck": [2,0,-1],
+              "antenna": [1,0,-1],
+              "shoulder-l": [12,7.6,0],
+              "elbow-l": [13.2,0,0],
+              "hand-l": [0,0,0],
+              "shoulder-r": [12,7.6,0],
+              "elbow-r": [13.2,0,0],
+              "hand-r": [0,0,0]
+            },
+            "body": { "lean": [0.5,0,0] },
+            "ease": "out"
+          },
+          {
+            "f": 8,
+            "pivots": { "neck": [15.5,0,-7], "antenna": [10,0,-7] },
+            "body": { "lean": [5,0,-1.2] },
+            "ease": "inout"
+          },
+          { "f": 11 }
+        ]
+      }
+    },
+    "sleep": {
+      "note": "Head dropped and tilted, eyes shut, arms slack, Zs floating up.",
+      "pivots": {
+        "neck": [15,0,9],
+        "antenna": [6,0,8],
+        "shoulder-l": [6,4,0],
+        "elbow-l": [14,0,0],
+        "hand-l": [0,0,0],
+        "shoulder-r": [6,4,0],
+        "elbow-r": [14,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [4,0,2] },
+      "eyes": "closed",
+      "mouth": "sleep",
+      "handL": "fist",
+      "handR": "fist",
+      "prop": [
+        { "name": "sleep", "attach": "fx", "pos": [0.85,1.95,0.1], "rot": [0,0,0] }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 2,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "body": { "offset": [0,0.008,0], "lean": [3.2,0,2] },
+            "pivots": { "neck": [13.5,0,9] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "body": { "offset": [0,-0.002,0], "lean": [4.4,0,2] },
+            "pivots": { "neck": [16,0,9] }
+          }
+        ]
+      }
+    },
+    "surprised": {
+      "note": "Reference Surprised: both hands up beside the mouth, eyes wide, mouth an 'o', on tiptoe.",
+      "pivots": {
+        "neck": [-3,0,0],
+        "antenna": [-6,0,0],
+        "shoulder-l": [75,54.8,-56.6],
+        "elbow-l": [74.1,0,0],
+        "hand-l": [3.9,-5.4,-1.4],
+        "shoulder-r": [75,54.8,-56.6],
+        "elbow-r": [74.1,0,0],
+        "hand-r": [3.9,-5.4,-1.4],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0.035,0], "lean": [0,0,0] },
+      "eyes": "surprised",
+      "mouth": "o",
+      "handL": "open",
+      "handR": "open",
+      "prop": null,
+      "fx": [
+        { "name": "surprised", "pos": [0.46,1.92,0.15], "at": 3, "pop": true }
+      ],
+      "clip": {
+        "fps": 12,
+        "frames": [
+          {
+            "f": 0,
+            "pivots": {
+              "shoulder-l": [13,8,0],
+              "elbow-l": [12,0,0],
+              "hand-l": [0,0,0],
+              "shoulder-r": [13,8,0],
+              "elbow-r": [12,0,0],
+              "hand-r": [0,0,0],
+              "neck": [0,0,0],
+              "antenna": [0,0,0]
+            },
+            "body": { "offset": [0,0,0] },
+            "eyes": "open",
+            "mouth": "idle",
+            "handL": "fist",
+            "handR": "fist"
+          },
+          {
+            "f": 1,
+            "pivots": {
+              "shoulder-l": [3.7,1,8.5],
+              "elbow-l": [2.7,0,0],
+              "hand-l": [-0.6,0.8,0.2],
+              "shoulder-r": [3.7,1,8.5],
+              "elbow-r": [2.7,0,0],
+              "hand-r": [-0.6,0.8,0.2],
+              "neck": [5,0,0]
+            },
+            "body": { "offset": [0,-0.03,0] },
+            "ease": "out"
+          },
+          {
+            "f": 3,
+            "pivots": {
+              "shoulder-l": [80,58.5,-61.1],
+              "elbow-l": [79.1,0,0],
+              "hand-l": [4.2,-5.8,-1.5],
+              "shoulder-r": [80,58.5,-61.1],
+              "elbow-r": [79.1,0,0],
+              "hand-r": [4.2,-5.8,-1.5],
+              "neck": [-6,0,0],
+              "antenna": [-12,0,0]
+            },
+            "body": { "offset": [0,0.085,0] },
+            "eyes": "surprised",
+            "mouth": "o",
+            "handL": "open",
+            "handR": "open",
+            "ease": "out"
+          },
+          {
+            "f": 6,
+            "pivots": {
+              "shoulder-l": [75,54.8,-56.6],
+              "elbow-l": [74.1,0,0],
+              "hand-l": [3.9,-5.4,-1.4],
+              "shoulder-r": [75,54.8,-56.6],
+              "elbow-r": [74.1,0,0],
+              "hand-r": [3.9,-5.4,-1.4]
+            },
+            "body": { "offset": [0,0.02,0] },
+            "ease": "inout"
+          },
+          { "f": 9 }
+        ]
+      }
+    },
+    "love": {
+      "note": "Reference With Heart / Love: both hands holding a big blue heart at the belly, head tilted, happy eyes.",
+      "pivots": {
+        "neck": [2,0,4],
+        "antenna": [0,0,6],
+        "shoulder-l": [44.2,88.4,-72.1],
+        "elbow-l": [34.7,0,0],
+        "hand-l": [2.7,-4.7,-6.1],
+        "shoulder-r": [44.2,88.4,-72.1],
+        "elbow-r": [34.7,0,0],
+        "hand-r": [2.7,-4.7,-6.1],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "wink",
+      "mouth": "smile",
+      "handL": "hold",
+      "handR": "hold",
+      "prop": [
+        { "name": "love", "attach": "body", "pos": [0,0.28,0.4], "rot": [0,0,0], "scale": 0.9, "at": 4, "pop": true }
+      ],
+      "fx": [
+        { "name": "heart-mini", "pos": [0.66,1.95,0.1], "at": 7, "pop": true }
+      ],
+      "clip": {
+        "fps": 12,
+        "frames": [
+          {
+            "f": 0,
+            "pivots": {
+              "shoulder-l": [13,8,0],
+              "elbow-l": [12,0,0],
+              "hand-l": [0,0,0],
+              "shoulder-r": [13,8,0],
+              "elbow-r": [12,0,0],
+              "hand-r": [0,0,0],
+              "neck": [0,0,0],
+              "antenna": [0,0,0]
+            },
+            "eyes": "open",
+            "mouth": "idle",
+            "handL": "fist",
+            "handR": "fist",
+            "pscale": 1
+          },
+          {
+            "f": 4,
+            "pivots": {
+              "shoulder-l": [41.1,80.4,-64.9],
+              "elbow-l": [32.4,0,0],
+              "hand-l": [2.4,-4.2,-5.5],
+              "shoulder-r": [41.1,80.4,-64.9],
+              "elbow-r": [32.4,0,0],
+              "hand-r": [2.4,-4.2,-5.5],
+              "neck": [3,0,5]
+            },
+            "eyes": "wink",
+            "mouth": "smile",
+            "handL": "hold",
+            "handR": "hold",
+            "ease": "out"
+          },
+          {
+            "f": 6,
+            "pivots": {
+              "shoulder-l": [44.2,88.4,-72.1],
+              "elbow-l": [34.7,0,0],
+              "hand-l": [2.7,-4.7,-6.1],
+              "shoulder-r": [44.2,88.4,-72.1],
+              "elbow-r": [34.7,0,0],
+              "hand-r": [2.7,-4.7,-6.1]
+            },
+            "pscale": 1.12,
+            "ease": "out"
+          },
+          { "f": 8, "pscale": 0.96, "ease": "inout" },
+          { "f": 10 }
+        ]
+      }
+    },
+    "charging": {
+      "note": "Standing on the charging pad, ring around the body, arms relaxed and a little out, content.",
+      "pivots": {
+        "neck": [-2,0,0],
+        "antenna": [0,0,4],
+        "shoulder-l": [20,10,0],
+        "elbow-l": [10,0,0],
+        "hand-l": [0,0,0],
+        "shoulder-r": [20,10,0],
+        "elbow-r": [10,0,0],
+        "hand-r": [0,0,0],
+        "hip-l": [0,2,0],
+        "hip-r": [0,2,0]
+      },
+      "body": { "offset": [0,0,0], "lean": [0,0,0] },
+      "eyes": "open",
+      "mouth": "smile",
+      "handL": "fist",
+      "handR": "fist",
+      "prop": [
+        { "name": "charging", "attach": "root", "pos": [0,0,0], "rot": [0,0,0] }
+      ],
+      "fx": [],
+      "loop": {
+        "fps": 3,
+        "frames": [
+          { "f": 0 },
+          {
+            "f": 1,
+            "body": { "offset": [0,0.014,0] },
+            "pivots": { "antenna": [0,0,9] }
+          },
+          { "f": 2 },
+          {
+            "f": 3,
+            "body": { "offset": [0,-0.006,0] },
+            "pivots": { "antenna": [0,0,0] }
+          }
+        ]
+      }
+    },
+    "lets-go": {
+      "note": "Reference Let's Go: leaning into a dash toward the viewer's right, right arm pointing the way, left arm swung back.",
+      "pivots": {
+        "neck": [2,12,-6],
+        "antenna": [-6,0,-8],
+        "shoulder-l": [39.8,-97.6,-7.2],
+        "elbow-l": [35.1,0,0],
+        "hand-l": [-0.6,-1.4,-0.1],
+        "shoulder-r": [158.7,2.3,23.9],
+        "elbow-r": [53.3,0,0],
+        "hand-r": [-3.1,8.9,-0.6],
+        "hip-l": [-28,10,0],
+        "hip-r": [32,6,0]
+      },
+      "body": { "offset": [0.05,0.05,0.04], "lean": [8,0,9] },
+      "eyes": "open",
+      "mouth": "smile",
+      "handL": "fist",
+      "handR": "point",
+      "prop": null,
+      "fx": [
+        { "name": "lets-go", "pos": [-0.85,0.95,-0.1], "at": 6, "pop": true }
+      ],
+      "clip": {
+        "fps": 12,
+        "frames": [
+          {
+            "f": 0,
+            "pivots": {
+              "shoulder-l": [13,8,0],
+              "elbow-l": [12,0,0],
+              "hand-l": [0,0,0],
+              "shoulder-r": [13,8,0],
+              "elbow-r": [12,0,0],
+              "hand-r": [0,0,0],
+              "hip-l": [0,2,0],
+              "hip-r": [0,2,0],
+              "neck": [0,0,0],
+              "antenna": [0,0,0]
+            },
+            "body": { "offset": [0,0,0], "lean": [0,0,0] },
+            "eyes": "open",
+            "mouth": "idle",
+            "handR": "fist"
+          },
+          {
+            "f": 3,
+            "pivots": {
+              "shoulder-l": [6.3,34.4,1.8],
+              "elbow-l": [6.2,0,0],
+              "hand-l": [0.2,0.4,0],
+              "shoulder-r": [-23.4,9.4,-6],
+              "elbow-r": [1.7,0,0],
+              "hand-r": [0.8,-2.2,0.2],
+              "hip-l": [7,0,0],
+              "hip-r": [-8,1,0],
+              "neck": [-3,-4,3],
+              "antenna": [6,0,8]
+            },
+            "body": { "offset": [-0.02,-0.03,0], "lean": [-4,0,-6] },
+            "ease": "out"
+          },
+          {
+            "f": 7,
+            "pivots": {
+              "shoulder-l": [43,-110.3,-8.1],
+              "elbow-l": [37.9,0,0],
+              "hand-l": [-0.7,-1.6,-0.1],
+              "shoulder-r": [176.2,1.6,26.8],
+              "elbow-r": [58.3,0,0],
+              "hand-r": [-3.5,10,-0.7],
+              "hip-l": [-31.4,11,0],
+              "hip-r": [35.8,6.5,0],
+              "neck": [3,14,-7],
+              "antenna": [-9,0,-10]
+            },
+            "body": { "offset": [0.06,0.06,0.05], "lean": [9,0,10] },
+            "mouth": "smile",
+            "handR": "point",
+            "ease": "out"
+          },
+          { "f": 9, "ease": "inout" },
+          { "f": 11 }
+        ]
+      }
+    }
+  }
+}

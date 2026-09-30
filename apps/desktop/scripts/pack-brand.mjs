@@ -6,7 +6,7 @@
  *   node scripts/pack-brand.mjs --restore-public
  *
  * Requires apps/web dist + stage-renderer.mjs already run (or call via desktop-build).
- * After a non-DPSBuddy pack, the working tree is always restored to branding/agentforge
+ * After a non-Nultron pack, the working tree is always restored to branding/agentforge
  * so splash/icon leftovers cannot leak into the next public build or a git commit.
  */
 import { spawnSync } from "node:child_process";
@@ -141,6 +141,15 @@ function applyBrandToWorkingTree(id) {
   if (existsSync(iconPng)) {
     copyFileSync(iconPng, join(buildDir, "icon.png"));
   }
+  // macOS: package.json `build.mac.icon` is build/icon.icns (already on Apple's 824/1024 icon grid).
+  // Only a brand that ships one gets one, so a Nultron .icns never survives into another flavor.
+  const iconIcns = join(brandDir, "icon.icns");
+  const buildIcns = join(buildDir, "icon.icns");
+  if (existsSync(iconIcns)) {
+    copyFileSync(iconIcns, buildIcns);
+  } else if (existsSync(buildIcns)) {
+    unlinkSync(buildIcns);
+  }
   copyFileSync(iconSrc, join(splashDir, "icon.ico"));
   copyFileSync(brandFile, join(brandResourceDir, "brand.json"));
   const splashImg = existsSync(logoPng) ? logoPng : existsSync(splashPng) ? splashPng : null;
@@ -173,7 +182,7 @@ console.log(
 );
 
 /**
- * brand.json "updates" is the single source of truth for where packaged DPSBuddy
+ * brand.json "updates" is the single source of truth for where packaged Nultron
  * looks for latest.yml. It must agree with build.publish in package.json.
  */
 function publishArgsFromBrand(config) {

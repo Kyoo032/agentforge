@@ -34,7 +34,7 @@ import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, documentDraftMarkdown } from "./work-cards";
 import { log } from "./log";
 
-const FINANCE_SYSTEM = `You draft finished finance documents for DPSBuddy — not skeletons.
+const FINANCE_SYSTEM = `You draft finished finance documents for Nultron — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
   "title": string,
@@ -49,7 +49,7 @@ Rules:
 - Headings are claims or jobs, not labels.
 - No campus / student / course nouns unless the topic itself requires them.`;
 
-const DOCUMENT_SYSTEM = `You draft finished professional documents for DPSBuddy — not skeletons.
+const DOCUMENT_SYSTEM = `You draft finished professional documents for Nultron — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
   "title": string,
@@ -189,7 +189,7 @@ export async function generateDocumentDraft(tenant: TenantContext, body: unknown
   return draft;
 }
 
-const SECTION_SYSTEM = `You rewrite one section of an DPSBuddy document.
+const SECTION_SYSTEM = `You rewrite one section of a Nultron document.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 { "heading": string, "body": string }
 Rules:

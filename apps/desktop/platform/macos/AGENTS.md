@@ -1,6 +1,6 @@
 # macOS — shell rules
 
-> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.0`, under active development again.
+> **Two products, one repo.** **Personal** is the Mac/Windows Nultron app — current cut `0.15.0`, under active development again.
 > The mac port is still **preview**: the rules below hold, and every launch step is owed on real hardware.
 > Decision record: [`web-pivot-2026-09-18.md`](../../../../docs/internal/web-pivot-2026-09-18.md).
 
@@ -8,7 +8,7 @@ Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (merg
 
 ## Hard constraints
 
-- **Two build paths, one rule set.** On a Mac: `pnpm desktop:build:mac` (electron-builder's own dmg via hdiutil). Anywhere else: `pnpm desktop:build:mac:docker`, which runs the Linux container in [`docker/`](docker/) (electron-builder allows the mac target on Linux, not on Windows). Both produce `DPSBuddy-<version>-mac-<arch>.dmg|zip`. Whatever the path, the *rules in this file* apply: the bundle must pass [`docker/verify-bundle.py`](docker/verify-bundle.py) and the smoke list below still needs a Mac. Never build the mac target directly on the Windows host, and Cloud Linux must not run either path.
+- **Two build paths, one rule set.** On a Mac: `pnpm desktop:build:mac` (electron-builder's own dmg via hdiutil). Anywhere else: `pnpm desktop:build:mac:docker`, which runs the Linux container in [`docker/`](docker/) (electron-builder allows the mac target on Linux, not on Windows). Both produce `Nultron-<version>-mac-<arch>.dmg|zip`. Whatever the path, the *rules in this file* apply: the bundle must pass [`docker/verify-bundle.py`](docker/verify-bundle.py) and the smoke list below still needs a Mac. Never build the mac target directly on the Windows host, and Cloud Linux must not run either path.
 - **No hosted mac build (2026-09-24).** The GitHub Actions job `desktop-mac.yml` (a `macos-latest` runner that built both arches and boot-checked the arm64 `.app`) is deleted with the rest of `.github/workflows/`; it never ran a job on this account. The mac build is `pnpm desktop:build:mac:docker` from this Windows desk (or `pnpm desktop:build:mac` on a Mac), per the pack skill. Its boot check (`host-status.json` + `doctor --desktop`) only ever happened on hardware, and it still does: Docker exit 0 is pack proof, not a launch.
 - **Launching needs a Mac.** `pnpm desktop:mac`, the Keychain prompt, Cmd+Q, and every smoke step below run on macOS only.
 - **The application menu is mandatory.** On macOS Cmd+C/V/X/A/Q exist only as Edit/App menu roles. `edit-menu.cjs` installs App + Edit + Window menus; never set the menu to `null` and never remove the Edit roles. A menu change is tested on both Windows and macOS.
@@ -19,6 +19,7 @@ Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (merg
 - **Paths.** userData is `~/Library/Application Support/<productName>`. `doctor.mjs --desktop` reads `host-status.json` there. Logs go to `~/Library/Logs/<productName>` (`updater.log` is not written on macOS because the updater is off).
 - **Updater is off until signing exists.** `auto-update.cjs` `updatesEnabled(..., "darwin")` is false; the state carries the message "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases." and the renderer shows it in the Updates panel. Never publish a `latest-mac.yml`.
 - **Hardware acceleration stays on.** The win32-only `app.disableHardwareAcceleration()` guard must not widen.
+- **Rename (2026-09-29).** Since 2026-09-29 the product is Nultron (`Nultron.app`, userData `~/Library/Application Support/Nultron`), with no data migration from DPSBuddy. The Windows uninstaller cleans the legacy DPSBuddy folder and keychain item; a Mac has no uninstaller, so an old `DPSBuddy` desk is left where it is.
 
 ## Building without a Mac (`pnpm desktop:build:mac:docker`)
 
@@ -28,12 +29,12 @@ Step-by-step guide, the failures hit on 2026-09-08 and their fixes, and the proo
 
 1. `pnpm install` (Linux), web build, `stage-renderer.mjs`, `pack-brand.mjs --restore-public`.
 2. Swaps in darwin natives: better-sqlite3 13 ships N-API `prebuilds/darwin-<arch>.node` in its tarball (only that one is kept, `build/` is deleted); keytar's official `napi-v3-darwin-<arch>` prebuild replaces `build/Release/keytar.node`.
-3. `electron-builder --mac --dir --<arch> -c.npmRebuild=false` → `dist/mac[-arm64]/DPSBuddy.app`.
-4. `rcodesign sign DPSBuddy.app` (ad-hoc, whole bundle). Required: electron-builder rewrites Info.plist after Electron's own ad-hoc signature, and Apple silicon kills binaries whose signature no longer matches.
+3. `electron-builder --mac --dir --<arch> -c.npmRebuild=false` → `dist/mac[-arm64]/Nultron.app`.
+4. `rcodesign sign Nultron.app` (ad-hoc, whole bundle). Required: electron-builder rewrites Info.plist after Electron's own ad-hoc signature, and Apple silicon kills binaries whose signature no longer matches.
 5. `verify-bundle.py`: every Mach-O is the requested arch, no ELF/PE leaked from the Linux install, darwin natives present, framework symlinks intact, Info.plist, app.asar holds every shell module, ADHOC CodeDirectory on the main binary / framework / helper.
 6. `zip -r -y` (symlinks kept) and [`docker/make-dmg.py`](docker/make-dmg.py): `mkfs.hfsplus` volume, populated entry by entry with `hfsplus` from libdmg-hfsplus (symlinks recreated, execute bits carried), `/Applications` link, `dmg build` → zlib-compressed UDIF. Then `verify-bundle.py --dmg --zip` reads both back with 7-Zip / zipinfo and compares files, sizes, symlinks and the execute bit.
 
-What this path cannot prove: that the app launches. Static checks pass, and they still prove nothing about launching — but a hardware launch has since happened: blocker V2 was closed on 2026-09-15 when the owner installed and launched the dmg on a Mac (`docs/internal/blockers-2026-09-15.md:220`). The smoke steps below are the walk that is owed per cut, not a first launch that has never happened. Known differences from a Mac build: no `.icns` from `iconutil` (electron-builder converts `build/icon.png` itself, same as on a Mac), HFS+ instead of APFS inside the dmg (mounts on every macOS since 10.12), no bundled ffmpeg (Edit uses a PATH ffmpeg, e.g. Homebrew).
+What this path cannot prove: that the app launches. Static checks pass, and they still prove nothing about launching — but a hardware launch has since happened: blocker V2 was closed on 2026-09-15 when the owner installed and launched the dmg on a Mac (`docs/internal/blockers-2026-09-15.md:220`). The smoke steps below are the walk that is owed per cut, not a first launch that has never happened. Known differences from a Mac build: no `iconutil` (the `.icns` is a committed file, `build/icon.icns`, written by the brand kit, so electron-builder converts nothing), HFS+ instead of APFS inside the dmg (mounts on every macOS since 10.12), no bundled ffmpeg (Edit uses a PATH ffmpeg, e.g. Homebrew).
 
 ## Port checklist (state on 2026-09-08)
 
@@ -45,23 +46,23 @@ What this path cannot prove: that the app launches. Static checks pass, and they
 | 4 | Native modules per arch | electron-builder rebuilds `better-sqlite3` and `keytar` for each arch during `--mac` (`npmRebuild` default). If a build was made with a mismatched ABI, run `npx @electron/rebuild -f -w better-sqlite3 -w keytar` on the Mac and rebuild | pending: both arches launch, `hasOpenai: true` after relaunch |
 | 5 | Entitlements / hardened runtime | not added; only needed once signing starts | — |
 | 6 | Reopen from the Dock | done: `lifecycle.reopenTarget({ hostReady })` → `createWindow()` loads the renderer directly after boot; `activate` is registered before the host boots | pending: smoke step 3 |
-| 7 | Bundled ffmpeg | not bundled in the preview (no LGPL static mac build to ship); Edit falls back to a PATH ffmpeg (`brew install ffmpeg`), which the public notes say. Mac-built path: see [`../../resources/ffmpeg/README.md`](../../resources/ffmpeg/README.md) | pending: `editFfmpeg.found` true in `host-status.json` with Homebrew ffmpeg |
-| 8 | Icon | done: `build/icon.png` (1024², 8-bit, rasterized from `branding/agentforge/logo.svg`); electron-builder converts it to `.icns` | pending: Dock shows the mark, not the Electron default |
-| 9 | Artifacts | done: `DPSBuddy-<version>-mac-<arch>.dmg` / `.zip` from `pnpm desktop:build:mac:docker` (both arches, static checks green, sha256 manifest in `dist/`) | pending: install from the dmg on a Mac |
+| 7 | Bundled ffmpeg | not bundled in the preview (no LGPL static mac build to ship); Edit falls back to a PATH ffmpeg (`brew install ffmpeg`), which the public notes say. Mac-built path: see [`../../resources/ffmpeg/README.md`](../../resources/ffmpeg/README.md) | pending: `editFfmpeg.found` true in `host-status.json` with Homebrew ffmpeg (the key is written a moment after the window loads, so read the file again if it is absent at first) |
+| 8 | Icon | done: `build/icon.icns` (`build.mac.icon`; seven PNG entries 16 to 1024, the tile on Apple's 824-of-1024 grid with a soft shadow; copy of `branding/agentforge/icon.icns`, restored by `pack-brand.mjs`); `build/icon.png` (1024²) stays the Linux and fallback source | pending: Dock shows the mark, not the Electron default |
+| 9 | Artifacts | done: `Nultron-<version>-mac-<arch>.dmg` / `.zip` from `pnpm desktop:build:mac:docker` (both arches, static checks green, sha256 manifest in `dist/`) | pending: install from the dmg on a Mac |
 | 10 | Ad-hoc signature | done: `rcodesign sign` in the container; verifier requires an ADHOC CodeDirectory on main / framework / helper | pending: app is not "Killed: 9" on Apple silicon at launch |
 
-`pnpm desktop:release` runs on the Windows box (it validates `latest.yml`) and attaches any `DPSBuddy-<version>-mac-<arch>.dmg|zip` it finds in `apps/desktop/dist/` next to the Windows exe (`scripts/release-artifacts.mjs` picks them; `--require-mac` fails when an arch is missing; `latest-mac.yml` and mac blockmaps are never uploaded). `--attach-mac` adds them to an already-published release and refreshes the notes. Mac artifacts go out labelled **preview** until the smoke list is proven; the notes carry the Gatekeeper and Keychain steps.
+`pnpm desktop:release` runs on the Windows box (it validates `latest.yml`) and attaches any `Nultron-<version>-mac-<arch>.dmg|zip` it finds in `apps/desktop/dist/` next to the Windows exe (`scripts/release-artifacts.mjs` picks them; `--require-mac` fails when an arch is missing; `latest-mac.yml` and mac blockmaps are never uploaded). `--attach-mac` adds them to an already-published release and refreshes the notes. Mac artifacts go out labelled **preview** until the smoke list is proven; the notes carry the Gatekeeper and Keychain steps.
 
 ## Manual smoke on a Mac after any shell change
 
 1. Fresh install, onboarding: paste the key with Cmd+V **and** with right-click Paste. Continue reaches Chat.
 2. Chat composer: Cmd+A / Cmd+C / Cmd+V round-trip; Cmd+Z undo in the composer.
 3. Close the window with the red button, click the Dock icon: Chat returns with the session intact, no splash.
-4. Start a Videos edit that runs ffmpeg, then Cmd+Q mid-job: Activity Monitor shows no `DPSBuddy` or `ffmpeg` left.
+4. Start a Videos edit that runs ffmpeg, then Cmd+Q mid-job: Activity Monitor shows no `Nultron` or `ffmpeg` left.
 5. Relaunch: Keychain does not re-prompt, saved key still decrypts (`hasOpenai: true` in `host-status.json`).
 6. `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` passes with `transport: "ipc"`.
 7. Rail footer updates icon: the panel reads "Updates on macOS are manual for now…" and **Check for updates** is disabled.
-8. Settings → Start over → Reset to a fresh install → app restarts on onboarding; userData keeps Chromium folders, loses `agentforge.sqlite`, `settings.enc`, `media/`; `host-status.json` shows `hasOpenai: false`. Activity Monitor shows one `DPSBuddy` and no `ffmpeg` left from the old run; the Dock icon stays in place across the restart.
+8. Settings → Start over → Reset to a fresh install → app restarts on onboarding; userData keeps Chromium folders, loses `agentforge.sqlite`, `settings.enc`, `media/`; `host-status.json` shows `hasOpenai: false`. Activity Monitor shows one `Nultron` and no `ffmpeg` left from the old run; the Dock icon stays in place across the restart.
 9. Second launch after that reset stays fresh: onboarding again, `hasOpenai: false`, no threads. The legacy folder under `~/Library/Application Support/` is **not** copied back — `legacy-migrated.json` exists in userData and the old desk is untouched on disk.
 10. Queued wipe, second thoughts: Settings → Start over → Reset to a fresh install, then **Keep my data** on the banner. `reset-pending.json` is gone from userData and the next launch keeps every thread and the saved key.
 11. Model-output link (a research source, a market ticker, the ffmpeg setup notice) opens the default browser. Never a second app window, and the app window itself has not navigated anywhere.
@@ -70,4 +71,4 @@ What this path cannot prove: that the app launches. Static checks pass, and they
 
 - Copy Windows exit semantics (`app.exit`, `taskkill`) to darwin.
 - Add Xcode projects, Swift, or iOS Simulator work here; that belongs to [`apps/mobile`](../../../mobile/AGENTS.md).
-- Attach a Mac artifact to DPSBuddy before the checklist above is proven on hardware.
+- Attach a Mac artifact to a Nultron release before the checklist above is proven on hardware.

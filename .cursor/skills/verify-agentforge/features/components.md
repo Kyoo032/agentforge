@@ -12,9 +12,9 @@ Native dependencies the app installs by itself: today only `anydoc`, the local d
 
 ## How to get to it (user POV)
 
-Install the app and open it. On the key step, above the key form, **Setting up DPSBuddy** lists six steps with a progress bar, finishes with a ready line and folds away. The owner presses nothing. If the machine is offline the panel says so, offers **Try again**, and says the app works without it; the key form stays usable throughout. On a machine where the reader shipped inside the app, the panel never appears.
+Install the app and open it. On the key step, above the key form, **Setting up Nultron** lists six steps with a progress bar, finishes with a ready line and folds away. The owner presses nothing. If the machine is offline the panel says so, offers **Try again**, and says the app works without it; the key form stays usable throughout. On a machine where the reader shipped inside the app, the panel never appears.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 1. Doctor the instance. `curl -s http://127.0.0.1:3000/api/v1/components` — expect 200 and one `anydoc` row. A 404 means `:3000` predates the route: report “restart :3000”, do not start another server.
 2. `state: "ready", source: "bundled"` is the normal answer on webdev and on a packed Windows build; then `component-setup` must be **absent** from onboarding. Record that as the result.

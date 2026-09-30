@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { formatUsd } from "@agentforge/core/gateway";
 import { findTier } from "@agentforge/core/plans";
 import { Link } from "@/lib/nav";
-import { apiFetch } from "@/lib/api-client";
+import { readSettings } from "@/lib/settings-read";
 import { useHostCapabilities } from "@/lib/host-capabilities";
 import { t } from "@/lib/i18n";
 import { parseGatewayGate } from "@/lib/gateway-gate";
@@ -60,12 +60,13 @@ export function ChatUsageChip() {
             }
           }
         }
-        const res = await apiFetch("/api/v1/settings");
-        if (!res.ok) {
+        // Shared with the shell's gate read and the other Chat readers: one round trip per load.
+        const answer = await readSettings();
+        if (!answer.ok || !answer.body) {
           if (!cancelled) setLabel(t("chat.usage.error"));
           return;
         }
-        const payload = (await res.json()) as {
+        const payload = answer.body as {
           usage?: SettingsUsage;
           gateway?: unknown;
           error?: { message?: string };
@@ -121,8 +122,13 @@ export function ChatUsageChip() {
   }, [plans]);
 
   return (
-    <Link href={href} className="chip wash whitespace-nowrap" data-testid="chat-usage" title={title}>
-      {label}
+    <Link
+      href={href}
+      className="chip wash max-w-full whitespace-nowrap"
+      data-testid="chat-usage"
+      title={title ?? label}
+    >
+      <span className="min-w-0 truncate">{label}</span>
     </Link>
   );
 }

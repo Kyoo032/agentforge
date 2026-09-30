@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { NultronMascot } from "@/components/nultron/nultron-mascot";
 import { isInstallAction, updateBadge, updateButtonTitle, updateCtaKind } from "@/lib/app-updates-copy";
+import { UPDATE_NEXT, updateMascot } from "@/lib/mascot-triggers";
 import { useProductBrand } from "@/lib/product-brand";
 import { useAppUpdates } from "@/lib/use-app-updates";
 import { t } from "@/lib/i18n";
@@ -106,6 +108,7 @@ export function AppUpdatesButton({ collapsed = false }: { collapsed?: boolean })
 
   const { state, supported, busy, statusText } = updates;
   const badge = updateBadge(state);
+  const face = updateMascot(state.status);
   const cta = updateCtaKind(state);
   const install = isInstallAction(state);
   const title = updateButtonTitle(state, supported);
@@ -166,9 +169,12 @@ export function AppUpdatesButton({ collapsed = false }: { collapsed?: boolean })
               data-testid="app-updates-panel"
             >
               <p className="panel-label">{t("rail.updates.panel")}</p>
-              <p className="mt-2 break-words text-sm text-inkbase" data-testid="app-updates-status">
-                {statusText}
-              </p>
+              <div className="mt-2 flex items-center gap-3">
+                {face ? <NultronMascot state={face} busy={face === "charging"} decorative next={UPDATE_NEXT} /> : null}
+                <p className="min-w-0 flex-1 break-words text-sm text-inkbase" data-testid="app-updates-status">
+                  {statusText}
+                </p>
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {supported && install ? (
                   <button

@@ -1,4 +1,5 @@
 import { ApiError } from "../errors";
+import { floorEffort, modelPolicy, offFormatFor } from "./model-policy";
 
 /** Host ladder including snap-only `minimal`. Do not alias xhigh/max → ultra. */
 export const REASONING_LADDER = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"] as const;
@@ -64,9 +65,18 @@ export function resolveRequestReasoningEffort(input: {
   return "medium";
 }
 
-export function readOptionalReasoningEffort(body: unknown): ReasoningEffort {
+/** A Thinking level, and whether the person picked it or the host filled in `medium`. */
+export type ReasoningEffortChoice = { effort: ReasoningEffort; explicit: boolean };
+
+/**
+ * The Thinking level a request asks for. `explicit` is true only when the body carries a level or
+ * `thinking: false`. A body that says nothing gets `medium` with `explicit: false`, so a model the
+ * policy table does not know can be sent no effort at all (`models/model-policy.ts`) instead of a
+ * level nobody asked for.
+ */
+export function readReasoningEffortChoice(body: unknown): ReasoningEffortChoice {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
-    return "medium";
+    return { effort: "medium", explicit: false };
   }
   const record = body as { reasoningEffort?: unknown; thinking?: unknown };
   if (record.reasoningEffort !== undefined && record.reasoningEffort !== null) {
@@ -76,20 +86,39 @@ export function readOptionalReasoningEffort(body: unknown): ReasoningEffort {
     const normalized = record.reasoningEffort.trim().toLowerCase();
     const aliased = ALIASES[normalized];
     if (aliased) {
-      return aliased;
+      return { effort: aliased, explicit: true };
     }
     if (!isReasoningEffort(normalized)) {
       throw new ApiError("invalid_request", `reasoningEffort must be ${EFFORT_LIST}`, 400);
     }
     if (record.thinking === false && normalized !== "none") {
-      return "none";
+      return { effort: "none", explicit: true };
     }
-    return normalized;
+    return { effort: normalized, explicit: true };
   }
   if (record.thinking === false) {
-    return "none";
+    return { effort: "none", explicit: true };
   }
-  return "medium";
+  return { effort: "medium", explicit: false };
+}
+
+export function readOptionalReasoningEffort(body: unknown): ReasoningEffort {
+  return readReasoningEffortChoice(body).effort;
+}
+
+/**
+ * Did the person choose this Thinking level? The host's parsed flag wins; a caller that passes only
+ * a level (or `thinking: false`) chose it; a caller that passes nothing did not.
+ */
+export function isReasoningEffortExplicit(input: {
+  thinking?: boolean;
+  reasoningEffort?: ReasoningEffort;
+  reasoningEffortExplicit?: boolean;
+}): boolean {
+  if (input.reasoningEffortExplicit !== undefined) {
+    return input.reasoningEffortExplicit;
+  }
+  return input.reasoningEffort !== undefined || input.thinking === false;
 }
 
 /**
@@ -126,17 +155,20 @@ export function closestReasoningEffort(
   return best;
 }
 
-/** GPT-6 does not support `none`. Per-model allowlists live in `runtime/effort-allowlist.ts`. */
+/**
+ * A model that cannot be turned off (GPT-6) lifts Off to its lowest level. Which models those are,
+ * and what the lowest level is, is declared in `models/model-policy.ts`; per-wire allowlists are
+ * `runtime/effort-allowlist.ts`.
+ */
 export function coerceReasoningEffortForModel(modelId: string, effort: ReasoningEffort): ReasoningEffort {
   if (effort !== "none") {
     return effort;
   }
-  const id = modelId.trim().toLowerCase();
-  const leaf = id.includes("/") ? id.slice(id.lastIndexOf("/") + 1) : id;
-  if (/^gpt-6/.test(leaf) || leaf.includes("astra") || /gpt-6/.test(id)) {
-    return "low";
+  const policy = modelPolicy(modelId);
+  if (offFormatFor(policy, "responses") !== "floor") {
+    return effort;
   }
-  return effort;
+  return floorEffort(policy) ?? effort;
 }
 
 /**
@@ -159,6 +191,54 @@ export function applyReasoningEffortToChatBody(body: unknown, effort: string): u
     return body;
   }
   return { ...(body as Record<string, unknown>), reasoning_effort: effort };
+}
+
+/**
+ * The Responses `reasoning` block for a model the AI SDK does not know as a reasoning model.
+ *
+ * `@ai-sdk/openai` 1.3.24 writes `reasoning: { effort, summary }` only for ids that start with `o` or
+ * `gpt-5` (`getResponsesModelConfig`), so GPT-6 and a GPT newer than that went to /responses with the
+ * level the person chose silently dropped. The runtime calls this on the outgoing /responses body and
+ * gets the block the SDK would have written for gpt-5.x: same shape (`summary: "auto"` for every level
+ * but Off, which is `{ effort: "none" }` alone) and the same place in the body, right after `input`.
+ *
+ * A body that already carries a `reasoning` block is the SDK's own and comes back untouched, so a
+ * model the SDK does handle is never rewritten. Never mutates.
+ */
+export function applyReasoningToResponsesBody(body: unknown, effort: string): unknown {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return body;
+  }
+  const record = body as Record<string, unknown>;
+  if ("reasoning" in record) {
+    return body;
+  }
+  const reasoning = effort === "none" ? { effort } : { effort, summary: "auto" };
+  const next: Record<string, unknown> = {};
+  let placed = false;
+  for (const [key, value] of Object.entries(record)) {
+    next[key] = value;
+    if (key === "input") {
+      next.reasoning = reasoning;
+      placed = true;
+    }
+  }
+  if (!placed) {
+    next.reasoning = reasoning;
+  }
+  return next;
+}
+
+/** The chat-completions body with no `reasoning_effort`. The same body back when it has none. */
+export function withoutReasoningEffort(body: unknown): unknown {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return body;
+  }
+  if (!("reasoning_effort" in body)) {
+    return body;
+  }
+  const { reasoning_effort: _dropped, ...rest } = body as Record<string, unknown>;
+  return rest;
 }
 
 export function isChatCompletionsUrl(url: unknown): boolean {

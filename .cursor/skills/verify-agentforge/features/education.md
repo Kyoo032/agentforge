@@ -13,11 +13,11 @@ Education is a work mode on the Default rail. Opening it with no task shows four
 
 ## How to get to it (user POV)
 
-- Choose Education on the left rail (`mode-education`). Default already has the tab. With no task chosen, the four cards are the first thing on the page.
+- Choose Education on the left rail (`mode-education`). A desk that already has it shows the tab. A fresh first-run desk starts with Research, Images, Videos and Presentation only, so turn this one on first (Workspaces, Edit on the desk). With no task chosen, the four cards are the first thing on the page.
 - Open a task from a card, or open the rail word `tasks` and pick a row.
 - Open `http://127.0.0.1:3000/education` when the tab is unlocked. `?task=quiz` opens the quiz. `?task=nope` opens the lesson.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

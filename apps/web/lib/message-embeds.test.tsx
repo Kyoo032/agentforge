@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { FormattedText } from "@/components/formatted-text";
-import { PlaceholderMascot } from "@/components/placeholder-mascot";
+import { NultronMascot } from "@/components/nultron/nultron-mascot";
 import {
   classifyStandaloneHref,
   jobEmbedsFromOutput,
@@ -94,14 +94,25 @@ describe("file blocks and job results", () => {
   });
 });
 
-describe("placeholder mascot", () => {
-  it("exposes the four states and names the art as a placeholder", () => {
+describe("Nultron mascot", () => {
+  it("exposes the state, its motion and the picture of the character, not a placeholder", () => {
     for (const state of ["idle", "thinking", "answering", "error"] as const) {
-      const html = renderToStaticMarkup(<PlaceholderMascot state={state} />);
+      const html = renderToStaticMarkup(<NultronMascot state={state} />);
       expect(html).toContain(`data-state="${state}"`);
       expect(html).toContain('data-testid="chat-mascot"');
-      expect(html).toContain('data-placeholder="nultron-mascot"');
-      expect(html).toContain("<svg");
+      expect(html).toContain('data-mascot="nultron"');
+      expect(html).not.toContain("data-placeholder");
+      expect(html).toContain('class="chat-mascot nx-root"');
+      expect(html).toContain("<img");
+      expect(html).not.toContain("<svg");
     }
+  });
+
+  it("draws the head at chip size and the body from 64 px", () => {
+    expect(renderToStaticMarkup(<NultronMascot state="idle" size={40} />)).toContain(`data-variant="head"`);
+    expect(renderToStaticMarkup(<NultronMascot state="idle" size={40} />)).not.toContain(`data-variant="full"`);
+    expect(renderToStaticMarkup(<NultronMascot state="idle" size={64} />)).toContain(`data-variant="full"`);
+    expect(renderToStaticMarkup(<NultronMascot state="idle" placement="empty" />)).toContain(`data-variant="full"`);
+    expect(renderToStaticMarkup(<NultronMascot state="idle" placement="beside" />)).toContain(`data-variant="head"`);
   });
 });

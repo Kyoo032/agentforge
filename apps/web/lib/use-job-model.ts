@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { JobMode } from "@agentforge/core";
+import { modelsForMode, type ModelCatalogWire } from "@agentforge/core/mode-catalog";
 import { apiFetch } from "./api-client";
+import { readSettings } from "./settings-read";
 
 export type JobStudioModel = {
   id: string;
@@ -55,6 +57,30 @@ function asString(value: unknown): string {
 }
 
 /**
+ * What one mode's picker shows and starts on, from the two host answers it reads.
+ *
+ * The models come through `modelsForMode`, because the host sends the chat catalogue once (`models`)
+ * and not a copy per mode; a list the host did send for this mode still wins. The selected model is
+ * the Settings override if the catalogue still has it, else the catalogue's default for the mode.
+ */
+export function jobModelAnswer(input: { catalog: unknown; settings: unknown; mode: JobMode }): {
+  models: JobStudioModel[];
+  model: string;
+} {
+  const { catalog, settings, mode } = input;
+  const models = asModels(
+    modelsForMode(catalog && typeof catalog === "object" ? (catalog as ModelCatalogWire<unknown>) : null, mode),
+  );
+  const catalogDefault = asString(
+    catalog && typeof catalog === "object" ? (catalog as { defaults?: Record<string, unknown> }).defaults?.[mode] : "",
+  );
+  const settingsModel = asString(
+    settings && typeof settings === "object" ? (settings as Record<string, unknown>)[SETTINGS_KEY[mode]] : "",
+  );
+  return { models, model: seedJobModel({ models, catalogDefault, settingsModel }) };
+}
+
+/**
  * The mode's models, the one that is selected, and whether the person chose it.
  *
  * `model` is always sent, because a request without one is a request the host guesses at. But a
@@ -77,27 +103,14 @@ export function useJobModel(mode: JobMode): {
     setPinned(false);
     void Promise.all([
       apiFetch("/api/v1/models").then((response) => response.json().catch(() => ({}))),
-      apiFetch("/api/v1/settings").then((response) => response.json().catch(() => ({}))),
+      readSettings().then((answer) => answer.body ?? {}),
     ]).then(([catalog, settings]) => {
       if (cancelled) {
         return;
       }
-      const list = asModels(
-        catalog && typeof catalog === "object"
-          ? ((catalog as { modes?: Record<string, unknown> }).modes?.[mode] ??
-              (catalog as { models?: unknown }).models)
-          : [],
-      );
-      const catalogDefault = asString(
-        catalog && typeof catalog === "object"
-          ? (catalog as { defaults?: Record<string, unknown> }).defaults?.[mode]
-          : "",
-      );
-      const settingsModel = asString(
-        settings && typeof settings === "object" ? (settings as Record<string, unknown>)[SETTINGS_KEY[mode]] : "",
-      );
-      setModels(list);
-      setModel(seedJobModel({ models: list, catalogDefault, settingsModel }));
+      const answer = jobModelAnswer({ catalog, settings, mode });
+      setModels(answer.models);
+      setModel(answer.model);
     });
     return () => {
       cancelled = true;

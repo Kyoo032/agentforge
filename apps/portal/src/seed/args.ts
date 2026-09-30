@@ -28,7 +28,7 @@ export class SeedArgsError extends Error {
   }
 }
 
-const DEFAULT_TENANT = "dpsbuddy";
+const DEFAULT_TENANT = "nultron";
 const DEFAULT_ORG = "Kyo";
 const DEFAULT_SEAT_CAP = 20;
 /**

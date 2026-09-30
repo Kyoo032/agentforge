@@ -129,6 +129,31 @@ function hostStatusRuntime(input) {
 }
 
 /**
+ * The ffmpeg block the Edit doctor reports, ready for `host-status.json`; `null` when the host could
+ * not say. Best effort by design: a probe that throws, or answers with anything but the JSON report,
+ * must never keep the status file from being written.
+ *
+ * This runs **after** the window has loaded, never before it. The probe walks PATH and runs the
+ * binary (about 270 ms on a Windows desk with ffmpeg installed), and boot used to wait for it ahead of
+ * `navigateToUi()`. Readers of the file therefore see no `editFfmpeg` key for a moment after `ready`
+ * turns true: an absent key means "not probed yet", `null` means "the host could not say".
+ *
+ * @param {() => Promise<{ type?: string, body?: { ffmpeg?: unknown } } | null | undefined>} askDoctor
+ * @returns {Promise<object | null>}
+ */
+async function readEditFfmpeg(askDoctor) {
+  try {
+    const doctor = await askDoctor();
+    if (doctor?.type === "json" && doctor.body?.ffmpeg && typeof doctor.body.ffmpeg === "object") {
+      return doctor.body.ffmpeg;
+    }
+  } catch {
+    // the edit doctor is optional during boot
+  }
+  return null;
+}
+
+/**
  * Switches that would hand a second process a debugger on this one, by exact name (the part before
  * any `=value`). `--inspect-*` is matched by prefix so `--inspect-brk`, `--inspect-port` and
  * `--inspect-publish-uid` are all covered without listing every Node build's spelling.
@@ -177,5 +202,6 @@ module.exports = {
   relaunchPlan,
   legacyMigrationPlan,
   hostStatusRuntime,
+  readEditFfmpeg,
   hasDebugSwitch,
 };

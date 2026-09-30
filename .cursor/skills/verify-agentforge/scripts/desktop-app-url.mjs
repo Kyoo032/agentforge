@@ -3,11 +3,11 @@ import { join } from "node:path";
 
 /**
  * Packaged Electron writes host-status.json under userData
- * (`app.setName("DPSBuddy")` + `extraMetadata.name: "agentforge"`):
- *   Windows: %APPDATA%\DPSBuddy\host-status.json
+ * (`app.setName("Nultron")` + `extraMetadata.name: "agentforge"`):
+ *   Windows: %APPDATA%\Nultron\host-status.json
  *            (legacy fallback: %APPDATA%\@agentforge\desktop\host-status.json)
- *   Linux:   $XDG_CONFIG_HOME/DPSBuddy/host-status.json or ~/.config/DPSBuddy/host-status.json
- *   macOS:   ~/Library/Application Support/DPSBuddy/host-status.json
+ *   Linux:   $XDG_CONFIG_HOME/Nultron/host-status.json or ~/.config/Nultron/host-status.json
+ *   macOS:   ~/Library/Application Support/Nultron/host-status.json
  *
  * Older installers wrote app-url.txt (HTTP child). Doctor --desktop must not require that file.
  *
@@ -24,7 +24,7 @@ export function desktopHostStatusCandidates(
   return desktopUserDataDirs(env, platform, home).map((dir) => join(dir, "host-status.json"));
 }
 
-/** @deprecated HTTP child leftover. Packaged DPSBuddy no longer writes this. */
+/** @deprecated HTTP child leftover. Packaged Nultron no longer writes this. */
 export function desktopAppUrlCandidates(
   env = process.env,
   platform = process.platform,
@@ -48,7 +48,7 @@ export function desktopUserDataDirs(
     const roaming = typeof env.APPDATA === "string" ? env.APPDATA.trim() : "";
     if (roaming) {
       return [
-        join(roaming, "DPSBuddy"),
+        join(roaming, "Nultron"),
         join(roaming, "Kemenkeu AI"),
         join(roaming, "AIHub Metranet"),
         join(roaming, "@agentforge", "desktop"),
@@ -57,7 +57,7 @@ export function desktopUserDataDirs(
   }
   if (platform === "darwin") {
     return [
-      join(home, "Library", "Application Support", "DPSBuddy"),
+      join(home, "Library", "Application Support", "Nultron"),
       join(home, "Library", "Application Support", "Kemenkeu AI"),
       join(home, "Library", "Application Support", "AIHub Metranet"),
     ];
@@ -65,7 +65,7 @@ export function desktopUserDataDirs(
   const xdg = typeof env.XDG_CONFIG_HOME === "string" ? env.XDG_CONFIG_HOME.trim() : "";
   const configHome = xdg || join(home, ".config");
   return [
-    join(configHome, "DPSBuddy"),
+    join(configHome, "Nultron"),
     join(configHome, "Kemenkeu AI"),
     join(configHome, "AIHub Metranet"),
   ];
@@ -77,10 +77,10 @@ export function desktopUserDataDirs(
  */
 export function packagedSqliteHint(platform = process.platform) {
   if (platform === "win32") {
-    return "%APPDATA%/DPSBuddy/agentforge.sqlite";
+    return "%APPDATA%/Nultron/agentforge.sqlite";
   }
   if (platform === "darwin") {
-    return "~/Library/Application Support/DPSBuddy/agentforge.sqlite";
+    return "~/Library/Application Support/Nultron/agentforge.sqlite";
   }
-  return "$XDG_CONFIG_HOME/DPSBuddy/agentforge.sqlite or ~/.config/DPSBuddy/agentforge.sqlite";
+  return "$XDG_CONFIG_HOME/Nultron/agentforge.sqlite or ~/.config/Nultron/agentforge.sqlite";
 }

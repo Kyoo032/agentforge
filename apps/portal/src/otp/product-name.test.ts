@@ -3,13 +3,13 @@
  *
  * The bug this file exists for: the subject carried a product-name constant of the mail's own while
  * every page of the same sign-in printed a different one. It now asks the tenant first and the
- * portal's own copy catalog second -- the same catalog the pages read, which today says DPSBuddy.
+ * portal's own copy catalog second -- the same catalog the pages read, which today says Nultron.
  */
 import { describe, expect, it } from "vitest";
 import { translator } from "../views/i18n";
 import { tenantProductName } from "./product-name";
 
-const TENANT = Object.freeze({ slug: "dpsbuddy", name: "dpsbuddy" });
+const TENANT = Object.freeze({ slug: "nultron", name: "nultron" });
 
 describe("tenantProductName", () => {
   it("prefers the tenant's branding product name", () => {
@@ -30,9 +30,9 @@ describe("tenantProductName", () => {
    * would put a lowercase slug in a subject line under a page that prints a real name.
    */
   it("treats a name that only repeats the slug as no name at all", () => {
-    expect(tenantProductName(TENANT, { product_name: "dpsbuddy" })).toBeNull();
+    expect(tenantProductName(TENANT, { product_name: "nultron" })).toBeNull();
     expect(tenantProductName(TENANT, {})).toBeNull();
-    expect(tenantProductName({ slug: "dpsbuddy", name: "DPSBuddy" }, {})).toBeNull();
+    expect(tenantProductName({ slug: "nultron", name: "Nultron" }, {})).toBeNull();
     expect(tenantProductName({ slug: "acme-co", name: "acme co" }, {})).toBeNull();
   });
 
@@ -46,7 +46,7 @@ describe("tenantProductName", () => {
 
   it("never returns a name of its own, and the fallback is what the pages print", () => {
     expect(tenantProductName(TENANT, null)).toBeNull();
-    expect(translator("en")("product")).toBe("DPSBuddy");
-    expect(translator("id")("product")).toBe("DPSBuddy");
+    expect(translator("en")("product")).toBe("Nultron");
+    expect(translator("id")("product")).toBe("Nultron");
   });
 });

@@ -1,7 +1,15 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { editAgentBindings } from "@agentforge/core";
+import { EDIT_AGENT_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 
 describe("edit agent timeline", () => {
+  // The first import of ./agent-run evaluates the core, db, settings-store and tool-registry closure
+  // (7 s cold on the Windows desk). That is the cost, not what the first case asserts, so it is
+  // paid here under its own budget and the cases keep vitest's default.
+  beforeAll(async () => {
+    await import("./agent-run");
+  }, EDIT_AGENT_IMPORT_BUDGET_MS);
+
   afterAll(async () => {
     const { sql } = await import("@agentforge/db");
     sql.close();

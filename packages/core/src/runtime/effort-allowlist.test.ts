@@ -82,3 +82,36 @@ describe("snap then wire bodies", () => {
     });
   });
 });
+
+describe("a body with no effort to send", () => {
+  it("leaves Messages thinking alone, and still cleans the body the way it always does", () => {
+    const body = applyAnthropicMessagesBody(
+      { model: "some-claude", messages: [], reasoning_effort: "high", store: false, provider: { zdr: true } },
+      undefined,
+    ) as Record<string, unknown>;
+    expect(body.thinking).toBeUndefined();
+    expect(body.output_config).toBeUndefined();
+    expect(body.reasoning_effort).toBeUndefined();
+    expect(body.store).toBeUndefined();
+    expect(body.provider).toBeUndefined();
+    expect(body.max_tokens).toBe(16_384);
+  });
+
+  it("leaves an existing Messages output_config alone", () => {
+    const body = applyAnthropicMessagesBody({ model: "m", output_config: { format: "json" } }, undefined) as Record<
+      string,
+      unknown
+    >;
+    expect(body.output_config).toEqual({ format: "json" });
+    expect(body.thinking).toBeUndefined();
+  });
+
+  it("leaves Gemini thinkingConfig alone", () => {
+    const body = applyGeminiGenerateContentBody(
+      { model: "gemini-x", reasoning_effort: "high", generationConfig: { temperature: 1 } },
+      undefined,
+    ) as Record<string, unknown>;
+    expect(body.generationConfig).toEqual({ temperature: 1 });
+    expect(body.reasoning_effort).toBeUndefined();
+  });
+});

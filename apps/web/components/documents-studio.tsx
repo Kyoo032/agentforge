@@ -351,7 +351,7 @@ export function DocumentsStudio() {
             data-testid="documents-prompt"
             aria-label={t("documents.topicAria")}
           />
-          {busy === "generate" ? <MascotSlot mode="documents" placement="beside" busy phase="drafting" /> : null}
+          {busy === "generate" ? <MascotSlot mode="documents" placement="beside" busy phase="drafting" decorative /> : null}
           <button
             type="submit"
             className={

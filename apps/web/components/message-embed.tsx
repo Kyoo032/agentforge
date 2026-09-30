@@ -34,7 +34,9 @@ export function MessageEmbed({ kind, title, detail, href, src, alt, body }: Prop
       <span className="block text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-3)]">
         {t(KICKER[kind])}
       </span>
-      {title ? <span className="mt-0.5 block text-sm font-medium text-[var(--text)]">{title}</span> : null}
+      {title ? (
+        <span className="mt-0.5 block text-sm font-medium text-[var(--text)] [overflow-wrap:anywhere]">{title}</span>
+      ) : null}
       {detail ? <span className="mt-0.5 block break-words text-xs text-[var(--text-2)]">{detail}</span> : null}
       {kind === "image" && src ? (
         <img
@@ -48,12 +50,16 @@ export function MessageEmbed({ kind, title, detail, href, src, alt, body }: Prop
         <video src={src} controls className="mt-2 max-w-full rounded-[var(--r-card)]" data-testid="message-video" />
       ) : null}
       {body && !longBody ? (
-        <span className="mt-1 block whitespace-pre-wrap text-xs text-[var(--text-2)]">{body}</span>
+        <span className="mt-1 block whitespace-pre-wrap text-xs text-[var(--text-2)] [overflow-wrap:anywhere]">
+          {body}
+        </span>
       ) : null}
       {body && longBody ? (
         <details className="mt-1">
           <summary className="cursor-pointer text-xs text-[var(--accent)]">{t("chat.embed.preview")}</summary>
-          <span className="mt-1 block whitespace-pre-wrap text-xs text-[var(--text-2)]">{body}</span>
+          <span className="mt-1 block whitespace-pre-wrap text-xs text-[var(--text-2)] [overflow-wrap:anywhere]">
+            {body}
+          </span>
         </details>
       ) : null}
       {href ? <span className="mt-1 block text-xs text-[var(--accent)]">{t("chat.embed.open")}</span> : null}

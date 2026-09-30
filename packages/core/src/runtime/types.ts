@@ -36,6 +36,12 @@ export type AgentRuntime = {
     /** None skips reasoning. Default medium when omitted. */
     reasoningEffort?: ReasoningEffort;
     /**
+     * Whether the person picked `reasoningEffort` (or turned Thinking off), as the host parsed it from
+     * the request. Left out, a level passed here counts as chosen and nothing at all does not. It only
+     * matters for a model the policy table does not know, which is sent no effort unless it was chosen.
+     */
+    reasoningEffortExplicit?: boolean;
+    /**
      * Per-send POST path on the saved Endpoint URL.
      * `auto` keeps today's family pick (GPT-5 → Responses, else Completions).
      */

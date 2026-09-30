@@ -1,24 +1,29 @@
 # Map — Desktop pack routes
 
-> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.0`, under active development again.
+> **Two products, one repo.** **Personal** is the Mac/Windows Nultron app — current cut `0.15.0`, under active development again.
 > **Enterprise** is the hosted multi-user web app.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
 Last verified: 2026-09-28 at 7a281ad
 
+Re-anchored 2026-09-29, working tree, not committed: the two `main.cjs` citations for `installContentSecurityPolicy` (the
+ffmpeg probe moved behind the first paint and shifted them), and the note on `editFfmpeg` in **Proof**.
+
+Names refreshed 2026-09-29 for the Nultron rename, in the working tree and not committed. Citations into the pack skill and `apps/desktop/main.cjs` were re-anchored that day; every other `apps/desktop` citation, including the `release-desktop.mjs` gate table, is still as of 7a281ad and had already drifted (`checkGitClean` sits at `:134`, not `:120-125`). Nothing here was packed or driven under the new names.
+
 ## Overview
 
 Two separate routes producing one GitHub release. **Windows** builds an NSIS installer with electron-builder inside an isolated git worktree. **macOS** builds `.app` / `.dmg` / `.zip` inside a Linux Docker container, from the main checkout. They never share a working directory and never share proof.
 
-Everything here is harness, not product: the pack skill lives in `.cursor/skills/pack-dpsbuddy/` and nothing in it ships inside DPSBuddy.
+Everything here is harness, not product: the pack skill lives in `.cursor/skills/pack-nultron/` and nothing in it ships inside Nultron.
 
 ## How it works
 
 ### Shared prep
 
-`.cursor/skills/pack-dpsbuddy/SKILL.md:140`, `:145-152`: run preflight, `git fetch origin` and rebase the bump onto `origin/main`, bump **only** `apps/desktop/package.json` version, write `docs/public/<version>-notes.md`, point the AGENTS.md ship list at that patch, commit. The commit matters because **Docker packs HEAD**.
+`.cursor/skills/pack-nultron/SKILL.md:142`, `:164-171`: run preflight, `git fetch origin` and rebase the bump onto `origin/main`, bump **only** `apps/desktop/package.json` version, write `docs/public/<version>-notes.md`, point the AGENTS.md ship list at that patch, commit. The commit matters because **Docker packs HEAD**.
 
-`.cursor/skills/pack-dpsbuddy/scripts/preflight.mjs` aborts on: not `win32` (`:34-36`), `CI` or `CURSOR_CLOUD` set (`:37-39`), `ELECTRON_RUN_AS_NODE` set (`:40-42`), missing or non-3.12 Python (`:44-52`), Docker not reporting `linux` (`:54-58`), a non-semver version, and fewer than 7 starter files / 6 example clips (`:67-75`). A **dirty tree is reported, not fatal** (`:64-65`) — with the note that mac Docker builds HEAD only.
+`.cursor/skills/pack-nultron/scripts/preflight.mjs` aborts on: not `win32` (`:34-36`), `CI` or `CURSOR_CLOUD` set (`:37-39`), `ELECTRON_RUN_AS_NODE` set (`:40-42`), missing or non-3.12 Python (`:44-52`), Docker not reporting `linux` (`:54-58`), a non-semver version, and fewer than 7 starter files / 6 example clips (`:67-75`). A **dirty tree is reported, not fatal** (`:64-65`) — with the note that mac Docker builds HEAD only.
 
 ### Windows — NSIS in an isolated worktree
 
@@ -31,13 +36,13 @@ npx pnpm@9.15.9 install --frozen-lockfile
 npx pnpm@9.15.9 desktop:build
 ```
 
-(`.cursor/skills/pack-dpsbuddy/SKILL.md:154-165`.) `desktop:build` chains (`apps/desktop/package.json:9`): `scripts/edit-starters.mjs --check` → `scripts/video-examples.mjs --check` → `pnpm --filter @agentforge/web build` → `apps/desktop/scripts/stage-renderer.mjs` → `apps/desktop/scripts/pack-brand.mjs`.
+(`.cursor/skills/pack-nultron/SKILL.md:173-187`.) `desktop:build` chains (`apps/desktop/package.json:9`): `scripts/edit-starters.mjs --check` → `scripts/video-examples.mjs --check` → `pnpm --filter @agentforge/web build` → `apps/desktop/scripts/stage-renderer.mjs` → `apps/desktop/scripts/pack-brand.mjs`.
 
 `stage-renderer.mjs` (`apps/desktop/scripts/stage-renderer.mjs:24-61`): esbuild-bundles `src/host-entry.ts` → `host.cjs` (cjs, minified, externals `better-sqlite3` / `electron` / `keytar`), copies `apps/web/dist` → `resources/renderer` minus source maps, **injects the CSP**, copies `packages/db/drizzle` → `resources/drizzle`, re-checks starter media, and fails if `resources/drizzle/meta/_journal.json` is missing.
 
 `pack-brand.mjs` copies brand assets into place, resolves `electron-builder/cli.js` and spawns it with `--win nsis --publish never` plus `-c.artifactName` / `-c.productName` / `-c.appId` / `-c.win.icon` overrides, then **unconditionally restores the public `agentforge` brand** (`apps/desktop/scripts/pack-brand.mjs:226-230`) — even when the build failed — so splash and icon leftovers cannot leak into the next public build or a commit.
 
-electron-builder config (`apps/desktop/package.json:34-170`): `appId com.tokotoken.agentforge`, `productName DPSBuddy`, `artifactName "DPSBuddy Setup ${version}.${ext}"`, `compression maximum`, `win.target [{nsis, x64}]`, `nsis { oneClick:false, perMachine:false, allowToChangeInstallationDirectory:true, deleteAppDataOnUninstall:true }`. The asar carries `main.cjs`, `preload.cjs`, `brand-read.cjs`, `auto-update.cjs`, `edit-menu.cjs`, `lifecycle.cjs`, `navigation.cjs`, `renderer-csp.cjs`, `host.cjs` and `splash/**`. `asarUnpack` keeps `better-sqlite3` and `keytar` outside, because they are `.node` binaries.
+electron-builder config (`apps/desktop/package.json:34-170`): `appId com.tokotoken.agentforge`, `productName Nultron`, `artifactName "Nultron Setup ${version}.${ext}"` (mac `"Nultron-${version}-mac-${arch}.${ext}"`), `compression maximum`, `win.target [{nsis, x64}]`, `nsis { oneClick:false, perMachine:false, allowToChangeInstallationDirectory:true, deleteAppDataOnUninstall:true }`. The asar carries `main.cjs`, `preload.cjs`, `brand-read.cjs`, `auto-update.cjs`, `edit-menu.cjs`, `lifecycle.cjs`, `navigation.cjs`, `renderer-csp.cjs`, `host.cjs` and `splash/**`. `asarUnpack` keeps `better-sqlite3` and `keytar` outside, because they are `.node` binaries.
 
 ### The CSP injection
 
@@ -54,7 +59,7 @@ base-uri 'none'; form-action 'none'
 
 **Why at stage time and not in `apps/web/index.html`** — `apps/desktop/scripts/stage-renderer.mjs:41-45`: the renderer ships as a `file://` document, where a response header never reaches it (Electron's `webRequest` does not observe Chromium's file loader), so the policy has to live in the page. It is injected at stage time because that same `index.html` is what `pnpm dev` serves through Vite, "whose Fast Refresh preamble, eval'd HMR client and dev-server websocket all fall foul of `script-src 'self'` / `connect-src 'self'`".
 
-The policy is enforced **twice**: the meta tag governs the packaged `file://` window, and `installContentSecurityPolicy()` (`apps/desktop/main.cjs:366`, called at `:789`) adds a response header for anything else the packaged session serves, such as `agentforge://` responses.
+The policy is enforced **twice**: the meta tag governs the packaged `file://` window, and `installContentSecurityPolicy()` (`apps/desktop/main.cjs:387`, called at `:819`) adds a response header for anything else the packaged session serves, such as `agentforge://` responses.
 
 ### macOS — Docker Linux from the main checkout
 
@@ -72,13 +77,13 @@ Inside, `apps/desktop/platform/macos/docker/build-mac.sh`:
 2. Linux `pnpm install --frozen-lockfile`, renderer build, `stage-renderer.mjs`, `pack-brand.mjs --restore-public` (`:47-54`).
 3. Darwin native swap: strip `better-sqlite3/build`, keep only `prebuilds/darwin-<arch>.node`; download and cache keytar's official `napi-v3-darwin-<arch>` prebuild; fetch the darwin `@firecrawl/anydoc` package per arch against the sha512 pinned in `packages/host/src/components/manifest.ts` and purge every non-darwin anydoc package from the pnpm store (`:56-107`).
 4. Per arch (`:114-160`): verify the keytar binary is Mach-O; `npx electron-builder --mac --dir --$arch -c.npmRebuild=false -c.mac.identity=null --publish never`; `rcodesign sign` the whole bundle ad-hoc; `verify-bundle.py` on the raw `.app`; `zip -r -y -X`; `make-dmg.py` building an HFS+ volume with libdmg-hfsplus; `verify-bundle.py` again over the packaged dmg **and** zip.
-5. Copy `DPSBuddy-<version>-mac-*.dmg|zip` to `/out` and write `mac-<version>.sha256` (`:162-168`).
+5. Copy `Nultron-<version>-mac-*.dmg|zip` to `/out` and write `mac-<version>.sha256` (`:162-168`).
 
 Note the Docker route does **not** use electron-builder's own dmg/zip targets — it takes `--dir` (bundle only) and hand-rolls both archives.
 
 ### Release
 
-Combine first: copy `DPSBuddy Setup <v>.exe`, `.blockmap` and `latest.yml` from the **worktree** dist into the main checkout's `apps/desktop/dist/` (mac artifacts are already there). Then `release-desktop.mjs --require-mac --dry-run`, then without `--dry-run`.
+Combine first: copy `Nultron Setup <v>.exe`, `.blockmap` and `latest.yml` from the **worktree** dist into the main checkout's `apps/desktop/dist/` (mac artifacts are already there). Then `release-desktop.mjs --require-mac --dry-run`, then without `--dry-run`.
 
 Gates in `apps/desktop/scripts/release-desktop.mjs`, in order:
 
@@ -108,34 +113,34 @@ Gates in `apps/desktop/scripts/release-desktop.mjs`, in order:
 
 | Trap | Symptom | Guard |
 |---|---|---|
-| `ELECTRON_RUN_AS_NODE` set by an agent shell | Electron runs as Node; the pack and any launch are nonsense | Unset in every pack shell; preflight aborts (`traps.md:16-18`, `preflight.mjs:40-42`) |
+| `ELECTRON_RUN_AS_NODE` set by an agent shell | Electron runs as Node; the pack and any launch are nonsense | Unset in every pack shell; preflight aborts (`traps.md:16-20`, `preflight.mjs:40-42`) |
 | Wrong Python | `@electron/rebuild` picks Windows Store Python 3.14, which has no `distutils` | Pin `PYTHON` / `npm_config_python` to 3.12; preflight checks the version (`traps.md:5-14`, `preflight.mjs:44-52`). **Windows-native rebuild only** — the Linux container does not use that interpreter (`traps.md:59`) |
 | Dirty tree | Uncommitted product code is silently absent from the `.app`, because Docker clones HEAD | Commit the bump first; `mac-build-docker.mjs:76-82` refuses without `--allow-dirty` (`traps.md:22-24`) |
 | Stale or shared worktree | Building against old leftovers, or polluting main `node_modules` / `dist` | Fresh `agentforge-pack-<version>` every time; never reuse the un-suffixed `agentforge-pack` (`traps.md:26-35`) |
-| Wrong cwd | Docker would mount the worktree as `/src` and drop mac files next to `win-unpacked`; NSIS in main pollutes main | The cwd→command table (`traps.md:52-57`); `SKILL.md:196` |
-| NSIS `/S` hangs | Silent install waits forever | `oneClick:false` + `allowToChangeInstallationDirectory:true` show a directory picker `/S` cannot drive. Prove by launching `dist\win-unpacked\DPSBuddy.exe` (`traps.md:37-39`) |
-| `hfsplus ls` parser | `ERROR: /DPSBuddy.app: … ['Contents']` | `make-dmg.py`'s `parse_hfs_ls_name` must keep spaced helper names (`DPSBuddy Helper (GPU).app`) and accept both numeric and `Jan 01 1980` date columns. Fix the parser, do not double the volume (`traps.md:41-50`; history in `BUILD-DMG-ON-WINDOWS.md:47`, fixed in `051382e` / `9c0bd27`) |
+| Wrong cwd | Docker would mount the worktree as `/src` and drop mac files next to `win-unpacked`; NSIS in main pollutes main | The cwd→command table (`traps.md:52-57`); `SKILL.md:198` |
+| NSIS `/S` hangs | Silent install waits forever | `oneClick:false` + `allowToChangeInstallationDirectory:true` show a directory picker `/S` cannot drive. Prove by launching `dist\win-unpacked\Nultron.exe` (`traps.md:37-39`) |
+| `hfsplus ls` parser | `ERROR: /Nultron.app: … ['Contents']` (recorded as `/DPSBuddy.app` in 0.14.26) | `make-dmg.py`'s `parse_hfs_ls_name` must keep spaced helper names (`Nultron Helper (GPU).app`) and accept both numeric and `Jan 01 1980` date columns. Fix the parser, do not double the volume (`traps.md:41-50`; history in `BUILD-DMG-ON-WINDOWS.md:47`, fixed in `051382e` / `9c0bd27`) |
 | `hfsplus` silent exit | Prints nothing and exits 0 when the catalog cannot grow | Per-directory `ls` read-back in `make-dmg.py`, plus `verify-bundle.py --dmg` as the second net (`BUILD-DMG-ON-WINDOWS.md:46`) |
 | 7-Zip symlink reading | Shows dmg symlinks as small files whose bytes are the target path | Prove from the HFS+ catalog's own mode bits via `dmg extract` + `hfsplus ls` (`verify-bundle.py:323-352`) |
-| Two repos | Source pushed to the wrong repo | Source stays on `Kyoo032/agentforge`; binaries go to `Kyoo032/DPSBuddy`; never `git push` source there (`traps.md:77-79`) |
+| Two repos | Source pushed to the wrong repo | Source stays on `Kyoo032/agentforge`; binaries go to `Kyoo032/Nultron`; never `git push` source there (`traps.md:79-81`) |
 
 ### Proof, and what is not proof
 
-**Windows proof:** launch `apps/desktop/dist/win-unpacked/DPSBuddy.exe` directly; `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` from the **main** checkout, exiting 0 with `surface: "desktop"`, `transport: "ipc"`, `url: "ipc"`; the `latest.yml` sha512 check; a `host.cjs` grep; and, after any shell or menu change, the manual smoke (Ctrl+V **and** right-click Paste on the key field, composer Ctrl+A/C/V, and no `DPSBuddy.exe` / `ffmpeg.exe` left in Task Manager after closing).
+**Windows proof:** launch `apps/desktop/dist/win-unpacked/Nultron.exe` directly; `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` from the **main** checkout, exiting 0 with `surface: "desktop"`, `transport: "ipc"`, `url: "ipc"`; the `latest.yml` sha512 check; a `host.cjs` grep; and, after any shell or menu change, the manual smoke (Ctrl+V **and** right-click Paste on the key field, composer Ctrl+A/C/V, and no `Nultron.exe` / `ffmpeg.exe` left in Task Manager after closing).
 
-`doctor --desktop` finds the app through `host-status.json`, picking the newest existing candidate among `%APPDATA%\DPSBuddy`, `%APPDATA%\Kemenkeu AI`, `%APPDATA%\AIHub Metranet` and the legacy `%APPDATA%\@agentforge\desktop` (`.cursor/skills/verify-agentforge/scripts/desktop-app-url.mjs:47-56`), then validates `transport === "ipc"`, `ready === true`, a positive integer pid and a non-empty `dataDir` (`.cursor/skills/verify-agentforge/scripts/doctor.mjs:90-105`).
+`doctor --desktop` finds the app through `host-status.json`, picking the newest existing candidate among `%APPDATA%\Nultron`, `%APPDATA%\Kemenkeu AI`, `%APPDATA%\AIHub Metranet` and the legacy `%APPDATA%\@agentforge\desktop` (`.cursor/skills/verify-agentforge/scripts/desktop-app-url.mjs:47-56`), then validates `transport === "ipc"`, `ready === true`, a positive integer pid and a non-empty `dataDir` (`.cursor/skills/verify-agentforge/scripts/doctor.mjs:113-139`). The packaged app adds `editFfmpeg` to that file a moment after its window loads (boot no longer waits on the ffmpeg probe), so a doctor run right after launch waits up to 3 s for the key (`withEditFfmpeg`, `doctor.mjs:83`) and reports `edit.ffmpeg: null` with `edit.ffmpegPending: true` if it never appears.
 
 **macOS proof:** per-arch `verify: all checks passed` from `verify-bundle.py` on the `.app` **and** on the dmg and zip, plus `mac-<v>.sha256`. That is **static proof only**.
 
-**Not proof:** Docker `verify-bundle.py` as Windows proof, or `doctor --desktop` on this PC as mac proof (`traps.md:61-67`); doctoring `:3000` as the installer (`traps.md:65`); `pnpm desktop:dev`, which is an Electron wrapper around webdev with no preload attached (`apps/desktop/platform/windows/AGENTS.md:27`); and above all "Docker exited 0" (`SKILL.md:200`).
+**Not proof:** Docker `verify-bundle.py` as Windows proof, or `doctor --desktop` on this PC as mac proof (`traps.md:63-69`); doctoring `:3000` as the installer (`traps.md:69`); `pnpm desktop:dev`, which is an Electron wrapper around webdev with no preload attached (`apps/desktop/platform/windows/AGENTS.md:27`); and above all "Docker exited 0" (`SKILL.md:219`).
 
 ## Where things live
 
 | File | Role |
 |---|---|
-| `.cursor/skills/pack-dpsbuddy/SKILL.md` | The two-route playbook, checklist, do-not list |
-| `.cursor/skills/pack-dpsbuddy/traps.md` | Every recorded failure and its guard |
-| `.cursor/skills/pack-dpsbuddy/scripts/preflight.mjs` | Fail-closed environment gate |
+| `.cursor/skills/pack-nultron/SKILL.md` | The two-route playbook, checklist, do-not list |
+| `.cursor/skills/pack-nultron/traps.md` | Every recorded failure and its guard |
+| `.cursor/skills/pack-nultron/scripts/preflight.mjs` | Fail-closed environment gate |
 | `apps/desktop/package.json` | electron-builder config for both platforms; the `desktop-*` scripts |
 | `apps/desktop/scripts/stage-renderer.mjs` | `host.cjs` bundle, renderer copy, CSP injection, drizzle copy |
 | `apps/desktop/renderer-csp.cjs` | The one CSP string and `injectCspMeta` |
@@ -157,7 +162,8 @@ Gates in `apps/desktop/scripts/release-desktop.mjs`, in order:
 - **This route still proves nothing about launching, but a Mac launch has now happened.** `verify-bundle.py` passing for 0.14.23, 0.14.25 and 0.14.26 is static proof only (`apps/desktop/platform/macos/AGENTS.md:35`). Blocker V2 was closed on 2026-09-15 by the owner installing and launching the dmg on his own Mac (`docs/internal/blockers-2026-09-15.md:220`) — the pack route did not prove that, an install on hardware did. `apps/desktop/platform/macos/AGENTS.md:35` and `BUILD-DMG-ON-WINDOWS.md:59-61` still read as if nobody ever had; they are stale on that point, not this page.
 - **Preflight's dirty-tree check does not abort** even though most of its siblings do. The hard refusal lives in `mac-build-docker.mjs`, not preflight.
 - **`latest-mac.yml` existing locally is normal**; uploading it is the error.
-- No repo line says in so many words that "a green `tsc` is not proof" — that follows from `SKILL.md:25` ("Never reuse the other route's proof") and the verify skill's proof definition, and is inference rather than quotation.
+- **After the rename `dist/` can hold both names.** `release-desktop.mjs` counts every `*Setup*.exe` (`SETUP_EXE`, `:46`; `checkDist`, `:141`), so an un-archived `DPSBuddy Setup 0.15.1.exe` next to a `Nultron Setup` exe fails the one-exe gate unless `--allow-stale`. `selectMacArtifacts` matches `Nultron-*` names only, so old `DPSBuddy-*-mac-*` files are ignored, not flagged. Archive the old files first.
+- No repo line says in so many words that "a green `tsc` is not proof" — that follows from `SKILL.md:27` ("Never reuse the other route's proof") and the verify skill's proof definition, and is inference rather than quotation.
 
 ## Verify
 
@@ -168,9 +174,9 @@ Gates in `apps/desktop/scripts/release-desktop.mjs`, in order:
 **Why the two routes are kept separate.**
 
 - `[Direct]` **Technical necessity.** `apps/desktop/scripts/mac-build-docker.mjs:4-7` and `BUILD-DMG-ON-WINDOWS.md:21`: electron-builder allows the mac target on Linux but not on Windows — "it only refuses the mac target when `process.platform === 'win32'`". So mac cannot be built on this host directly; a Linux container is the only route.
-- `[Direct]` **Contamination.** `.cursor/skills/pack-dpsbuddy/traps.md:56-57`: running `desktop:build` in the main checkout "pollutes main `node_modules` / `dist` (**the 0.14.23 reason for the worktree**)", and running Docker in the worktree "would mount the worktree as `/src` and write mac files next to `win-unpacked`".
+- `[Direct]` **Contamination.** `.cursor/skills/pack-nultron/traps.md:56-57`: running `desktop:build` in the main checkout "pollutes main `node_modules` / `dist` (**the 0.14.23 reason for the worktree**)", and running Docker in the worktree "would mount the worktree as `/src` and write mac files next to `win-unpacked`".
 - `[Direct]` **The incident that started the isolation rule.** `docs/internal/0.14.1-changelog.md:39`: a temp worktree with symlinked `node_modules` was deleted with PowerShell `Remove-Item -Recurse`; it followed the links and wiped tracked files in `packages/core`, `packages/db`, `packages/university`. "Rule recorded: never symlink into a worktree, never recursive-delete on Windows without checking for links."
-- `[Direct]` **Proof hygiene.** `SKILL.md:25`: "Never run one command in the other cwd. Never reuse the other route's proof." The two routes produce different artifacts on different OS surfaces, and this PC cannot launch a `.app`.
+- `[Direct]` **Proof hygiene.** `SKILL.md:27`: "Never run one command in the other cwd. Never reuse the other route's proof." The two routes produce different artifacts on different OS surfaces, and this PC cannot launch a `.app`.
 
 **Confidence: high.** Four independent sources, one of them a recorded incident.
 

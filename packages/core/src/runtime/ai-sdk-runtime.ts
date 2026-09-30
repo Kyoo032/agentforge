@@ -5,7 +5,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import type { ContentPart } from "../content/types";
 import { getTool } from "../tools/registry";
 import { resolveModelProvider } from "../models/catalog";
-import { applyJobThinking } from "../models/job-thinking";
+import { jobThinkingPlan } from "../models/job-thinking";
 import { DEFAULT_OPENAI_BASE_URL, isOfficialOpenAIBaseUrl } from "../models/probe";
 import { isOpenRouterBaseUrl } from "../privacy/openrouter";
 import { getDisabledTools } from "../tools/secret-scope";
@@ -15,6 +15,7 @@ import {
   MODEL_CONTACT_ATTEMPTS,
   formatContactProbe,
   formatModelContactError,
+  hasVisibleText,
   isRetryableModelFailure,
   shouldFailEmptyAssistant,
   shouldKeepToolTurn,
@@ -32,19 +33,23 @@ import {
   type ChatWire,
   type ResolvedChatWire,
 } from "./chat-wire";
-import { snapReasoningEffort } from "./effort-allowlist";
+import { createEffortState, type EffortState } from "./effort-plan";
+import type { GatewayFailureDetail } from "./effort-selfheal";
 import { applyMinimaxRequest, isMinimaxChatModel, wrapMinimaxResponse } from "./minimax-compat";
 import {
   applyReasoningEffortToChatBody,
+  applyReasoningToResponsesBody,
   isChatCompletionsUrl,
+  isReasoningEffortExplicit,
   resolveRequestReasoningEffort,
   toWireReasoningEffort,
+  withoutReasoningEffort,
 } from "../models/reasoning-effort";
 import type { ReasoningEffort } from "../models/reasoning-effort";
 import { parseAppLocale } from "../locale";
 import { providerEnv } from "../server-mode";
 import { redactSecrets } from "../security/redact";
-import { gatewayHttpFailure } from "../gateway-http-copy";
+import { GatewayHttpError, gatewayFailureOf, gatewayHttpFailure } from "../gateway-http-copy";
 import { abortErrorMessage, armStreamWatchdog, watchAsyncIterable } from "./stream-watchdog";
 import { readLanguageModelUsage, addTokenUsage } from "../gateway/account";
 import type { AgentRuntime, RunUsage } from "./types";
@@ -55,6 +60,7 @@ import {
 } from "../content/provider-media";
 import {
   applyZeroRetention,
+  isResponsesRequestUrl,
   readHttpErrorBody,
   sanitizeGatewayRequestBody,
 } from "../models/request-constraints";
@@ -194,12 +200,14 @@ export class AiSdkRuntime implements AgentRuntime {
     const modelName = input.version.model;
     const runLocale = parseAppLocale(input.locale);
     // One place turns a gateway 4xx/5xx into words: app-locale headline, upstream text to the log.
+    // The raw body rides on the error (never in its message) so the runtime can tell when the gateway
+    // refused the Thinking parameter and retry with a safer one.
     const gatewayFailure = (status: number, text: string): Error => {
       const failure = gatewayHttpFailure(status, text, runLocale);
       if (failure.detail && failure.detail !== failure.message) {
         console.warn(`gateway: HTTP ${status} ${redactSecrets(failure.detail).slice(0, 300)}`);
       }
-      return new Error(failure.message);
+      return new GatewayHttpError(failure.message, status, text);
     };
     const provider = resolveModelProvider(modelName);
 
@@ -207,14 +215,20 @@ export class AiSdkRuntime implements AgentRuntime {
     const officialOpenAI = isOfficialOpenAIBaseUrl(openaiBaseUrl);
     const requestedWire: ChatWire = input.wire ?? "auto";
     const resolvedWire = resolveChatWire(requestedWire, modelName);
-    const rawEffort = resolveRequestReasoningEffort(input);
-    const snappedEffort = snapReasoningEffort(modelName, rawEffort, {
+    // A job on an always-thinking family asks it to think less; Chat sends no mode here. The level
+    // goes through the same plan as any other, so a level the gateway refuses can step down and stay
+    // down instead of the knob writing itself back over the plan on every request.
+    const jobKnob = jobThinkingPlan(modelName, input.jobMode);
+    // What the Thinking level of this run is on the wire, and how it backs off if the gateway refuses
+    // it. One state for every request the run makes: the first try, a wire fallback, a retry.
+    const effort = createEffortState({
+      modelId: modelName,
+      requested: jobKnob?.effort ?? resolveRequestReasoningEffort(input),
+      explicit: jobKnob?.effort !== undefined || isReasoningEffortExplicit(input),
       wire: resolvedWire,
       officialOpenAI,
-    });
-    const wireEffort = toWireReasoningEffort(snappedEffort, {
-      officialOpenAI,
-      responses: resolvedWire === "responses",
+      // What a tenant's gateway key refused says nothing about another tenant's.
+      scope: input.tenant.tenantId,
     });
 
     // Parked extras Google (unexposed GTM). Gemini chat auto uses gateway generateContent.
@@ -228,7 +242,7 @@ export class AiSdkRuntime implements AgentRuntime {
         apiKey: googleKey,
         ...(googleBaseUrl ? { baseURL: googleBaseUrl } : {}),
       });
-      await this.stream(google(modelName), input);
+      await this.stream(google(modelName), input, effort);
       return;
     }
 
@@ -243,7 +257,7 @@ export class AiSdkRuntime implements AgentRuntime {
         apiKey: anthropicKey,
         ...(anthropicBaseUrl ? { baseURL: anthropicBaseUrl } : {}),
       });
-      await this.stream(anthropic(modelName, { sendReasoning: true }), input);
+      await this.stream(anthropic(modelName, { sendReasoning: true }), input, effort);
       return;
     }
 
@@ -253,7 +267,7 @@ export class AiSdkRuntime implements AgentRuntime {
         baseURL: volcengineBaseUrl || "https://ark.cn-beijing.volces.com/api/v3",
         compatibility: "compatible",
       });
-      await this.stream(ark(modelName), input);
+      await this.stream(ark(modelName), input, effort);
       return;
     }
 
@@ -282,18 +296,33 @@ export class AiSdkRuntime implements AgentRuntime {
           const retained = applyZeroRetention(scrubbed, zdrBaseUrl);
           const withZdr = mergeOpenRouterZdr(retained, zdrBaseUrl);
           const minimaxBody = applyMinimaxRequest(withZdr);
+          const level = effort.level();
+          // Completions carry `reasoning_effort` (written here); Responses carry `reasoning.effort`,
+          // which the AI SDK writes itself for `o*` and `gpt-5*` ids only — for any other id it left
+          // the level out, so `applyReasoningToResponsesBody` adds the block when the SDK did not.
           const withEffort = isChatCompletionsUrl(url)
-            ? applyReasoningEffortToChatBody(minimaxBody, wireEffort)
-            : minimaxBody;
+            ? level === undefined
+              ? withoutReasoningEffort(minimaxBody)
+              : applyReasoningEffortToChatBody(
+                  minimaxBody,
+                  toWireReasoningEffort(level, { officialOpenAI, responses: resolvedWire === "responses" }),
+                )
+            : isResponsesRequestUrl(url) && level !== undefined
+              ? applyReasoningToResponsesBody(
+                  minimaxBody,
+                  toWireReasoningEffort(level, { officialOpenAI, responses: true }),
+                )
+              : minimaxBody;
           const bodyModel =
             typeof (withEffort as { model?: unknown }).model === "string"
               ? ((withEffort as { model: string }).model)
               : modelName;
           minimax = minimax || isMinimaxChatModel(bodyModel);
-          // A job on an always-thinking family asks it to stop thinking; Chat sends no mode here.
-          const withJobThinking = isChatCompletionsUrl(url)
-            ? applyJobThinking(withEffort, bodyModel, input.jobMode)
-            : withEffort;
+          // The rest of a job's knob (its level is already in the effort plan); Chat sends no mode here.
+          const withJobThinking =
+            isChatCompletionsUrl(url) && jobKnob && Object.keys(jobKnob.rest).length > 0
+              ? { ...(withEffort as Record<string, unknown>), ...jobKnob.rest }
+              : withEffort;
           const sanitized = sanitizeGatewayRequestBody(withJobThinking, bodyModel, url);
           outgoing = { ...init, body: JSON.stringify(sanitized) };
         } catch {
@@ -321,7 +350,6 @@ export class AiSdkRuntime implements AgentRuntime {
       wire: resolvedWire,
       chatModel,
       responsesModel,
-      snappedEffort,
     };
 
     if (resolvedWire === "anthropic_messages") {
@@ -331,7 +359,7 @@ export class AiSdkRuntime implements AgentRuntime {
           try {
             const parsed = JSON.parse(init.body) as unknown;
             const scrubbed = rewriteUnreachableMediaInJson(parsed);
-            const withThinking = applyAnthropicMessagesBody(scrubbed, snappedEffort);
+            const withThinking = applyAnthropicMessagesBody(scrubbed, effort.level());
             const bodyModel =
               typeof (withThinking as { model?: unknown }).model === "string"
                 ? ((withThinking as { model: string }).model)
@@ -354,7 +382,7 @@ export class AiSdkRuntime implements AgentRuntime {
         baseURL: openaiBaseUrl,
         fetch: messagesFetch,
       });
-      await this.stream(anthropic(modelName, { sendReasoning: true }), input, openaiWire);
+      await this.stream(anthropic(modelName, { sendReasoning: true }), input, effort, openaiWire);
       return;
     }
 
@@ -366,7 +394,7 @@ export class AiSdkRuntime implements AgentRuntime {
             const parsed = JSON.parse(init.body) as unknown;
             const scrubbed = rewriteUnreachableMediaInJson(parsed);
             const withThinking = isGeminiGenerateContentUrl(url)
-              ? applyGeminiGenerateContentBody(scrubbed, snappedEffort)
+              ? applyGeminiGenerateContentBody(scrubbed, effort.level())
               : scrubbed;
             const bodyModel =
               typeof (withThinking as { model?: unknown }).model === "string"
@@ -390,22 +418,22 @@ export class AiSdkRuntime implements AgentRuntime {
         baseURL: geminiGenerateContentBaseUrl(openaiBaseUrl),
         fetch: geminiFetch,
       });
-      await this.stream(google(modelName), input, openaiWire);
+      await this.stream(google(modelName), input, effort, openaiWire);
       return;
     }
 
-    await this.stream(resolvedWire === "responses" ? responsesModel : chatModel, input, openaiWire);
+    await this.stream(resolvedWire === "responses" ? responsesModel : chatModel, input, effort, openaiWire);
   }
 
   private async stream(
     model: Parameters<typeof streamText>[0]["model"],
     input: Parameters<AgentRuntime["execute"]>[0],
+    effort: EffortState,
     openaiWire?: {
       requested: ChatWire;
       wire: ResolvedChatWire;
       chatModel: Parameters<typeof streamText>[0]["model"];
       responsesModel: Parameters<typeof streamText>[0]["model"];
-      snappedEffort: ReasoningEffort;
     },
   ): Promise<void> {
     const disabled = new Set(getDisabledTools());
@@ -428,19 +456,10 @@ export class AiSdkRuntime implements AgentRuntime {
 
     const messages = toCoreMessages(input.version.systemPrompt, input.history);
     const hasTools = Object.keys(tools).length > 0;
-    const officialOpenAI = isOfficialOpenAIBaseUrl(
-      this.keys.openaiBaseUrl ?? providerEnv().OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
-    );
-    const rawEffort = resolveRequestReasoningEffort(input);
     let activeModel = model;
     let wire = openaiWire?.wire;
-    const snappedEffort =
-      openaiWire?.snappedEffort ??
-      snapReasoningEffort(input.version.model, rawEffort, {
-        wire: wire ?? resolveChatWire(input.wire ?? "auto", input.version.model),
-        officialOpenAI,
-      });
-    const wantThinking = snappedEffort !== "none";
+    // Read at each call, not once: a heal below changes what the run sends.
+    const wantsThinking = () => effort.level() !== "none";
     const consumeOnce = async (
       nextModel: Parameters<typeof streamText>[0]["model"],
       nextTools: Record<string, any> | undefined,
@@ -449,15 +468,17 @@ export class AiSdkRuntime implements AgentRuntime {
         messages?: boolean;
         google?: boolean;
         forceReasoningNone?: boolean;
-        reasoningEffort?: ReasoningEffort;
       } = {},
     ) => {
       // Every call below goes through here: the first, the wire fallback, the tool-less retry and
       // the contact retries. A cancel starts none of them.
       input.signal?.throwIfAborted();
+      const level = effort.level();
       const outcome = await this.consumeSafe(nextModel, input, messages, nextTools, {
         ...options,
-        reasoningEffort: options.reasoningEffort ?? snappedEffort,
+        reasoningEffort: level,
+        // No effort to send (an id the policy table does not know, or a parameter the gateway refused).
+        omitReasoning: level === undefined,
       });
       if (outcome.failed) {
         // The call the cancel cut short is not a failure to retry or report: its abort message would
@@ -487,7 +508,7 @@ export class AiSdkRuntime implements AgentRuntime {
       responses: wire === "responses",
       messages: wire === "anthropic_messages",
         google: wire === "google_generate_content",
-      forceReasoningNone: !wantThinking,
+      forceReasoningNone: !wantsThinking(),
     });
 
     if (
@@ -500,8 +521,23 @@ export class AiSdkRuntime implements AgentRuntime {
       wire = "chat_completions";
       first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
         responses: false,
-        forceReasoningNone: !wantThinking,
+        forceReasoningNone: !wantsThinking(),
       });
+    }
+
+    // The gateway refused the Thinking parameter before anything came back: one retry with a safer
+    // shape. Never once a token, a thinking delta or a tool call has been produced — the retry would
+    // repeat it — and never for any other failure. What the retry learns is kept per model.
+    if (first.failure && !first.text && !first.tooled && !first.thinking) {
+      if (effort.heal(first.failure, wire ?? "chat_completions")) {
+        first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
+          responses: wire === "responses",
+          messages: wire === "anthropic_messages",
+          google: wire === "google_generate_content",
+          forceReasoningNone: !wantsThinking(),
+        });
+        effort.settle(!first.failed);
+      }
     }
 
     const shouldRetryBare = shouldRetryWithoutTools({
@@ -539,7 +575,7 @@ export class AiSdkRuntime implements AgentRuntime {
         responses: wire === "responses",
         messages: wire === "anthropic_messages",
         google: wire === "google_generate_content",
-        forceReasoningNone: Boolean(retryTools) && !wantThinking,
+        forceReasoningNone: Boolean(retryTools) && !wantsThinking(),
       });
     }
     const usage = addTokenUsage(first.usage, result === first ? { inputTokens: 0, outputTokens: 0 } : result.usage);
@@ -584,12 +620,14 @@ export class AiSdkRuntime implements AgentRuntime {
       google?: boolean;
       forceReasoningNone?: boolean;
       reasoningEffort?: ReasoningEffort;
+      omitReasoning?: boolean;
     } = {},
   ) {
     try {
       return await this.consume(model, input, messages, tools, options);
     } catch (error) {
       return {
+        failure: gatewayFailureOf(error),
         text: false,
         thinking: "",
         tooled: false,
@@ -611,6 +649,7 @@ export class AiSdkRuntime implements AgentRuntime {
       google?: boolean;
       forceReasoningNone?: boolean;
       reasoningEffort?: ReasoningEffort;
+      omitReasoning?: boolean;
     } = {},
   ): Promise<{
     text: boolean;
@@ -618,6 +657,8 @@ export class AiSdkRuntime implements AgentRuntime {
     tooled: boolean;
     toolCompleted: boolean;
     failed: string;
+    /** Set when the failure was a gateway HTTP refusal: its status and raw body, for classification only. */
+    failure?: GatewayFailureDetail | undefined;
     usage: { inputTokens: number; outputTokens: number };
   }> {
     const officialOpenAI = isOfficialOpenAIBaseUrl(
@@ -641,11 +682,19 @@ export class AiSdkRuntime implements AgentRuntime {
       ...(tools ? { tools, maxSteps: 6 } : {}),
       ...(providerOptions ? { providerOptions } : {}),
     });
+    // True once readable text has streamed. Whitespace is not text (`hasVisibleText`): a model that
+    // answers HTTP 200 with a single space has said nothing, and the checks below (the tool-less retry,
+    // the empty-reply failure) must see that, not "the first delta came".
     let text = false;
+    // Whitespace-only deltas ahead of the first readable text. They are held back, so an attempt that
+    // ends blank hands nothing on (a retry then cannot leave a stray blank in front of its answer, and a
+    // host never persists one), and flushed in front of the first readable delta when one follows.
+    let leadingBlank = "";
     let thinking = "";
     let tooled = false;
     let toolCompleted = false;
     let failed = "";
+    let failure: GatewayFailureDetail | undefined;
     let usage = { inputTokens: 0, outputTokens: 0 };
 
     try {
@@ -660,10 +709,18 @@ export class AiSdkRuntime implements AgentRuntime {
         watchdog.touchOutput();
         if (event.type === "run.failed") {
           failed = event.message;
+          failure = gatewayFailureOf((part as { error?: unknown }).error);
           break;
         }
-        if (event.type === "assistant.delta") {
+        let outgoing = event;
+        if (event.type === "assistant.delta" && !text) {
+          if (!hasVisibleText(event.text)) {
+            leadingBlank += event.text;
+            continue;
+          }
           text = true;
+          outgoing = leadingBlank ? { ...event, text: leadingBlank + event.text } : event;
+          leadingBlank = "";
         }
         if (event.type === "assistant.thinking") {
           thinking += event.text;
@@ -675,12 +732,12 @@ export class AiSdkRuntime implements AgentRuntime {
           tooled = true;
           toolCompleted = true;
         }
-        await input.onEvent(event);
+        await input.onEvent(outgoing);
       }
 
       if (!text && !failed) {
         const fallback = await result.text.catch(() => "");
-        if (fallback && fallback.trim().length > 0) {
+        if (hasVisibleText(fallback)) {
           text = true;
           await input.onEvent({ type: "assistant.delta", text: fallback });
         }
@@ -697,13 +754,14 @@ export class AiSdkRuntime implements AgentRuntime {
         }
       }
 
-      return { text, thinking, tooled, toolCompleted, failed, usage };
+      return { text, thinking, tooled, toolCompleted, failed, failure, usage };
     } catch (error) {
       const message = abortErrorMessage(error, locale);
       if (!failed) {
         failed = message;
+        failure = gatewayFailureOf(error);
       }
-      return { text, thinking, tooled, toolCompleted, failed, usage };
+      return { text, thinking, tooled, toolCompleted, failed, failure, usage };
     } finally {
       watchdog.close();
       unlinkCallerAbort();

@@ -1,7 +1,7 @@
 # apps/portal — agent rules
 
 **This is a stand-in for the backend team's portal** (`api.tokotokenai.com`), built so the hosted
-DPSBuddy web app has a real login to develop and review against before that service exists. It is
+Nultron web app has a real login to develop and review against before that service exists. It is
 wire-compatible with [`docs/internal/portal/`](../../docs/internal/portal/) — `device-code-login.md`
 for the flow, `schema.md` for the data model, `migrations/0001-0005` for the schema itself.
 

@@ -10,9 +10,10 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { formatContextLength, pickerGroups } from "@agentforge/core/preferred";
+import { formatContextLength, pickerGroups, type PickerGroup } from "@agentforge/core/preferred";
 import { isThinkingModel } from "@agentforge/core/curation";
 import { t } from "@/lib/i18n";
+import { pickerGroupLabel } from "@/lib/picker-group-label";
 import { placePickerPanel, viewportBounds, type PickerPanelPos } from "@/lib/picker-panel";
 import { isInHiddenPane } from "@/lib/shortcut-target";
 
@@ -42,26 +43,8 @@ type FlatEntry = {
   optionId: string;
 };
 
-type DisplayGroup = {
-  label: string;
-  models: ChatModel[];
-};
-
-/** Group ids come from core (English labels); the renderer maps the known ones onto catalog keys. */
-const GROUP_LABEL_KEYS: Record<string, string> = {
-  Recommended: "chat.models.groups.recommended",
-};
-
-const RECOMMENDED_GROUP = "Recommended";
-
-function groupLabel(label: string): string {
-  const key = GROUP_LABEL_KEYS[label];
-  if (!key) {
-    return label;
-  }
-  const translated = t(key);
-  return translated === key ? label : translated;
-}
+/** A group as core sends it: a stable kind plus an English label. The words are `pickerGroupLabel`'s. */
+type DisplayGroup = PickerGroup<ChatModel>;
 
 function modalityTags(mods: string[]): string[] {
   const extra = mods.filter((m) => m !== "text");
@@ -415,12 +398,12 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
                   <li
                     key={group.label}
                     role="presentation"
-                    data-testid={group.label === RECOMMENDED_GROUP ? "model-group-recommended" : undefined}
+                    data-testid={group.kind === "recommended" ? "model-group-recommended" : undefined}
                   >
                     <div className="px-3 pb-1 pt-2 text-xs font-medium tracking-normal text-[var(--text-3)]">
-                      {groupLabel(group.label)}
+                      {pickerGroupLabel(group)}
                     </div>
-                    <ul role="group" aria-label={groupLabel(group.label)}>
+                    <ul role="group" aria-label={pickerGroupLabel(group)}>
                       {group.models.map((model) => renderModelOption(model))}
                     </ul>
                   </li>
@@ -433,11 +416,11 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       : null;
 
   return (
-    <div className="relative min-w-[9rem] max-w-[18rem] shrink">
+    <div className="model-picker">
       <button
         ref={triggerRef}
         type="button"
-        className="wash inline-flex h-8 w-full min-w-0 items-center overflow-hidden rounded-pill border border-[var(--line)] bg-transparent px-3 text-left text-xs font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
+        className="model-picker-trigger wash inline-flex w-full min-w-0 items-center overflow-hidden rounded-pill border border-[var(--line)] bg-transparent px-3 text-left text-xs font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
         data-testid="model-picker"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -447,7 +430,9 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         onKeyDown={onTriggerKeyDown}
       >
         <span className="min-w-0 truncate">
-          {t("chat.composer.modelPrefix")}: {triggerLabel}
+          {/* Narrow: the prefix is visually hidden but stays in the tree, so the name still reads "Model: …". */}
+          <span className="model-picker-prefix">{`${t("chat.composer.modelPrefix")}: `}</span>
+          {triggerLabel}
         </span>
       </button>
       {panel}

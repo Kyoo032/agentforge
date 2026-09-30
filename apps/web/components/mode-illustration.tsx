@@ -403,14 +403,7 @@ export function ModeIllustration({ mode }: { mode: ModeIconName }) {
   return (
     <div className="mx-auto flex w-40 flex-col items-center gap-2" data-mode={mode}>
       {isMascotMode(mode) ? <MascotSlot mode={mode} placement="empty" /> : null}
-      <svg
-        width="160"
-        height="110"
-        viewBox="0 0 160 110"
-        className="illustration-float block"
-        fill="none"
-        aria-hidden="true"
-      >
+      <svg width="160" height="110" viewBox="0 0 160 110" className="block" fill="none" aria-hidden="true">
         {SCENES[mode]}
       </svg>
     </div>

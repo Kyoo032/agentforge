@@ -1,21 +1,27 @@
 import { isEverydayModel } from "./curation";
 import { firstLiveId } from "./media-kind";
+import { modelPolicy } from "./model-policy";
 
 type ModelRef = { id: string };
 
 export { formatContextLength } from "./context-length";
 
-/** Everyday chat defaults — product Chat prefers Luna; Terra stays in the everyday set. */
+/**
+ * Chat defaults, best first (2026-09-30): the default is GPT 6 Luna, the cheapest ($0.10 / $0.50 per 1M)
+ * and among the fastest; the rest follow by price and speed. The first seven are the Recommended group
+ * (`EVERYDAY_MODEL_IDS`, same order); the last three are only stand-ins for `chooseDefaultModel` when
+ * none of those is listed, and stay out of Recommended.
+ */
 export const CHAT_DEFAULT_PREFERENCES = [
+  "gpt-6-luna",
+  "claude-sonnet-5-5",
+  "deepseek-v4-1-flash",
+  "gemini-3.5-flash",
+  "gpt-6-sol",
+  "glm-5.3-flash",
+  "qwen3.7-plus",
   "gpt-5.6-luna",
   "claude-sonnet-5",
-  "gemini-3.5-flash",
-  "qwen3.7-plus",
-  "MiniMax-M3",
-  "minimax-m3",
-  "doubao-seed-2-1-turbo-260628",
-  "gpt-5.6-terra",
-  "glm-5.3-flash",
   "deepseek-v4-flash",
 ];
 
@@ -26,53 +32,118 @@ function tierRank(id: string): number {
 const NOT_DEFAULT =
   /(mj_|suno_|veo_|seedance|imagine|embedding|whisper|tts|-asr|-i2v|-t2v|-r2v|image-edit|video-edit|omni-moderation)/i;
 
+/** The gateway's own alias for whatever it wants a client to default to; not a model the table lists. */
+const GATEWAY_DEFAULT_ID = "default";
+
+/** A version as numbers, newest greatest: `gpt-5.6` is [5, 6], `claude-opus-5-5` is [5, 5], `gpt-6` is [6]. */
+type Generation = readonly number[];
+
+function compareGeneration(a: Generation, b: Generation): number {
+  const length = Math.max(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = (a[index] ?? 0) - (b[index] ?? 0);
+    if (difference !== 0) {
+      return difference;
+    }
+  }
+  return 0;
+}
+
+/** The numeric groups a family regex captured, without the empty optional ones. */
+function generationOf(match: RegExpMatchArray | null): Generation | undefined {
+  if (!match) {
+    return undefined;
+  }
+  return match
+    .slice(1)
+    .filter((part): part is string => part !== undefined)
+    .map(Number);
+}
+
 type Family = {
   label: string;
   rank: number;
-  match: (id: string) => boolean;
+  /** The brand and its version, read off the bare id; undefined when the id is not this family. */
+  generation: (leaf: string) => Generation | undefined;
+  /** The oldest generation the family ranks. Anything newer is in it too: nothing is dropped for being new. */
+  min: Generation;
   variant: (id: string) => number;
 };
 
+/**
+ * Ranking families for the picker and the fallback default. A family names a brand, not a
+ * generation: `generation` reads the version off the id and `min` is where the ranking starts, so
+ * GPT 6, Claude 5.5 and DeepSeek V4.1 land in their family and sort newest first inside it. Which
+ * role wins (`variant`) still comes first, so the recommendations do not move; a newer generation
+ * only breaks the tie inside a role. Whether a model may be a default at all is the policy table's
+ * call (`isDefaultEligible`), not this list's.
+ */
 const FAMILIES: Family[] = [
   {
-    label: "GPT-5.6",
+    label: "GPT 5.6+",
     rank: 0,
-    match: (id) => /gpt-5\.6/i.test(id),
+    generation: (leaf) => generationOf(leaf.match(/^gpt-(\d+)(?:\.(\d+))?/)),
+    min: [5, 6],
     variant: (id) => (/luna/i.test(id) ? 0 : /terra/i.test(id) ? 1 : /sol/i.test(id) ? 2 : 3),
   },
   {
-    label: "Claude 5",
+    label: "Claude 5+",
     rank: 1,
-    match: (id) => /claude-(sonnet|opus)-5(?:$|[^\d])/i.test(id),
+    generation: (leaf) => generationOf(leaf.match(/^claude-(?:sonnet|opus)-(\d+)(?:[.-](\d{1,2})(?!\d))?/)),
+    min: [5],
     variant: (id) => (/sonnet/i.test(id) ? 0 : 1),
   },
   {
     label: "MiniMax",
     rank: 2,
-    match: (id) => /minimax/i.test(id),
+    generation: (leaf) =>
+      leaf.startsWith("minimax") ? (generationOf(leaf.match(/^minimax-m(\d+)(?:\.(\d+))?/)) ?? []) : undefined,
+    min: [],
     variant: (id) => (/m3(?:$|[.-])/i.test(id) ? 0 : 1),
   },
   {
-    label: "GLM",
+    label: "GLM 5+",
     rank: 3,
-    match: (id) => /glm-5/i.test(id),
+    generation: (leaf) => generationOf(leaf.match(/^glm-(\d+)(?:\.(\d+))?/)),
+    min: [5],
     variant: (id) => (/glm-5\.3-flash/i.test(id) ? 0 : /glm-5\.3/i.test(id) ? 1 : 2),
   },
   {
-    label: "DeepSeek V4",
+    label: "DeepSeek V4+",
     rank: 4,
-    match: (id) => /deepseek-v4/i.test(id),
+    generation: (leaf) => generationOf(leaf.match(/^deepseek-v(\d+)(?:[.-](\d{1,2})(?!\d))?/)),
+    min: [4],
     variant: (id) => (/flash/i.test(id) ? 0 : /pro/i.test(id) ? 1 : 2),
   },
   {
     label: "Kimi",
     rank: 5,
-    match: (id) => /kimi/i.test(id),
+    generation: (leaf) =>
+      leaf.startsWith("kimi") ? (generationOf(leaf.match(/^kimi-k(\d+)(?:\.(\d+))?/)) ?? []) : undefined,
+    min: [],
     variant: (id) => (/kimi-k2\.6/i.test(id) ? 0 : /kimi-k2\.7/i.test(id) ? 1 : /kimi-k3/i.test(id) ? 2 : 3),
   },
 ];
 
-const DEFAULT_FAMILY_ORDER = ["GPT-5.6", "Claude 5", "MiniMax", "GLM", "DeepSeek V4", "Kimi"];
+const DEFAULT_FAMILY_ORDER = ["GPT 5.6+", "Claude 5+", "MiniMax", "GLM 5+", "DeepSeek V4+", "Kimi"];
+
+function familyGeneration(family: Family, id: string): Generation | undefined {
+  const generation = family.generation(pickerLeaf(id));
+  return generation !== undefined && compareGeneration(generation, family.min) >= 0 ? generation : undefined;
+}
+
+function inFamily(family: Family, id: string): boolean {
+  return familyGeneration(family, id) !== undefined;
+}
+
+/** Role first, so the recommendations hold; then the newer generation. */
+function compareWithinFamily(family: Family, a: string, b: string): number {
+  const role = family.variant(a) - family.variant(b);
+  if (role !== 0) {
+    return role;
+  }
+  return compareGeneration(familyGeneration(family, b) ?? [], familyGeneration(family, a) ?? []);
+}
 
 /** Stable picker buckets. One brand per group — no GPT-5.6 vs OpenAI split. */
 const BRAND_GROUP_ORDER = [
@@ -100,7 +171,7 @@ export function isPickerHidden(id: string): boolean {
 }
 
 function familyFor(id: string): Family | undefined {
-  return FAMILIES.find((family) => family.match(id));
+  return FAMILIES.find((family) => inFamily(family, id));
 }
 
 function pickerLeaf(id: string): string {
@@ -108,8 +179,18 @@ function pickerLeaf(id: string): string {
   return (slash >= 0 ? id.slice(slash + 1) : id).toLowerCase();
 }
 
+/**
+ * May this id be recommended or picked as a default? Only a model the policy table knows can be: an
+ * id it has never seen gets the conservative profile and stays out of Recommended and out of the
+ * defaults, though it still lists and can be chosen by hand. The gateway's own `default` alias is
+ * exempt: it is the gateway's choice, not ours.
+ */
 export function isDefaultEligible(id: string): boolean {
-  return id.trim().length > 0 && !NOT_DEFAULT.test(id);
+  const trimmed = id.trim();
+  if (trimmed.length === 0 || NOT_DEFAULT.test(trimmed)) {
+    return false;
+  }
+  return trimmed === GATEWAY_DEFAULT_ID || modelPolicy(trimmed).known;
 }
 
 export function modelFamilyLabel(id: string): BrandGroup {
@@ -234,14 +315,16 @@ export function pickPreferredModel(models: ModelRef[]): string | undefined {
     if (!family) {
       continue;
     }
-    const hits = eligible.filter((model) => family.match(model.id));
+    const hits = eligible.filter((model) => inFamily(family, model.id));
     if (hits.length === 0) {
       continue;
     }
-    hits.sort((a, b) => family.variant(a.id) - family.variant(b.id));
+    hits.sort((a, b) => compareWithinFamily(family, a.id, b.id));
     return hits[0]?.id;
   }
-  return eligible[0]?.id ?? models[0]?.id;
+  // Nothing the table knows is live. Still never a media or embedding id if anything else is listed.
+  const lastResort = models.find((model) => model.id.trim().length > 0 && !NOT_DEFAULT.test(model.id));
+  return eligible[0]?.id ?? lastResort?.id ?? models[0]?.id;
 }
 
 export function recommendedChatModels<T extends ModelRef>(models: T[]): T[] {
@@ -264,11 +347,11 @@ export function recommendedChatModels<T extends ModelRef>(models: T[]): T[] {
     return picks;
   }
   for (const family of FAMILIES) {
-    const hits = pool.filter((model) => family.match(model.id));
+    const hits = pool.filter((model) => inFamily(family, model.id));
     if (hits.length === 0) {
       continue;
     }
-    hits.sort((a, b) => family.variant(a.id) - family.variant(b.id));
+    hits.sort((a, b) => compareWithinFamily(family, a.id, b.id));
     const best = hits[0];
     if (best && !picks.some((pick) => pick.id === best.id)) {
       picks.push(best);
@@ -291,9 +374,9 @@ export function sortChatModels<T extends ModelRef>(models: T[]): T[] {
         return rankA - rankB;
       }
       if (familyA && familyB) {
-        const variant = familyA.variant(a.model.id) - familyB.variant(b.model.id);
-        if (variant !== 0) {
-          return variant;
+        const inside = compareWithinFamily(familyA, a.model.id, b.model.id);
+        if (inside !== 0) {
+          return inside;
         }
       }
       const group = BRAND_GROUP_ORDER.indexOf(modelFamilyLabel(a.model.id)) - BRAND_GROUP_ORDER.indexOf(modelFamilyLabel(b.model.id));
@@ -323,14 +406,24 @@ export function chooseDefaultModel(models: ModelRef[], liveIds: string[] | undef
   ) ?? pickPreferredModel(pool) ?? fallback;
 }
 
-export function pickerGroups<T extends ModelRef>(models: T[]): Array<{ label: string; models: T[] }> {
+/**
+ * What a picker group is, as a stable key the renderer translates. `label` is the English fallback and
+ * the brand's own name for a brand group: GPT, Claude, Gemini and the rest are proper nouns and read
+ * the same in every language. Only the two groups that are words, `recommended` and `other`, have
+ * copy that changes with the desk's language, and core does not own that copy.
+ */
+export type PickerGroupKind = "recommended" | "brand" | "other";
+
+export type PickerGroup<T> = { kind: PickerGroupKind; label: string; models: T[] };
+
+export function pickerGroups<T extends ModelRef>(models: T[]): Array<PickerGroup<T>> {
   const allIds = new Set(models.map((model) => model.id));
   const visible = models.filter((model) => !isPickerHidden(model.id) && !isDatedSnapshot(model.id, allIds));
   const recommended = recommendedChatModels(visible);
   const used = new Set(recommended.map((model) => model.id));
-  const groups: Array<{ label: string; models: T[] }> = [];
+  const groups: Array<PickerGroup<T>> = [];
   if (recommended.length > 0) {
-    groups.push({ label: "Recommended", models: recommended });
+    groups.push({ kind: "recommended", label: "Recommended", models: recommended });
   }
   const rest = visible.filter((model) => !used.has(model.id));
   for (const label of BRAND_GROUP_ORDER) {
@@ -344,7 +437,7 @@ export function pickerGroups<T extends ModelRef>(models: T[]): Array<{ label: st
         return comparePickerIds(a.id, b.id);
       });
     if (items.length > 0) {
-      groups.push({ label, models: items });
+      groups.push({ kind: label === "Other" ? "other" : "brand", label, models: items });
     }
   }
   return groups;

@@ -19,7 +19,7 @@ The host decides whether this desk may talk to the gateway and the renderer only
 - A working desk reaches the gate through Rail → Settings (`settings-link`), where the status row sits under the gateway key block.
 - "Re-check" is the only user control that forces a fresh verdict.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

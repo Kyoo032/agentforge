@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const PUBLIC_PRODUCT_NAME = "DPSBuddy";
+const PUBLIC_PRODUCT_NAME = "Nultron";
 
 const DEFAULT_BRAND = {
   productName: PUBLIC_PRODUCT_NAME,

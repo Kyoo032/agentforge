@@ -47,7 +47,7 @@ function logoutUrl(clientId: string, target: string): string {
 
 async function freshEmail(): Promise<string> {
   userSeq += 1;
-  const email = `out${userSeq}@dpsbuddy.test`;
+  const email = `out${userSeq}@nultron.test`;
   await addUser(portal.store.store, fixture, email);
   return email;
 }
@@ -82,12 +82,12 @@ async function signedInAgent(state: string): Promise<{ agent: Agent; email: stri
 
 beforeAll(async () => {
   portal = await startTestPortal();
-  fixture = await seedFixture(portal.store.store, { slug: "dpsbuddy", email: "owner@dpsbuddy.test" });
+  fixture = await seedFixture(portal.store.store, { slug: "nultron", email: "owner@nultron.test" });
   await portal.store.store.tx(fixture.tenant.id, (ops) =>
     ops.oauthClients.create({
       clientId: CLIENT_ID,
       tenantId: fixture.tenant.id,
-      name: "DPSBuddy",
+      name: "Nultron",
       secret: randomToken(),
       redirectUris: [REDIRECT],
     }),

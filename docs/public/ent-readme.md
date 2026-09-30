@@ -1,9 +1,8 @@
 # Nultron Enterprise
 
 > Nultron Enterprise is the hosted, multi-user edition of **Nultron**. Your team signs in from a browser, and there is nothing to install.
-> Until the next release, the deploy files and the container image are still named **dpsbuddy-ent**. They are the same product.
 
-This repository holds the release notes and the deploy bundle for each Enterprise release. It contains no source code. The desktop app for Windows and macOS is released at [Kyoo032/DPSBuddy](https://github.com/Kyoo032/DPSBuddy).
+This repository holds the release notes and the deploy bundle for each Enterprise release. It contains no source code. The desktop app for Windows and macOS is released at [Kyoo032/Nultron](https://github.com/Kyoo032/Nultron).
 
 ## What it is
 
@@ -66,13 +65,13 @@ Back up the data volume before every upgrade, because the database only migrates
 
 ## Releases
 
-Each update is published as a [GitHub Release](https://github.com/Kyoo032/DPSBuddy-Ent/releases), with release notes and the image it pins. Organisations hosted by DPS receive updates automatically.
+Each update is published as a [GitHub Release](https://github.com/Kyoo032/NultronEnt/releases), with release notes and the image it pins. Organisations hosted by DPS receive updates automatically.
 
 No release has been published yet.
 
 ## Feedback
 
-You can raise questions about a release on the [issues page](https://github.com/Kyoo032/DPSBuddy-Ent/issues). For access, accounts or billing, contact DPS.
+You can raise questions about a release on the [issues page](https://github.com/Kyoo032/NultronEnt/issues). For access, accounts or billing, contact DPS.
 
 ---
 

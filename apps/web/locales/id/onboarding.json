@@ -1,6 +1,6 @@
 {
   "welcome": "Selamat datang di {productName}",
-  "intro": "Ajukan pertanyaan, tulis dokumen, lihat angka, atau buat gambar.",
+  "intro": "Ajukan pertanyaan, riset sebuah topik, buat gambar atau video, atau susun presentasi.",
   "next": "Lanjut",
   "back": "Kembali",
   "stepsLabel": "Langkah penyiapan",
@@ -21,22 +21,23 @@
   "tryTitle": "Coba salah satu",
   "tryIntro": "Mulai di Chat. Yang lain tetap di menu.",
   "tryStart": "Mulai di Chat",
+  "tourNext": "Tur singkat menyusul. Anda bisa melewatinya.",
   "examples": {
     "chat": {
       "title": "Tanyakan sesuatu",
       "hint": "Rencana, pertanyaan, atau balasan yang perlu Anda kirim."
     },
-    "document": {
-      "title": "Tulis dokumen",
-      "hint": "Ubah catatan jadi halaman yang bisa Anda simpan."
-    },
-    "finance": {
-      "title": "Lihat angka",
-      "hint": "Anggaran, arus kas, atau uraian singkat."
+    "research": {
+      "title": "Riset sebuah topik",
+      "hint": "Catatan bersumber untuk pertanyaan apa pun."
     },
     "images": {
       "title": "Buat gambar",
       "hint": "Jelaskan apa yang ingin Anda lihat."
+    },
+    "presentation": {
+      "title": "Susun presentasi",
+      "hint": "Ubah topik menjadi slide yang bisa Anda sunting."
     }
   },
   "gate": {

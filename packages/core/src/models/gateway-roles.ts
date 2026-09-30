@@ -1,4 +1,9 @@
-/** Gateway catalog roles from docs/internal/gateway-model-selection.md (2026-09-13). First Section 6 role, not id-keyword heuristics. */
+/**
+ * Gateway catalog roles from docs/internal/gateway-model-selection.md (2026-09-13). First Section 6 role, not id-keyword heuristics.
+ * 2026-09-30: GPT 6 Luna and Sol, Claude Sonnet 5.5 and Opus 5.5 and DeepSeek V4.1 Flash added with the new
+ * recommendations (same doc, "2026-09-30" section). An id with no line here gets a media word from
+ * `mediaKind` (Image, Video, Audio) in `modelPolicy`, and General chat otherwise.
+ */
 export const GATEWAY_BEST_FOR: Record<string, string> = {
   "gpt-5.2": "Coding",
   "gpt-5.4": "Coding",
@@ -10,6 +15,8 @@ export const GATEWAY_BEST_FOR: Record<string, string> = {
   "gpt-5.6-sol": "Deep reasoning",
   "gpt-5.6-terra": "Everyday chat",
   "gpt-6-astra": "Deep reasoning",
+  "gpt-6-luna": "Fast drafts",
+  "gpt-6-sol": "Everyday chat",
   "gpt-image-2.5-flare": "Image",
   "gpt-image-2.5-sunburst": "Image",
   "doubao-seedream-4-0-250828": "Image",
@@ -60,7 +67,9 @@ export const GATEWAY_BEST_FOR: Record<string, string> = {
   "claude-opus-4-7": "Coding",
   "claude-opus-4-8": "Coding",
   "claude-opus-5": "Everyday chat",
+  "claude-opus-5-5": "Deep reasoning",
   "claude-sonnet-5": "Everyday chat",
+  "claude-sonnet-5-5": "Everyday chat",
   "claude-fable-5": "Deep reasoning",
   "claude-opus-4-6": "Coding",
   "claude-sonnet-4-6": "Everyday chat",
@@ -78,6 +87,7 @@ export const GATEWAY_BEST_FOR: Record<string, string> = {
   "gemini-embedding-001": "Embedding",
   "gemini-embedding-2-preview": "Embedding",
   "gemini-2.5-flash-lite": "Fast drafts",
+  "deepseek-v4-1-flash": "Fast drafts",
   "deepseek-v4-flash": "Fast drafts",
   "deepseek-v4-pro": "Deep reasoning",
   "glm-5.2": "Coding",
@@ -172,14 +182,19 @@ export const GATEWAY_BEST_FOR: Record<string, string> = {
   "gpt-oss-120b": "Fast drafts",
 };
 
+/**
+ * The Recommended group in the picker, 2026-09-30 (owner: cheapest and fastest first, prices from the
+ * gateway's /api/pricing, latency from the same day's probe, see docs/internal/gateway-model-selection.md).
+ * Everything else the table knows is advanced: GPT 5.6, Claude Sonnet 5 and MiniMax M3 leave this set
+ * for their brand groups, and `gpt-6-astra` and `claude-opus-5-5` are the deep-reasoning picks there.
+ */
 export const EVERYDAY_MODEL_IDS: ReadonlySet<string> = new Set([
-  "gpt-5.6-terra",
-  "claude-sonnet-5",
+  "gpt-6-luna",
+  "claude-sonnet-5-5",
+  "deepseek-v4-1-flash",
   "gemini-3.5-flash",
-  "qwen3.7-plus",
-  "minimax-m3",
-  "doubao-seed-2-1-turbo-260628",
-  "gpt-5.6-luna",
+  "gpt-6-sol",
   "glm-5.3-flash",
+  "qwen3.7-plus",
 ]);
 

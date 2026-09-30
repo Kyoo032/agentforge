@@ -1,0 +1,328 @@
+/* The Nultron character on the desk: how big it is, how it is cropped, and how it moves.
+   What is drawn is a pre-rendered picture (`nx-image-rig.tsx`, `images/manifest.json`): a still per
+   state, a one-shot clip for some states, a four-frame loop for some working states.
+
+   Motion contract (perf budget, desktop first, no GPU on Windows):
+     still      no animation. Idle and sleep hold their picture.
+     once       one finite clip of 600-1200 ms when a state is entered, ending on the still.
+     loop-busy  loops only under [data-busy], stepped with --ease-busy. Without data-busy a working
+                state holds its still.
+   A clip or loop from the renders is a strip of frames moved with `transform` (`steps()`, so one distinct
+   frame each; a clip lasts frames / fps, a loop cycles at the fps its manifest entry records). A state without one takes the small transform motion below, so the desk still moves when a
+   render set has no strip for it. Keyframes touch transform, opacity and the individual `rotate` /
+   `translate` / `scale` properties only, with no filter and no infinite loop outside [data-busy].
+   `lib/nultron-motion.test.ts` holds all of this. The desk's ambient pause and its reduced-motion block in
+   app/globals.css reach these rules through `.chat-mascot`. */
+
+/* ---- box ---------------------------------------------------------------------------------- */
+
+.chat-mascot.nx-root {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--nx-size, 40px);
+  height: var(--nx-size, 40px);
+  overflow: hidden;
+  line-height: 0;
+}
+
+.chat-mascot.nx-root .nx-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  /* the clip's and the loop's frame stepping: one distinct frame each */
+  --nx-clip-ease: steps(var(--nx-clip-frames, 1), jump-none);
+}
+
+.chat-mascot.nx-root .nx-still {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The previous state's art, kept mounted under the new art until the new still can be painted
+   (nx-image-rig.tsx). It sits before the new art in the tree, so the new art paints over it. It shows its
+   still and nothing else: the rules below that key on the root's attributes (the new state's) must not move
+   it, so its animation is cancelled outright. */
+.chat-mascot.nx-root .nx-held .nx-still {
+  animation-name: none !important;
+  opacity: 1 !important;
+}
+
+/* ---- Chat hero: the character fills the button and drifts a little with the pointer --------- */
+
+.chat-hero-orb .chat-mascot.nx-root {
+  width: 100%;
+  height: 100%;
+}
+
+/* `--px` / `--py` (-1..1) are written on the hero by `attachHeroMotion`; absent, so 0, on touch and
+   under reduced motion. The whole picture moves, a few pixels, with transform only. */
+.chat-hero .chat-mascot .nx-art {
+  translate: calc(var(--px, 0) * 3px) calc(var(--py, 0) * 2px);
+  transition: translate var(--motion-2) var(--ease-out);
+}
+
+/* ---- clips and loops from the renders ---------------------------------------------------------- */
+
+.chat-mascot.nx-root .nx-strip,
+.chat-mascot.nx-root .nx-loop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.chat-mascot.nx-root .nx-strip img {
+  display: block;
+  width: calc(var(--nx-clip-frames, 1) * 100%);
+  max-width: none;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.chat-mascot.nx-root .nx-loop img {
+  display: block;
+  width: calc(var(--nx-loop-frames, 4) * 100%);
+  max-width: none;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes nxm-strip-show {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes nxm-strip-hide {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* N frames side by side: the last one is (N - 1) / N of the strip's own width along. */
+@keyframes nxm-strip-play {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% * (var(--nx-clip-frames, 1) - 1) / var(--nx-clip-frames, 1)));
+  }
+}
+
+/* A loop runs the whole strip and starts over: `--ease-busy` is steps(4), one step per frame. */
+@keyframes nxm-strip-loop {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* A strip takes over only once it can be painted: `.nx-art[data-sheet]` is set when its image is loaded and
+   decoded (`nx-image-rig.tsx`). Until then the still stays on screen, so a slow fetch shows the still and a
+   late clip, never an empty box. */
+
+/* Once: the clip shows for its length while the still steps aside, then the still is back. */
+.chat-mascot[data-clip][data-motion="once"] .nx-art[data-sheet] .nx-strip {
+  animation: nxm-strip-show calc(var(--motion-4) * var(--nx-clip-beats, 3)) var(--ease-out) 1;
+}
+
+.chat-mascot[data-clip][data-motion="once"] .nx-art[data-sheet] .nx-strip img {
+  animation: nxm-strip-play calc(var(--motion-4) * var(--nx-clip-beats, 3)) var(--nx-clip-ease) 1;
+}
+
+.chat-mascot[data-clip][data-motion="once"] .nx-art[data-sheet] .nx-still {
+  animation: nxm-strip-hide calc(var(--motion-4) * var(--nx-clip-beats, 3)) var(--ease-out) 1;
+}
+
+/* Busy: while a job runs the loop replaces the still; when it stops the still is back. */
+.chat-mascot[data-busy][data-loop] .nx-art[data-sheet] .nx-still {
+  opacity: 0;
+}
+
+.chat-mascot[data-busy][data-loop] .nx-art[data-sheet] .nx-loop {
+  opacity: 1;
+}
+
+.chat-mascot[data-busy][data-loop] .nx-art[data-sheet] .nx-loop img {
+  animation: nxm-strip-loop calc(var(--motion-4) * var(--nx-loop-beats, 3)) var(--ease-busy) infinite;
+}
+
+/* ---- the same states without a strip: a small transform motion on the still ---------------------
+   Percentages, not px: a picture has no units of its own. Every clip starts and ends on the identity. */
+
+@keyframes nxm-i-hop {
+  0%,
+  100% {
+    translate: 0 0;
+    scale: 1 1;
+  }
+  30% {
+    translate: 0 -6%;
+    scale: 0.98 1.03;
+  }
+  60% {
+    translate: 0 0;
+    scale: 1.03 0.97;
+  }
+  80% {
+    translate: 0 -2%;
+    scale: 1 1;
+  }
+}
+
+@keyframes nxm-i-tilt {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  25% {
+    rotate: -4deg;
+  }
+  50% {
+    rotate: 3deg;
+  }
+  75% {
+    rotate: -2deg;
+  }
+}
+
+@keyframes nxm-i-throb {
+  0%,
+  100% {
+    scale: 1;
+  }
+  25% {
+    scale: 1.06;
+  }
+  50% {
+    scale: 1;
+  }
+  75% {
+    scale: 1.04;
+  }
+}
+
+@keyframes nxm-i-lean {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  35% {
+    translate: -4% 0;
+  }
+  65% {
+    translate: 3% 0;
+  }
+}
+
+@keyframes nxm-i-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -2.5%;
+  }
+}
+
+@keyframes nxm-i-nod {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  50% {
+    rotate: 2.5deg;
+  }
+}
+
+@keyframes nxm-i-swell {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.04;
+  }
+}
+
+.chat-mascot:not([data-clip])[data-state="wave"] .nx-still {
+  animation: nxm-i-tilt calc(var(--motion-4) * 3) var(--ease-out) 1;
+}
+
+.chat-mascot:not([data-clip])[data-state="celebrating"] .nx-still {
+  animation: nxm-i-hop calc(var(--motion-4) * 3) var(--ease-out) 1;
+}
+
+.chat-mascot:not([data-clip])[data-state="surprised"] .nx-still {
+  animation: nxm-i-hop calc(var(--motion-4) * 2) var(--ease-out) 1;
+}
+
+.chat-mascot:not([data-clip])[data-state="error"] .nx-still {
+  animation: nxm-i-tilt calc(var(--motion-4) * 3) var(--ease-out) 1;
+}
+
+.chat-mascot:not([data-clip])[data-state="love"] .nx-still {
+  animation: nxm-i-throb calc(var(--motion-4) * 3) var(--ease-out) 1;
+}
+
+.chat-mascot:not([data-clip])[data-state="lets-go"] .nx-still {
+  animation: nxm-i-lean calc(var(--motion-4) * 2) var(--ease-out) 1;
+}
+
+.chat-mascot[data-busy]:not([data-loop])[data-state="thinking"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="listening"] .nx-still {
+  animation: nxm-i-nod calc(var(--motion-4) * 3) var(--ease-busy) infinite;
+}
+
+.chat-mascot[data-busy]:not([data-loop])[data-state="writing"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="answering"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="calculating"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="painting"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="editing"] .nx-still {
+  animation: nxm-i-bob calc(var(--motion-4) * 2) var(--ease-busy) infinite;
+}
+
+.chat-mascot[data-busy]:not([data-loop])[data-state="searching"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="reviewing"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="charting"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="presenting"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="filming"] .nx-still,
+.chat-mascot[data-busy]:not([data-loop])[data-state="charging"] .nx-still {
+  animation: nxm-i-swell calc(var(--motion-4) * 3) var(--ease-busy) infinite;
+}
+
+/* ---- reduced motion: the pose stays, the movement goes ------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-mascot,
+  .chat-mascot * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* A busy loop that does not move is only frame 0 of the strip, a second copy of the still at 320 px
+     against 512. Keep the still itself. `!important`: the rules that swap them are more specific (they wait
+     for `.nx-art[data-sheet]`), and reduced motion must win whether or not the strip has loaded. */
+  .chat-mascot[data-busy][data-loop] .nx-still {
+    opacity: 1 !important;
+  }
+
+  .chat-mascot[data-busy][data-loop] .nx-loop {
+    opacity: 0 !important;
+  }
+}

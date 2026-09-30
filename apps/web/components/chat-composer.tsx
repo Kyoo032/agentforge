@@ -14,6 +14,7 @@ import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
 import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
 import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { thinkingRequestFields } from "@/lib/chat-thinking";
 import { submitOnEnter } from "@/lib/composer-enter";
 import { getLocale, t } from "@/lib/i18n";
 import { readComposerDraft, writeComposerDraft } from "@/lib/composer-draft";
@@ -50,7 +51,14 @@ type Props = {
   sessionKey?: string | number;
   thinkingEnabled?: boolean;
   onThinkingChange?: (enabled: boolean) => void;
+  /** The level the Thinking picker shows. */
   reasoningEffort?: ReasoningEffort;
+  /**
+   * Did the person pick that level? Only a picked level is sent (`thinkingRequestFields`); an untouched
+   * picker sends none, so the host can tell a choice from a default. A parent that does not say is
+   * read as "yes", so a picker nobody wired this up for still sends what it shows.
+   */
+  reasoningEffortChosen?: boolean;
   onReasoningEffortChange?: (effort: ReasoningEffort) => void;
   /** A prompt seeded from outside (the empty screen's suggestions). Applied once, then cleared. */
   draft?: string | null;
@@ -78,6 +86,22 @@ async function uploadMedia(file: File): Promise<{ url: string }> {
 
 async function readTextFile(file: File): Promise<string> {
   return file.text();
+}
+
+/** How far the prompt box grows before it scrolls. `.composer-text` carries the same 10rem in CSS. */
+const COMPOSER_TEXT_MAX_PX = 160;
+
+/**
+ * Fit the prompt box to its content. The height is reset first so the box can shrink; the CSS
+ * `min-height` on `.composer-text` (one line wide, two lines when the composer is narrow) still
+ * sets the floor, because a minimum beats an inline height.
+ */
+function growTextArea(el: HTMLTextAreaElement | null) {
+  if (!el) {
+    return;
+  }
+  el.style.height = "44px";
+  el.style.height = `${Math.min(el.scrollHeight, COMPOSER_TEXT_MAX_PX)}px`;
 }
 
 /** Where a run's events are drawn. The pane's live callbacks, gated by `readRunStream`. */
@@ -174,6 +198,7 @@ export function ChatComposer({
   thinkingEnabled = true,
   onThinkingChange,
   reasoningEffort = "medium",
+  reasoningEffortChosen = true,
   onReasoningEffortChange,
   draft,
   onDraftApplied,
@@ -228,13 +253,28 @@ export function ChatComposer({
   }, [draft, onDraftApplied]);
 
   useEffect(() => {
+    growTextArea(textAreaRef.current);
+  }, [text]);
+
+  // The placeholder wraps to a different number of lines as the composer's own width changes (a
+  // container query, not the viewport), and a wrap that happened after the last keystroke would
+  // otherwise stay clipped. Only a change of width re-measures; a change of height is our own doing.
+  useEffect(() => {
     const el = textAreaRef.current;
-    if (!el) {
+    if (!el || typeof ResizeObserver === "undefined") {
       return;
     }
-    el.style.height = "44px";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  }, [text]);
+    let lastWidth = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === lastWidth) {
+        return;
+      }
+      lastWidth = el.clientWidth;
+      growTextArea(el);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   function addFiles(list: FileList | null) {
     if (!list || list.length === 0) {
@@ -372,8 +412,7 @@ export function ChatComposer({
             body: JSON.stringify({
               content: outgoing,
               model,
-              thinking: reasoningEffort !== "none",
-              reasoningEffort,
+              ...thinkingRequestFields(reasoningEffort, reasoningEffortChosen),
             }),
             signal: abort.signal,
           });
@@ -439,8 +478,7 @@ export function ChatComposer({
           body: JSON.stringify({
             content: parts,
             model,
-            thinking: reasoningEffort !== "none",
-            reasoningEffort,
+            ...thinkingRequestFields(reasoningEffort, reasoningEffortChosen),
           }),
           signal: abort.signal,
         });
@@ -471,7 +509,7 @@ export function ChatComposer({
 
   return (
     <form
-      className={`composer-shell mx-6 mb-6 mt-6 shrink-0 rounded-2xl border border-[var(--line)] bg-transparent px-3 pb-3 pt-2${busy ? " composer-sending" : ""}`}
+      className={`composer-shell shrink-0 rounded-2xl border border-[var(--line)] bg-transparent px-3 pb-3 pt-2${busy ? " composer-sending" : ""}`}
       data-testid="composer"
       onSubmit={(event) => {
         event.preventDefault();
@@ -506,7 +544,7 @@ export function ChatComposer({
       >
         <textarea
           ref={textAreaRef}
-          className="min-h-11 max-h-40 w-full resize-none border-0 bg-transparent px-1 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+          className="composer-text w-full resize-none border-0 bg-transparent px-1 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
           style={{ outline: "none" }}
           placeholder={t("chat.composer.placeholder")}
           value={text}
@@ -535,6 +573,10 @@ export function ChatComposer({
           className="sr-only"
           type="file"
           multiple
+          // The Attach button opens this. Left in the tab order it was a 1px control with no name
+          // between the message box and the toolbar (found by tabbing, 2026-09-29).
+          tabIndex={-1}
+          aria-hidden="true"
           accept={COMPOSER_FILE_ACCEPT}
           onChange={(event) => addFiles(event.target.files)}
           data-testid="composer-file"
@@ -545,13 +587,15 @@ export function ChatComposer({
           {files.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-pill border border-[var(--line)] px-3 py-1 text-sm text-[var(--text)]"
+              className="flex max-w-full items-center gap-2 rounded-pill border border-[var(--line)] px-3 py-1 text-sm text-[var(--text)]"
               data-testid="composer-attachment"
             >
-              <span className="max-w-[12rem] truncate">{item.file.name}</span>
+              {/* min-w-0 and shrink-0: a long name gives up characters, not the remove button. At 320 px
+                  the chip ran 36 px past the composer and the × past the window edge. */}
+              <span className="min-w-0 max-w-[12rem] truncate">{item.file.name}</span>
               <button
                 type="button"
-                className="text-[var(--text-3)] hover:text-[var(--text)]"
+                className="shrink-0 text-[var(--text-3)] hover:text-[var(--text)]"
                 aria-label={t("chat.removeAttachment", { name: item.file.name })}
                 onClick={() => removeFile(item.id)}
               >
@@ -566,10 +610,17 @@ export function ChatComposer({
           {error}
         </p>
       ) : null}
-      <div className="mt-2 flex flex-wrap items-end gap-2" data-testid="composer-toolbar">
+      {/*
+        Layout is `.composer-toolbar` in globals.css, chosen by the composer's own width (a
+        container query on `.composer-shell`), not the viewport: one row when wide, controls above an
+        attach/send row when medium, and the same two rows with compact chips when narrow. The class
+        hooks below (`composer-attach`, `composer-controls`, `composer-send`, `composer-needs-key`)
+        are the grid areas — do not put layout utilities back on these elements.
+      */}
+      <div className="composer-toolbar" data-testid="composer-toolbar">
         <button
           type="button"
-          className="btn btn-ghost btn-icon h-8 w-8 shrink-0 !rounded-pill wash"
+          className="composer-attach btn btn-ghost btn-icon shrink-0 !rounded-pill wash"
           data-testid="composer-attach"
           onClick={() => fileInputRef.current?.click()}
           disabled={busy}
@@ -590,7 +641,7 @@ export function ChatComposer({
             <path d="M21.4 11.05 12.25 20.2a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.48-8.49" />
           </svg>
         </button>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <div className="composer-controls">
           {showPicker ? (
             <ModelPicker
               models={pickerModels}
@@ -607,10 +658,28 @@ export function ChatComposer({
             tuned. It is a single select now, showing just the level ("Normal").
           */}
           {onReasoningEffortChange || onThinkingChange ? (
-            <label className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill border border-[var(--line)] bg-transparent pl-3 pr-1 text-xs text-[var(--text)]">
-              <span data-testid="reasoning-effort-label">{t("chat.composer.thinkingPrefix")}</span>
+            <label className="composer-thinking rounded-pill border border-[var(--line)] bg-transparent text-xs text-[var(--text)]">
+              {/* Narrow: the icon stands in for the word, which stays in the tree as the label. */}
+              <svg
+                className="composer-thinking-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M9 18h6M10 21h4" />
+                <path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1.1 1.2 1.1 2.2h5c0-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3Z" />
+              </svg>
+              <span className="composer-thinking-word" data-testid="reasoning-effort-label">
+                {t("chat.composer.thinkingPrefix")}
+              </span>
               <select
-                className="h-7 cursor-pointer border-0 bg-transparent pr-1 text-xs text-[var(--text)] outline-none disabled:cursor-not-allowed disabled:opacity-45"
+                className="cursor-pointer border-0 bg-transparent text-xs text-[var(--text)] outline-none disabled:cursor-not-allowed disabled:opacity-45"
                 data-testid="reasoning-effort"
                 aria-label={t("chat.composer.thinkingPrefix")}
                 value={reasoningEffort}
@@ -627,6 +696,25 @@ export function ChatComposer({
                   </option>
                 ))}
               </select>
+              {/*
+                The select's own arrow is off (`appearance: none`), because Chrome paints it at the
+                select's edge and ignores padding. This chevron replaces it, placed by the pill's
+                CSS and out of the click path, so a tap on it opens the select underneath.
+              */}
+              <svg
+                className="composer-thinking-chevron"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m4 9 8 8 8-8" />
+              </svg>
             </label>
           ) : null}
           <EnhancePromptButton
@@ -643,8 +731,8 @@ export function ChatComposer({
           type="submit"
           className={
             sendDisabled
-              ? "ml-auto inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
-              : "btn btn-primary ml-auto h-8 shrink-0 !rounded-pill px-4 text-sm"
+              ? "composer-send inline-flex shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+              : "composer-send btn btn-primary shrink-0 !rounded-pill px-4 text-sm"
           }
           disabled={sendDisabled}
           title={needsKey ? t("chat.composer.needsKey") : undefined}
@@ -653,7 +741,7 @@ export function ChatComposer({
           {busy ? t("chat.composer.sending") : t("chat.composer.send")}
         </button>
         {needsKey ? (
-          <p className="basis-full text-xs text-[var(--text-3)]" data-testid="composer-needs-key">
+          <p className="composer-needs-key text-xs text-[var(--text-3)]" data-testid="composer-needs-key">
             {t("chat.composer.needsKey")}
           </p>
         ) : null}

@@ -1,5 +1,5 @@
 /**
- * GitHub Releases updater for the public DPSBuddy build only.
+ * GitHub Releases updater for the public Nultron build only.
  * Flavors (Kemenkeu / Metranet) must not call this.
  */
 const fs = require("node:fs");
@@ -38,7 +38,7 @@ const UPDATER_MESSAGES = Object.freeze({
  */
 const UNSIGNED_PLATFORMS = new Set(["darwin"]);
 const MAC_MANUAL_MESSAGE = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
-const NOT_INSTALLED_MESSAGE = "Updates are available in the installed DPSBuddy app.";
+const NOT_INSTALLED_MESSAGE = "Updates are available in the installed Nultron app.";
 
 /**
  * What every `updates:*` channel answers a frame that is not the main renderer.

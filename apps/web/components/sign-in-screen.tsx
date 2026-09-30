@@ -21,7 +21,8 @@ import { useLocation } from "react-router-dom";
 import { apiFetch } from "@/lib/api-client";
 import { authReasonMessage, errorCodeFrom } from "@/lib/auth-reason";
 import { t } from "@/lib/i18n";
-import { useProductBrand } from "@/lib/product-brand";
+import { BrandMark } from "@/components/brand-mark";
+import { useProductBrand, usesBundledMark } from "@/lib/product-brand";
 
 export const START_PATH = "/api/v1/auth/start";
 
@@ -76,7 +77,8 @@ export async function startSignIn(): Promise<StartResult> {
 
 export function SignInScreen() {
   const location = useLocation();
-  const { productName, logoSrc } = useProductBrand();
+  const brand = useProductBrand();
+  const { productName, logoSrc } = brand;
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -101,7 +103,11 @@ export function SignInScreen() {
   return (
     <main className="h-full overflow-y-auto text-[var(--text)]" data-testid="auth-signin">
       <div className="mx-auto flex min-h-full max-w-sm flex-col justify-center px-6 py-8">
-        {logoSrc ? <img src={logoSrc} alt={productName} className="mb-6 h-8 w-8" /> : null}
+        {usesBundledMark(brand) ? (
+          <BrandMark size={32} alt={productName} className="mb-6" />
+        ) : logoSrc ? (
+          <img src={logoSrc} alt={productName} className="mb-6 h-8 w-8" />
+        ) : null}
         <h1 className="text-2xl font-medium tracking-[var(--track)]">{t("auth.signIn.title", { productName })}</h1>
         <p className="mt-2 text-[var(--text-2)]">{t("auth.signIn.intro")}</p>
         {reason ? (

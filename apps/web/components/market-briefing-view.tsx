@@ -215,7 +215,7 @@ export function MarketBriefingView({
       {packet.positionContext ? (
         <section className="mt-10" data-testid={`${testIdPrefix}-position`}>
           <h3 className={H3}>{t("market.briefing.positionNotes")}</h3>
-          <pre className="mt-3 whitespace-pre-wrap rounded-md border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 font-sans text-sm text-[var(--text-2)]">
+          <pre className="mt-3 whitespace-pre-wrap [overflow-wrap:anywhere] rounded-md border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 font-sans text-sm text-[var(--text-2)]">
             {packet.positionContext}
           </pre>
         </section>

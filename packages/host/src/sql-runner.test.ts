@@ -345,7 +345,7 @@ describe("workerEnv", () => {
     // about this install, so the app database's location and every secret stay outside it.
     const filtered = workerEnv({
       PATH: "/usr/bin",
-      AGENTFORGE_DATA_DIR: "C:/Users/x/AppData/Roaming/DPSBuddy",
+      AGENTFORGE_DATA_DIR: "C:/Users/x/AppData/Roaming/Nultron",
       AGENTFORGE_SERVER: "1",
       OPENAI_API_KEY: "sk-live-1",
       ANTHROPIC_API_KEY: "sk-ant-1",

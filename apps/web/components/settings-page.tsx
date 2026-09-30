@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
 import { AccountPlanPanel } from "./account-plan-panel";
 import { AccountSessionRow } from "./account-session-row";
+import { SettingsGuideCard } from "./settings-guide-card";
 import { SettingsResetCard } from "./settings-reset-card";
 // Phase 8: renders only where there is a ceiling to show (hosted); null on a desk.
 import { SettingsStorageCard } from "./settings-storage-card";
@@ -459,6 +460,8 @@ export function SettingsPage() {
           </div>
         ) : null}
       </section>
+
+      <SettingsGuideCard />
 
       <form onSubmit={(event) => void onSubmit(event)} className="mt-6 space-y-6" data-testid="settings-form">
         <section className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">

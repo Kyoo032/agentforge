@@ -22,14 +22,60 @@ export type ProductMode = (typeof PRODUCT_MODES)[number]["id"];
 
 export const PRODUCT_MODE_IDS: ProductMode[] = PRODUCT_MODES.map((mode) => mode.id);
 
-/** Default / General desk — every work mode, no Agents tab. */
+/**
+ * Every work mode, no Agents tab: the General preset for a *new* desk, the hosted first desk
+ * (`HOSTED_FIRST_DESK_MODES`) and what a stored row with nothing in it reads as. It is not what a
+ * fresh Personal install's first desk starts with; that is `FIRST_RUN_MODES`.
+ */
 export const WORK_PRODUCT_MODES: ProductMode[] = [...PRODUCT_MODE_IDS];
 
 /** Original v1 rail minus Agents — used for legacy agents that never stored productModes. */
 export const LEGACY_PRODUCT_MODES: ProductMode[] = ["chat", "images", "videos", "presentations"];
 
-/** First-run / empty / missing workspace list: all work modes. */
+/**
+ * A desk row that stores no modes (a pre-column row, a hand-edited `[]`) reads as every mode, so an
+ * existing desk can never lose its rail by being read. This is a READ fallback, not the first-run
+ * default: see `FIRST_RUN_MODES` for what a fresh install's first desk is created with.
+ */
 export const FALLBACK_PRODUCT_MODES: ProductMode[] = [...WORK_PRODUCT_MODES];
+
+/**
+ * The modes the FIRST desk of a fresh Personal install is created with (owner decision, Rizky,
+ * 2026-09-29): Research, Images, Videos and Presentation, and nothing else. Chat is not one of the
+ * "Create" modes; it is the home every desk has (`resolveWorkspaceModes` forces it in), so it is
+ * listed here to keep the stored row equal to what the rail shows.
+ *
+ * A HARD rule, not a default. Every path that creates a first desk on a fresh Personal data dir goes
+ * through `firstDeskModes` (`packages/db/src/ensure-local-owner.ts` is the only one), and
+ * `packages/host/src/first-run-modes.test.ts` fails if a fresh data dir's first desk has any other
+ * mode set. It is written out literally, not derived from the catalog, so a new catalog entry can
+ * never join a first-run desk by accident. The owner adds the rest later from Workspaces, which edits
+ * this desk's `productModes`; nothing about an existing desk changes.
+ */
+export const FIRST_RUN_MODES: readonly ProductMode[] = Object.freeze([
+  "chat",
+  "research",
+  "images",
+  "videos",
+  "presentations",
+] satisfies ProductMode[]);
+
+/**
+ * What the hosted Enterprise app creates a tenant's first desk with: every mode, exactly as before.
+ * The owner has not decided Enterprise's first desk, so the Personal rule above does not reach it.
+ * `ensurePortalOwner` (`packages/db/src/portal-owner.ts`) reads this; `ensureLocalOwner` reads
+ * `FIRST_RUN_MODES` through `firstDeskModes(false)`.
+ */
+export const HOSTED_FIRST_DESK_MODES: readonly ProductMode[] = Object.freeze([...WORK_PRODUCT_MODES]);
+
+/**
+ * The single answer to "what does a first desk start with?". `hosted` is `isServerMode()` from the
+ * caller, passed in rather than read here so this module stays free of `process` (the renderer
+ * imports it). Returns a fresh array; the constants are frozen.
+ */
+export function firstDeskModes(hosted: boolean): ProductMode[] {
+  return [...(hosted ? HOSTED_FIRST_DESK_MODES : FIRST_RUN_MODES)];
+}
 
 export type ProductModeSource = {
   slug: string;

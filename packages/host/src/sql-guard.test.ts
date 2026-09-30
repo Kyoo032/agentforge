@@ -54,7 +54,7 @@ describe("assertReadOnlySql", () => {
     // load code, write rows, or smuggle a second statement past a harmless-looking SELECT.
     const audit = [
       "ATTACH DATABASE '/data/agentforge.sqlite' AS a",
-      'attach database "C:/Users/x/AppData/Roaming/DPSBuddy/agentforge.sqlite" as leak',
+      'attach database "C:/Users/x/AppData/Roaming/Nultron/agentforge.sqlite" as leak',
       "DETACH DATABASE a",
       "PRAGMA writable_schema=1",
       "pragma query_only = 0",

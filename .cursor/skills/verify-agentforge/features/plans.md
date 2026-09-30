@@ -18,7 +18,7 @@ Three surfaces over one placeholder catalog: the public `/pricing` page, the pla
 - Rail → Settings, below the sign-in row, is `account-plan` — on a hosted deployment. On a desk (`capabilities.plans: false` — the Personal app and webdev) the panel renders **nothing**: no `account-plan`, no "See plans", no `a[href="/pricing"]` (since 2026-09-23; the old one-line card linked to `/pricing`, which the packaged shell blocks — 0.15.0 changelog §7.4). "Plans are not enforced on this installation." now appears only on a hosted deployment whose host answers `{ enforced: false }`. Driven on `:3000` on 2026-09-23: `account-plan` count 0, `/pricing` links 0.
 - A blocked screen arrives on its own, replacing the app, when the host refuses a call with a plan code.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 **Preconditions.**
 
@@ -28,7 +28,7 @@ Three surfaces over one placeholder catalog: the public `/pricing` page, the pla
 **On any desk, no key, no session.**
 
 - **The page.** `goto /pricing`, settle. `pricing-page` is visible. `pricing-placeholder` is visible — **if it is missing, the owner has cleared `placeholder: true` and the numbers are now real**, which is news for `docs/internal/unreleased.md`, not a pass. Two cards: `pricing-tier-personal` and `pricing-tier-enterprise`.
-- **The two offers.** `pricing-tier-personal` names the Mac and Windows DPSBuddy app and a complement from DPS when buying a lot of tokens. It has no seat-count line (`pricing-seats-personal` is absent). `pricing-tier-enterprise` names the web product, contact DPS rather than checkout, storage for the unified knowledge base, user traffic to use the agents, implementation and maintenance from DPS, and that seats and tokens are charged separately. `pricing-seats-enterprise` reads "Up to 20 seats" — the placeholder cap. Do not invent a Personal seat cap to match old copy.
+- **The two offers.** `pricing-tier-personal` names the Mac and Windows Nultron app and a complement from DPS when buying a lot of tokens. It has no seat-count line (`pricing-seats-personal` is absent). `pricing-tier-enterprise` names the web product, contact DPS rather than checkout, storage for the unified knowledge base, user traffic to use the agents, implementation and maintenance from DPS, and that seats and tokens are charged separately. `pricing-seats-enterprise` reads "Up to 20 seats" — the placeholder cap. Do not invent a Personal seat cap to match old copy.
 - **No dead button.** With no checkout configured, `pricing-cta-<id>` is a control that asks rather than a greyed-out "Buy", and `pricing-contact-help` is visible. Press it; `pricing-contact-help` gains `role="status"`. Nothing is posted.
 - **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), the strings come from `apps/web/locales/id/plans.json` and the price formats as `Rp 299.000` rather than `IDR 299,000`. Testids do not move.
 - **Blocked screens, without a webhook.** On a **local** build only, `goto /pricing?preview=plan_past_due` renders `plan-blocked` with the past-due copy. Walk all four codes: `plan_past_due`, `plan_cancelled`, `plan_allowance_exhausted`, `plan_unavailable`. The last one must offer `plan-blocked-retry` and must not read as a payment problem. **This door is local-only by construction** — it is refused where the host says plans are enforced, and refused when the ping has not answered ([SR-35](../../../../docs/internal/security-register.md#sr-35)) — so do not expect it to work on the review instance.

@@ -1,4 +1,4 @@
-import { ApiError } from "@agentforge/core";
+import { ApiError, learnedEffortLimit, rememberEffortLimit } from "@agentforge/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   JOB_MODEL_DOWN_MS,
@@ -6,12 +6,16 @@ import {
   jobFailureMessage,
   markJobModelDown,
   resetJobModelCircuit,
+  resetModelReliabilityState,
   runWithJobModelFallback,
   type JobModelOutcome,
 } from "./job-model-fallback";
 
-/** The ids the workspace listed on 2026-09-17, trimmed to what these tests exercise. */
-const AVAILABLE = ["deepseek-v4-flash", "gpt-5.6-luna", "gpt-5.6-terra", "claude-sonnet-5", "gpt-5.6-sol", "glm-5.2"];
+/**
+ * The ids the workspace listed on 2026-09-30, trimmed to what these tests exercise. The stand-ins after
+ * the Finance default are the head of `JOB_FALLBACK_TAIL` (`gpt-6-luna`, then `claude-sonnet-5-5`).
+ */
+const AVAILABLE = ["deepseek-v4-flash", "gpt-6-luna", "gpt-5.6-terra", "claude-sonnet-5-5", "gpt-5.6-sol", "glm-5.2"];
 
 /** The exact sentence the Finance default returned on the live eval run. */
 const GATEWAY_503 =
@@ -75,6 +79,16 @@ describe("the down circuit", () => {
   });
 });
 
+describe("resetModelReliabilityState", () => {
+  it("forgets the down circuit and the Thinking levels learned for a model, together", () => {
+    markJobModelDown("deepseek-v4-flash", NOW);
+    rememberEffortLimit("deepseek-v4-flash", { kind: "ceiling", level: "high" });
+    resetModelReliabilityState();
+    expect(isJobModelDown("deepseek-v4-flash", NOW + 1)).toBe(false);
+    expect(learnedEffortLimit("deepseek-v4-flash")).toBeUndefined();
+  });
+});
+
 describe("runWithJobModelFallback", () => {
   it("returns the first model's answer with no notice when it works", async () => {
     const runtime = fakeRuntime({ "deepseek-v4-flash": "ok" });
@@ -89,44 +103,44 @@ describe("runWithJobModelFallback", () => {
   });
 
   it("answers on the next ranked model when the default returns 503", async () => {
-    const runtime = fakeRuntime({ "deepseek-v4-flash": new Error(GATEWAY_503), "gpt-5.6-luna": "ok" });
+    const runtime = fakeRuntime({ "deepseek-v4-flash": new Error(GATEWAY_503), "gpt-6-luna": "ok" });
     const run = await runWithJobModelFallback(
       { model: "deepseek-v4-flash", jobMode: "finance", availableModelIds: AVAILABLE, now },
       runtime.attempt,
     );
-    expect(run.value).toBe("brief from gpt-5.6-luna");
-    expect(run.model).toBe("gpt-5.6-luna");
-    expect(run.notice).toEqual({ code: "model_fallback", from: "deepseek-v4-flash", to: "gpt-5.6-luna" });
-    expect(runtime.calls).toEqual(["deepseek-v4-flash", "gpt-5.6-luna"]);
+    expect(run.value).toBe("brief from gpt-6-luna");
+    expect(run.model).toBe("gpt-6-luna");
+    expect(run.notice).toEqual({ code: "model_fallback", from: "deepseek-v4-flash", to: "gpt-6-luna" });
+    expect(runtime.calls).toEqual(["deepseek-v4-flash", "gpt-6-luna"]);
   });
 
   it("falls back on the 10s response-header abort too", async () => {
     const runtime = fakeRuntime({
       "deepseek-v4-flash": new Error("Gateway unreachable: no response within 10s"),
-      "gpt-5.6-luna": "ok",
+      "gpt-6-luna": "ok",
     });
     const run = await runWithJobModelFallback(
       { model: "deepseek-v4-flash", jobMode: "finance", availableModelIds: AVAILABLE, now },
       runtime.attempt,
     );
-    expect(run.model).toBe("gpt-5.6-luna");
+    expect(run.model).toBe("gpt-6-luna");
   });
 
   it("marks the failed model down so the next job skips it without paying the three tries", async () => {
-    const first = fakeRuntime({ "deepseek-v4-flash": new Error(GATEWAY_503), "gpt-5.6-luna": "ok" });
+    const first = fakeRuntime({ "deepseek-v4-flash": new Error(GATEWAY_503), "gpt-6-luna": "ok" });
     await runWithJobModelFallback(
       { model: "deepseek-v4-flash", jobMode: "finance", availableModelIds: AVAILABLE, now },
       first.attempt,
     );
 
-    const second = fakeRuntime({ "gpt-5.6-luna": "ok" });
+    const second = fakeRuntime({ "gpt-6-luna": "ok" });
     const run = await runWithJobModelFallback(
       { model: "deepseek-v4-flash", jobMode: "finance", availableModelIds: AVAILABLE, now },
       second.attempt,
     );
-    expect(second.calls).toEqual(["gpt-5.6-luna"]);
-    expect(run.model).toBe("gpt-5.6-luna");
-    expect(run.notice).toEqual({ code: "model_fallback", from: "deepseek-v4-flash", to: "gpt-5.6-luna" });
+    expect(second.calls).toEqual(["gpt-6-luna"]);
+    expect(run.model).toBe("gpt-6-luna");
+    expect(run.notice).toEqual({ code: "model_fallback", from: "deepseek-v4-flash", to: "gpt-6-luna" });
   });
 
   it("tries the down model again once the circuit has expired", async () => {
@@ -168,7 +182,7 @@ describe("runWithJobModelFallback", () => {
       "The gateway rejected this request (status_code=400)",
       "This model's maximum context length is 128000 tokens",
     ]) {
-      const runtime = fakeRuntime({ "deepseek-v4-flash": new Error(message), "gpt-5.6-luna": "ok" });
+      const runtime = fakeRuntime({ "deepseek-v4-flash": new Error(message), "gpt-6-luna": "ok" });
       await expect(
         runWithJobModelFallback(
           { model: "deepseek-v4-flash", jobMode: "finance", availableModelIds: AVAILABLE, now },
@@ -183,7 +197,7 @@ describe("runWithJobModelFallback", () => {
   it("never re-runs a prompt the model had already started answering", async () => {
     const runtime = fakeRuntime({
       "deepseek-v4-flash": { streamed: new Error("No stream events from deepseek-v4-flash for 60s after it started") },
-      "gpt-5.6-luna": "ok",
+      "gpt-6-luna": "ok",
     });
     await expect(
       runWithJobModelFallback(
@@ -208,16 +222,16 @@ describe("runWithJobModelFallback", () => {
   it("retries once only, and surfaces the stand-in's own error", async () => {
     const runtime = fakeRuntime({
       "deepseek-v4-flash": new Error(GATEWAY_503),
-      "gpt-5.6-luna": new Error("Could not reach gpt-5.6-luna after 3 tries. The gateway is unavailable right now"),
+      "gpt-6-luna": new Error("Could not reach gpt-6-luna after 3 tries. The gateway is unavailable right now"),
     });
     await expect(
       runWithJobModelFallback(
         { model: "deepseek-v4-flash", jobMode: "finance", availableModelIds: AVAILABLE, now },
         runtime.attempt,
       ),
-    ).rejects.toThrow("gpt-5.6-luna");
-    expect(runtime.calls).toEqual(["deepseek-v4-flash", "gpt-5.6-luna"]);
-    expect(isJobModelDown("gpt-5.6-luna", NOW + 1)).toBe(true);
+    ).rejects.toThrow("gpt-6-luna");
+    expect(runtime.calls).toEqual(["deepseek-v4-flash", "gpt-6-luna"]);
+    expect(isJobModelDown("gpt-6-luna", NOW + 1)).toBe(true);
   });
 
   it("only ever offers a model the workspace lists", async () => {
@@ -232,22 +246,22 @@ describe("runWithJobModelFallback", () => {
   });
 
   it("serves a mode it was given no name for from the shared tail", async () => {
-    const runtime = fakeRuntime({ "deepseek-v4-flash": new Error(GATEWAY_503), "gpt-5.6-luna": "ok" });
+    const runtime = fakeRuntime({ "deepseek-v4-flash": new Error(GATEWAY_503), "gpt-6-luna": "ok" });
     const run = await runWithJobModelFallback(
       { model: "deepseek-v4-flash", availableModelIds: AVAILABLE, now },
       runtime.attempt,
     );
-    expect(run.model).toBe("gpt-5.6-luna");
+    expect(run.model).toBe("gpt-6-luna");
   });
 
   it("skips a stand-in that is itself marked down", async () => {
-    markJobModelDown("gpt-5.6-luna", NOW);
-    const runtime = fakeRuntime({ "deepseek-v4-flash": new Error(GATEWAY_503), "claude-sonnet-5": "ok" });
+    markJobModelDown("gpt-6-luna", NOW);
+    const runtime = fakeRuntime({ "deepseek-v4-flash": new Error(GATEWAY_503), "claude-sonnet-5-5": "ok" });
     const run = await runWithJobModelFallback(
       { model: "deepseek-v4-flash", jobMode: "finance", availableModelIds: AVAILABLE, now },
       runtime.attempt,
     );
-    expect(run.model).toBe("claude-sonnet-5");
-    expect(runtime.calls).toEqual(["deepseek-v4-flash", "claude-sonnet-5"]);
+    expect(run.model).toBe("claude-sonnet-5-5");
+    expect(runtime.calls).toEqual(["deepseek-v4-flash", "claude-sonnet-5-5"]);
   });
 });

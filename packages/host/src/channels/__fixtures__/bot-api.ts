@@ -73,8 +73,8 @@ function json(body: unknown, status = 200): Response {
 
 export function createBotApiSandbox(options: BotApiSandboxOptions = {}): BotApiSandbox {
   const token = options.token ?? SANDBOX_TOKEN;
-  const botUsername = options.botUsername ?? "dpsbuddy_sandbox_bot";
-  const botName = options.botName ?? "DPSBuddy Sandbox";
+  const botUsername = options.botUsername ?? "nultron_sandbox_bot";
+  const botName = options.botName ?? "Nultron Sandbox";
   const now = options.now ?? (() => Date.now());
   const chats = new Map<string, SandboxChat>();
   for (const chat of options.chats ?? []) {

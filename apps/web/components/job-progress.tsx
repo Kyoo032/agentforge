@@ -43,6 +43,7 @@ export function JobProgressList({ progress, busy, mode, testId = "job-progress",
         busy={busy}
         failed={Boolean(progress.error)}
         done={progress.done && !progress.error}
+        decorative
       />
       <div className="min-w-0 flex-1">
         {progress.phases.length === 0 ? <p className="text-[var(--text-2)]">{t("common.jobProgress.starting")}</p> : null}

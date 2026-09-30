@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyJobThinking, jobThinkingExtras } from "./job-thinking";
+import { applyJobThinking, jobThinkingExtras, jobThinkingPlan } from "./job-thinking";
 import { isWatchdogReasoningModel } from "../runtime/stream-watchdog";
 import { applyReasoningEffortToChatBody } from "./reasoning-effort";
 
@@ -70,5 +70,18 @@ describe("applyJobThinking", () => {
     expect(next).not.toBe(body);
     expect(applyJobThinking("not a body", "deepseek-v4-flash", "market")).toBe("not a body");
     expect(applyJobThinking(null, "deepseek-v4-flash", "market")).toBeNull();
+  });
+});
+
+describe("jobThinkingPlan", () => {
+  it("splits the knob into the effort level it asks for and the other body fields", () => {
+    expect(jobThinkingPlan("deepseek-v4-flash", "finance")).toEqual({ effort: "low", rest: {} });
+    expect(jobThinkingPlan("kimi-k3", "legal")).toEqual({ effort: "low", rest: {} });
+  });
+
+  it("is null for Chat and for a model with no knob", () => {
+    expect(jobThinkingPlan("deepseek-v4-flash", undefined)).toBeNull();
+    expect(jobThinkingPlan("gpt-5.6-luna", "finance")).toBeNull();
+    expect(jobThinkingPlan("some-new-lab-model", "finance")).toBeNull();
   });
 });

@@ -20,13 +20,18 @@ import {
   useRailMarketSpecialists,
 } from "@/components/rail-market-specialists";
 import { ModeIcon, isModeIconName, type ModeIconName } from "@/components/mode-icons";
-import { useProductBrand } from "@/lib/product-brand";
+import { BrandMark } from "@/components/brand-mark";
+import { RailModesSkeleton } from "@/components/rail-modes-skeleton";
+import { useProductBrand, usesBundledMark } from "@/lib/product-brand";
 import { t } from "@/lib/i18n";
+import { railModesPending, SKELETON_MODE_ROWS, type ShellModesSource } from "@/lib/shell-modes";
 import { productMonogram } from "@/components/app-shell";
 
 type Props = {
   workspaceName: string;
   visibleModes: ProductMode[];
+  /** Where `visibleModes` came from (`lib/shell-modes.ts`). Only `"unknown"` changes what is drawn. */
+  modesSource?: ShellModesSource;
 };
 
 /* Music and Meeting shipped 2026-09-21 and rode a self-expiring "New" badge until
@@ -42,6 +47,7 @@ function RailItem({
   collapsed,
   testId,
   index,
+  enter = true,
 }: {
   href: string;
   label: string;
@@ -50,6 +56,8 @@ function RailItem({
   collapsed: boolean;
   testId: string;
   index: number;
+  /** False for rows that take a skeleton's place: they appear where it was, not sliding in after it. */
+  enter?: boolean;
 }) {
   /*
    * `shrink-0`: the nav is a column flex box, so without it a rail that runs past
@@ -71,7 +79,7 @@ function RailItem({
   return (
     <Link
       href={href}
-      className={`enter-slide hover-wiggle flex h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm tracking-[var(--track)] ${rowTone} ${
+      className={`${enter ? "enter-slide " : ""}hover-wiggle flex h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm tracking-[var(--track)] ${rowTone} ${
         collapsed ? "justify-center" : ""
       }`}
       style={{ "--i": index } as CSSProperties}
@@ -103,7 +111,28 @@ function RailGroupLabel({ children, collapsed, first }: { children: ReactNode; c
   );
 }
 
-function BrandTile({ logoSrc, productName }: { logoSrc: string; productName: string }) {
+function BrandTile({
+  logoSrc,
+  productName,
+  bundled,
+}: {
+  logoSrc: string;
+  productName: string;
+  bundled: boolean;
+}) {
+  if (bundled) {
+    // The Nultron mark is already a tile, so it is not set inside another one. The name sits
+    // beside it in the header, so the image itself is decorative.
+    return (
+      <span
+        className="enter-pop inline-flex shrink-0 items-center justify-center"
+        style={{ width: 28, height: 28 }}
+        data-testid="product-logo"
+      >
+        <BrandMark size={24} />
+      </span>
+    );
+  }
   return (
     <span
       className="icon-orb icon-orb-solid enter-pop"
@@ -119,11 +148,19 @@ function BrandTile({ logoSrc, productName }: { logoSrc: string; productName: str
   );
 }
 
-export function AppRail({ workspaceName, visibleModes }: Props) {
+export function AppRail({ workspaceName, visibleModes, modesSource = "host" }: Props) {
   const pathname = usePathname();
-  const { productName, logoSrc } = useProductBrand();
+  const brand = useProductBrand();
+  const { productName, logoSrc } = brand;
+  const bundledMark = usesBundledMark(brand);
   const [collapsed, setCollapsed] = useState(false);
   const [railWidth, setRailWidth] = usePanelWidth(RAIL_WIDTH_KEY, RAIL_WIDTH.default, RAIL_WIDTH.min, RAIL_WIDTH.max);
+  // Nothing cached and the host has not answered: `visibleModes` is only Chat, and the other rows are
+  // a skeleton rather than a guess (`lib/shell-modes.ts`).
+  const modesPending = railModesPending(modesSource);
+  // A rail that mounted with a skeleton swaps real rows in where it stood. Their entrance would leave
+  // the group empty while each row waits out its stagger, which reads as a flicker.
+  const [startedPending] = useState(modesPending);
   const modes = PRODUCT_MODES.filter((mode) => visibleModes.includes(mode.id));
   const homeHref = firstVisibleHref(visibleModes);
   const chatMode = modes.find((mode) => mode.id === "chat");
@@ -167,10 +204,15 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         className={`flex shrink-0 pt-3 ${collapsed ? "items-center justify-center px-1.5" : "items-center gap-2 px-3"}`}
       >
         {collapsed ? (
-          <WorkspaceSwitcher workspaceName={workspaceName} compact logoSrc={logoSrc} logoAlt={productName} />
+          <WorkspaceSwitcher
+            workspaceName={workspaceName}
+            compact
+            logoSrc={bundledMark ? "" : logoSrc}
+            logoAlt={productName}
+          />
         ) : (
           <>
-            <BrandTile logoSrc={logoSrc} productName={productName} />
+            <BrandTile logoSrc={logoSrc} productName={productName} bundled={bundledMark} />
             <div className="min-w-0 flex-1">
               <Link
                 href={homeHref}
@@ -193,6 +235,8 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       <nav
         className="mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-2 pb-2"
         aria-label={t("rail.modesAria")}
+        aria-busy={modesPending || undefined}
+        data-tour="rail-modes"
       >
         {chatMode ? (
           <>
@@ -213,7 +257,10 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           </>
         ) : null}
 
-        {jobModes.length > 0 ? <RailGroupLabel collapsed={collapsed}>{t("rail.groupJobs")}</RailGroupLabel> : null}
+        {jobModes.length > 0 || modesPending ? (
+          <RailGroupLabel collapsed={collapsed}>{t("rail.groupJobs")}</RailGroupLabel>
+        ) : null}
+        {modesPending ? <RailModesSkeleton collapsed={collapsed} rows={SKELETON_MODE_ROWS} /> : null}
         {jobModes.map((mode) => {
           const icon: ModeIconName = isModeIconName(mode.id) ? mode.id : "documents";
           const index = itemIndex++;
@@ -227,6 +274,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
               collapsed={collapsed}
               testId={`mode-${mode.href.slice(1)}`}
               index={index}
+              enter={!startedPending}
             />
           );
           /*

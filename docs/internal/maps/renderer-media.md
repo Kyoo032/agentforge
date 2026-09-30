@@ -4,7 +4,7 @@ Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
-Model output is untrusted, and an `<img src>` is a network request nobody clicked. So DPSBuddy splits media into two halves that meet in the middle. **The renderer** auto-loads only media the host serves — `/api/v1/media/…`, `agentforge://media/…`, plus a small allow-list of inline `data:image/*` — and degrades everything else to a plain link. **The host** downloads whatever remote URL a generation returned, through an SSRF-hardened fetch, into its own store, and hands the renderer a local path.
+Model output is untrusted, and an `<img src>` is a network request nobody clicked. So Nultron splits media into two halves that meet in the middle. **The renderer** auto-loads only media the host serves — `/api/v1/media/…`, `agentforge://media/…`, plus a small allow-list of inline `data:image/*` — and degrades everything else to a plain link. **The host** downloads whatever remote URL a generation returned, through an SSRF-hardened fetch, into its own store, and hands the renderer a local path.
 
 Landed as one atomic security pass in `8831bc4`, recorded as findings `d1` and `d2` in `docs/internal/blockers-2026-09-15.md` section 3.2 and in the "Renderer media lock-down" section of `docs/internal/0.14.26-changelog.md:191-201`.
 

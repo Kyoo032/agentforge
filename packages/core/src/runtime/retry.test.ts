@@ -5,6 +5,7 @@ import {
   formatContactProbe,
   formatContactProbeButton,
   formatModelContactError,
+  hasVisibleText,
   isRetryableModelFailure,
   shouldFailEmptyAssistant,
   shouldKeepToolTurn,
@@ -60,6 +61,23 @@ describe("shouldRetryWithoutTools", () => {
         tooled: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe("hasVisibleText", () => {
+  it("is true for any text a person can read", () => {
+    expect(hasVisibleText("ok")).toBe(true);
+    expect(hasVisibleText("  ok\n")).toBe(true);
+    expect(hasVisibleText("0")).toBe(true);
+  });
+
+  it("is false for nothing and for whitespace alone: a reply of a single space is no reply", () => {
+    expect(hasVisibleText("")).toBe(false);
+    expect(hasVisibleText(" ")).toBe(false);
+    expect(hasVisibleText("\n\n")).toBe(false);
+    expect(hasVisibleText(" \t\r\n")).toBe(false);
+    // Unicode whitespace the model can emit: no-break space, ideographic space, line separator.
+    expect(hasVisibleText(" 　 ")).toBe(false);
   });
 });
 

@@ -1,0 +1,45 @@
+{
+  "dialogLabel": "A quick tour of {productName}",
+  "offer": {
+    "title": "Want a quick tour?",
+    "body": "{total} short stops show you where things are. It takes about a minute. You can skip it now, or close it at any point.",
+    "start": "Show me around"
+  },
+  "progress": "Step {current} of {total}",
+  "next": "Next",
+  "back": "Back",
+  "skip": "Skip",
+  "done": "Done",
+  "close": "Close the guide",
+  "steps": {
+    "modes": {
+      "title": "Your tools live here",
+      "bodyOne": "Chat is home. Below it is your tool: {tools}. Pick it to start.",
+      "bodyList": "Chat is home. Below it are your {count} tools: {tools}. Pick one to start.",
+      "bodyMany": "Chat is home. Below it is a tool for each kind of work. Pick one to start.",
+      "bodyNone": "Chat is home. You can add tools to this desk from Workspaces."
+    },
+    "workspaces": {
+      "title": "Add more tools any time",
+      "bodyMore": "Want more tools, like {tools}? Open Workspaces, choose Edit on your desk, and switch them on. You can change it whenever you like.",
+      "bodyAll": "Every tool is already on this desk. To have fewer, open Workspaces, choose Edit on your desk, and switch some off. You can change it whenever you like."
+    },
+    "chat": {
+      "title": "Ask Chat anything",
+      "body": "In Chat, type in the box at the bottom and press Enter. The model picker lets you choose which model answers."
+    },
+    "knowledge": {
+      "title": "Teach it what you know",
+      "body": "The Knowledge Base keeps your notes, files and web pages. Chat uses them when it answers."
+    },
+    "settings": {
+      "title": "Your key and your language",
+      "body": "Settings holds your key and your language. You can replay this guide from there whenever you like."
+    }
+  },
+  "replay": {
+    "title": "Guide",
+    "body": "A one-minute walk through the rail, Workspaces, Chat, the Knowledge Base and Settings.",
+    "button": "Replay the guide"
+  }
+}

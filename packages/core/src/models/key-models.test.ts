@@ -18,7 +18,9 @@ describe("video models the key listed", () => {
 
   it("picks a preferred id only from the ids it was given", () => {
     expect(availableVideoDefault(PROBED)).toBe("veo_3_1-fast");
-    expect(availableVideoDefault(["seedance-2.0", "grok-imagine-video"])).toBe("grok-imagine-video");
+    // Seedance leads since 2026-09-30: it is what the live catalogue lists and what the app drove.
+    expect(availableVideoDefault(["seedance-2.0", "grok-imagine-video"])).toBe("seedance-2.0");
+    expect(availableVideoDefault(["gpt-4o-mini", "grok-imagine-video"])).toBe("grok-imagine-video");
   });
 
   it("refuses a model the refresh did not list and names one it did", () => {

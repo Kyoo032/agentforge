@@ -60,7 +60,7 @@ import { clearGateState } from "./gateway-gate";
 import { clearGatewayKeyEverywhere } from "./settings-store";
 import { clearThisKeyCache } from "./account-usage";
 import { resetEmbedCircuit } from "./knowledge-embed";
-import { resetJobModelCircuit } from "./job-model-fallback";
+import { resetModelReliabilityState } from "./job-model-fallback";
 import { assertPurgeableTenant, purgeProgressOf } from "./tenant-object-keys";
 import { resolveTenantPurgeRoot, tenantScopedRoot } from "./tenant-paths";
 import { forgetTenantJobBytes, tenantObjectStore } from "./tenant-storage";
@@ -312,7 +312,7 @@ export async function resetTenant(tenant: TenantContext, confirm: string | undef
     clearGateState(tenant);
     clearThisKeyCache();
     resetEmbedCircuit();
-    resetJobModelCircuit();
+    resetModelReliabilityState();
 
     // 6. Put the account back. Without this the tenant's own live session resolves to
     //    `org_inactive` on its very next request and there is no way back in from the UI.

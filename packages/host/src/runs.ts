@@ -10,7 +10,7 @@ import {
   parseTextRunInput,
   parseVideoRunInput,
   readOptionalModel,
-  readOptionalReasoningEffort,
+  readReasoningEffortChoice,
   readOptionalChatWire,
   resolveChatModel,
   hasModelVisibleContent,
@@ -133,7 +133,9 @@ export async function* startModalityRun(options: {
   const parsed = parsers[options.modality](options.body as { content?: unknown; stream?: unknown });
   const settings = loadSettings(options.tenant);
   const userParts = settings.injectionGuardBypass === true ? parsed.parts : redactAttachedParts(parsed.parts);
-  const reasoningEffort = readOptionalReasoningEffort(options.body);
+  // `explicit` is what lets the runtime send a model it has never seen no effort at all unless the
+  // person picked one; the level alone cannot say that.
+  const { effort: reasoningEffort, explicit: reasoningEffortExplicit } = readReasoningEffortChoice(options.body);
   const thinkingEnabled = reasoningEffort !== "none";
   const wire = readOptionalChatWire(options.body);
   const thread = await getThread(options.tenant, options.threadId);
@@ -292,6 +294,7 @@ export async function* startModalityRun(options: {
           history,
           thinking: thinkingEnabled,
           reasoningEffort,
+          reasoningEffortExplicit,
           wire,
           locale,
           onEvent: async (event) => {

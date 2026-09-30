@@ -5,6 +5,7 @@ import type { MediaPrice } from "@agentforge/core/media-pricing";
 import { Confetti } from "@/components/confetti";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
+import { GalleryImage } from "@/components/gallery-media";
 import { ModeHeader } from "@/components/mode-header";
 import { MascotSlot } from "@/components/mascot-slot";
 import { ModelSelect } from "@/components/model-select";
@@ -35,6 +36,8 @@ type GalleryItem = {
   prompt?: string;
   aspect?: string;
   model?: string;
+  /** The host's word that the file is gone from the store: the row lists, the picture does not load. */
+  fileMissing?: boolean;
 };
 
 type GalleryResponse = {
@@ -200,7 +203,7 @@ export function ImagesStudio() {
             disabled={generating}
             data-testid="images-studio-prompt"
           />
-          {generating ? <MascotSlot mode="images" placement="beside" busy /> : null}
+          {generating ? <MascotSlot mode="images" placement="beside" busy decorative /> : null}
           <button
             type="submit"
             className={
@@ -230,11 +233,10 @@ export function ImagesStudio() {
           <ul className="grid gap-4 sm:grid-cols-2 min-[1600px]:grid-cols-3 min-[2400px]:grid-cols-4">
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <GalleryImage
                   src={mediaSrc(item.url)}
                   alt={item.prompt || t("images.generatedAlt")}
-                  className="aspect-square w-full object-cover"
+                  missing={item.fileMissing === true}
                 />
                 {item.prompt ? <p className="truncate px-3 py-2 text-xs text-[var(--text-2)]">{item.prompt}</p> : null}
               </li>

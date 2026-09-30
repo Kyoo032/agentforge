@@ -1,6 +1,6 @@
 # Product modes
 
-DPSBuddy’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. Default stores every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
+Nultron’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. The first desk of a fresh **Personal** install stores only Research, Images, Videos and Presentation plus Chat (owner decision, 2026-09-29, see [First-run desk](#first-run-desk-personal)); the first desk of the hosted **Enterprise** app stores every work mode, and an existing desk keeps whatever it has. Editing the current desk on Workspaces, or creating another desk (Legal, Marketing, Students, or custom checkboxes), can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
 
 Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge Toko Token with TokenKu in copy or catalogs. Kernel stays industry-neutral: no `student` / `course` / campus nouns outside `packages/university`.
 
@@ -35,7 +35,7 @@ Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files s
 `resolveWorkspaceModes` in `packages/core/src/agents/product-modes.ts`:
 
 - Stored workspace `productModes` in catalog order, always including Chat.
-- Missing / `null` / empty → all work modes (Default desk).
+- Missing / `null` / empty → all work modes. That is a **read** fallback for a row with nothing stored (a desk from before the column existed), so an existing desk never loses its rail by being read. It is not what a new desk starts with; see [First-run desk](#first-run-desk-personal).
 - Unknown ids including parked `agents` are dropped.
 - Hidden generate-studio URLs redirect to the first visible mode (Chat if present). `/` does the same.
 - `/agents` and `/studio` redirect like hidden modes.
@@ -48,12 +48,30 @@ Redirects:
 - `/workspace` → `/chat`
 - `/agents`, `/studio/**` → `/chat`
 
+## First-run desk (Personal)
+
+Rizky, 2026-09-29: when someone first installs the desktop app, the desk it opens with has **Research, Images, Videos and Presentation**, and nothing else. Chat is the home every desk has and is not one of the "Create" modes, so the stored row is `chat, research, images, videos, presentations`. Knowledge Base, Channels, Workspaces, Usage and Settings are account-rail pages, not modes, and are always there.
+
+It is a hard rule, held by structure and by tests:
+
+- One constant, `FIRST_RUN_MODES` (`packages/core/src/agents/product-modes.ts`), written out literally so a new catalog mode can never join it by accident.
+- One place writes a Personal first desk: `ensureLocalOwner` (`packages/db/src/ensure-local-owner.ts`), through `firstDeskModes(isServerMode())`. That covers a fresh data dir, the seed script, and Start over's "all" scope, whose wipe removes the database so the next boot lands on the same branch.
+- The hosted app is separate on purpose. `ensurePortalOwner` (`packages/db/src/portal-owner.ts`) reads `HOSTED_FIRST_DESK_MODES`, every mode, exactly as before, and `isServerMode()` keeps a hosted process that ever reached the local path on the same list. Rizky has not decided Enterprise's first desk.
+- `packages/host/src/first-run-modes.test.ts` opens a real empty data dir through the real router, and runs two real host processes across a Start over, and fails if the first desk has any other mode. `packages/db/src/first-desk-modes.test.ts` fails if a second place starts writing desk rows.
+- It never rewrites an existing desk. Upgrading from 0.15.1 changes nothing; a desk row with no stored modes still reads as every mode.
+
+The owner adds the rest later: **Workspaces → Edit on the desk → the mode chips → Save** (`PATCH /api/v1/workspaces/:id`). The first-run guide points at that page (below).
+
+## First-run guide
+
+After first-run setup ends, a short guided tour is offered once. Five stops, each a coach mark on a real element: the rail and its tools, Workspaces (how to add more), the Chat composer and model picker, the Knowledge Base, Settings. Every card has Next, Back (not on the first stop), a visible Skip and a close button; Esc closes it, and a click outside does nothing. A stop whose element is not on screen (a collapsed rail, a phone-width window) is a centred card, and the tour goes on. How it ended is stored by the host beside the language, so it never opens on its own again; Settings has **Replay the guide**, and Start over shows it again. Design, states and the files: [`internal/maps/first-run-desk-and-guide.md`](internal/maps/first-run-desk-and-guide.md).
+
 ## Pack seeds
 
 Packs live in their own packages. They seed workspace **preset mode lists**. They do not change kernel schema.
 
 - **Blank** — `chat` (user adds chips; Chat always required)
-- **General / Default** — every work mode
+- **General** — every work mode (a preset for a *new* desk; the Personal first desk does not use it)
 - **Students** (`packages/university`) — `chat`, `documents`, `research`, `images`, `presentations`
 - **Marketing** (`packages/marketing`) — `chat`, `documents`, `images`, `videos`, `presentations`
 - **Legal** (`packages/legal`) — `chat`, `documents`, `research`, `legal`, `presentations`
@@ -62,15 +80,15 @@ Packs live in their own packages. They seed workspace **preset mode lists**. The
 
 ### Chat
 
-Default gateway chat: model picker, composer, its own sessions (`GET /api/v1/threads?scope=chat`). Uses the **chat** bucket from the live `/v1/models` probe. Default / Recommended follow the gateway routing table (`gpt-5.6-luna`, then Claude Sonnet 5 / Gemini 3.5 Flash / Qwen 3.7 Plus / MiniMax M3 / Terra) when live — not Sol/Pro/Astra/Fable. No specialist chips. No Build. Generate tools may remain bound so a sentence in Chat can still create media; that is not a substitute for the Images / Videos pages.
+Default gateway chat: model picker, composer, its own sessions (`GET /api/v1/threads?scope=chat`). Uses the **chat** bucket from the live `/v1/models` probe. Default / Recommended follow the gateway routing table of 2026-09-30, cheapest and fastest first: the default is `gpt-6-luna`, then Claude Sonnet 5.5, DeepSeek V4.1 Flash, Gemini 3.5 Flash, GPT 6 Sol, GLM 5.3 Flash and Qwen 3.7 Plus when live. GPT 6 Astra and Claude Opus 5.5 are the deep-reasoning picks and sit in their brand groups, not in Recommended; so do GPT 5.6, Claude Sonnet 5 and MiniMax M3, which left Recommended that day. When none of the seven is live the stand-ins are `gpt-5.6-luna`, Claude Sonnet 5, then DeepSeek V4 Flash. No specialist chips. No Build. Generate tools may remain bound so a sentence in Chat can still create media; that is not a substitute for the Images / Videos pages.
 
 ### Documents
 
-Job, not a Word editor. Prompt → JSON sections → HTML preview → download `.docx`. Direct `/api/v1/documents` — not `/runs/*`. Uses the chat catalog with a cheap writing default (`hy3` when live, else `deepseek-v4-flash`). Settings can override the default. Optional **Source material** (`sourceText`, capped at 120k chars) on generate and regenerate: when present the model may use only that material for facts. The field has a "Use a saved artifact…" picker and is prefilled by Research's **Make a document** handoff.
+Job, not a Word editor. Prompt → JSON sections → HTML preview → download `.docx`. Direct `/api/v1/documents` — not `/runs/*`. Uses the chat catalog with a cheap writing default (`hy3`, which is live and was probed on 2026-09-30, else `deepseek-v4-1-flash`, then `deepseek-v4-flash`). Settings can override the default. Optional **Source material** (`sourceText`, capped at 120k chars) on generate and regenerate: when present the model may use only that material for facts. The field has a "Use a saved artifact…" picker and is prefilled by Research's **Make a document** handoff.
 
 ### Research
 
-Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown. Fails visibly without a gateway key. Search uses a saved Tavily or Brave key when one is present, and otherwise Wikipedia, OpenAlex, arXiv, and Crossref. It does not ask for a second key. Uses the chat catalog with an everyday default (`gpt-5.6-luna`, then MiniMax M3, then Terra when live). Since 0.14.22 a run is a **dossier pipeline** (`packages/host/src/research-dossier.ts`): plan 3–5 sub-queries → `web_search` each (5 hits) → dedupe → read up to 10 pages over public HTTPS with the `web_fetch` tool (8k chars/page, 1.5 MB, 10 s, injection-guarded; unreachable pages are kept as snippet-only sources, never dropped) → per-source verbatim passages → one synthesis call for findings that cite `[S#]`, contradictions, and open questions. The dossier is a fixed-skeleton Markdown artifact (`kind: dossier`; frontmatter + Question / Queries run / Sources / Findings / Contradictions / Open questions) and the notes preview is derived from it, so every citation resolves to a real source. The studio streams progress (`POST /api/v1/research/stream`, `job.*` SSE: planning → searching n/m → reading n/m → drafting → saving) with a Cancel that stops the work, shows **Notes** and **Dossier** tabs, and offers **Download Markdown**, **Send to Knowledge Base** (source type `Dossier`), **Make a document**, **Make a presentation**, and **Reopen saved research…**. The JSON `POST /api/v1/research` endpoint returns the same payload.
+Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown. Fails visibly without a gateway key. Search uses a saved Tavily or Brave key when one is present, and otherwise Wikipedia, OpenAlex, arXiv, and Crossref. It does not ask for a second key. Uses the chat catalog with an everyday default (`gpt-6-luna`, then `gpt-6-sol`, `gpt-5.6-luna` and MiniMax M3 when live). Since 0.14.22 a run is a **dossier pipeline** (`packages/host/src/research-dossier.ts`): plan 3–5 sub-queries → `web_search` each (5 hits) → dedupe → read up to 10 pages over public HTTPS with the `web_fetch` tool (8k chars/page, 1.5 MB, 10 s, injection-guarded; unreachable pages are kept as snippet-only sources, never dropped) → per-source verbatim passages → one synthesis call for findings that cite `[S#]`, contradictions, and open questions. The dossier is a fixed-skeleton Markdown artifact (`kind: dossier`; frontmatter + Question / Queries run / Sources / Findings / Contradictions / Open questions) and the notes preview is derived from it, so every citation resolves to a real source. The studio streams progress (`POST /api/v1/research/stream`, `job.*` SSE: planning → searching n/m → reading n/m → drafting → saving) with a Cancel that stops the work, shows **Notes** and **Dossier** tabs, and offers **Download Markdown**, **Send to Knowledge Base** (source type `Dossier`), **Make a document**, **Make a presentation**, and **Reopen saved research…**. The JSON `POST /api/v1/research` endpoint returns the same payload.
 
 ### Finance
 
@@ -92,7 +110,7 @@ Job, not a note-taker bot in the call. A **meeting** is a folder on disk (`local
 
 Transcription is ffmpeg to mono 16 kHz mp3, segmented at ten minutes, then one gateway call per chunk. The wire is **chat completions with a base64 `input_audio` part**, because the gateway advertises no audio/transcription endpoint type and `mimo-v2.5-asr` — its only purpose-built recogniser — carries its vendor's schema behind the `openai` type (`docs/internal/gateway-model-selection.md` §2.1 and row 147). A Whisper-style id takes the multipart `/v1/audio/transcriptions` route instead. When the key's catalog lists no recogniser at all, `GET /api/v1/meetings` says so in a `capability` block and the studio offers the paste path rather than failing at upload time.
 
-Minutes are schema-bound JSON (title, date if stated, summary, attendees, decisions, action items with owners and dates, risks, open questions) written by the chat catalog with a strict-output / long-input default (`gpt-5.6-sol`, then `gpt-5.6-terra`, `gemini-3.5-flash`, `MiniMax-M3`, `deepseek-v4-flash`). A **name guard** then checks every attendee and owner against the transcript in code: an attendee the transcript never named is dropped, an invented owner becomes `[needs owner]`, and the count is shown in the studio — the same family as Finance's number guard and Market's advice guard. The translation is a second model pass over the finished minutes JSON, guarded again, so the two languages cannot disagree about what was decided. Output is two `meeting` artifacts (`kind: transcript`, `kind: minutes`) plus a `Meeting` Knowledge work card. Live runs are 503 without a key; create, upload and paste work without one.
+Minutes are schema-bound JSON (title, date if stated, summary, attendees, decisions, action items with owners and dates, risks, open questions) written by the chat catalog with a strict-output / long-input default (`gpt-6-sol`, then `claude-sonnet-5-5`, `gemini-3.5-flash`, `gpt-5.6-sol`). A **name guard** then checks every attendee and owner against the transcript in code: an attendee the transcript never named is dropped, an invented owner becomes `[needs owner]`, and the count is shown in the studio — the same family as Finance's number guard and Market's advice guard. The translation is a second model pass over the finished minutes JSON, guarded again, so the two languages cannot disagree about what was decided. Output is two `meeting` artifacts (`kind: transcript`, `kind: minutes`) plus a `Meeting` Knowledge work card. Live runs are 503 without a key; create, upload and paste work without one.
 
 ### Data
 
@@ -112,7 +130,7 @@ Lumina-style **generate** studio: prompt bar + result gallery. Not a canvas edit
 
 ### Videos
 
-Same pattern for video: prompt, aspect, optional still (`image_url`), gallery. Direct generate path — not `/runs/video`. The picker lists **every** gateway video id. Cheap default is `grok-imagine-video` (or `omni-fast-v2v`); Seedance 2.5 stays in the picker as the quality option.
+Same pattern for video: prompt, aspect, optional still (`image_url`), gallery. Direct generate path — not `/runs/video`. The picker lists **every** gateway video id. The default is the first of `seedance-2.0`, its dated Doubao spelling, `seedance-2.5`, `veo_3_1-fast`, `grok-imagine-video` and `omni-fast-v2v` that the gateway lists (the 2026-09-30 catalogue lists `seedance-2.0` and `seedance-2.5`, and the app made its demo videos on `seedance-2.0`); every other video id stays in the picker.
 
 ### Music
 
@@ -126,7 +144,7 @@ Text-to-speech is built but **off**: the gateway's only TTS id is realtime (WebS
 
 Prompt → outline → a slide stage (current slide, filmstrip, properties) → PPTX. The owner edits the title, heading, and bullets on the slide, and can insert, drag, and resize a rectangle, rounded rectangle, ellipse, triangle, line, arrow, star, callout, or text box, with fill and stroke. Those boxes are written into the same PPTX. Saving stores the outline as JSON on the desk; a reload starts empty until that deck is opened again. There is no pen, table, chart, or slide master. Same optional **Source material** field and handoff as Documents (`sourceText` on `/api/v1/presentations` and `/regenerate`).
 
-Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. Uses the chat catalog with a cheap GLM default (`glm-5.2-fast-preview` / `glm-5.2` when live; Kimi K3 is the quality pick in the picker).
+Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. Uses the chat catalog with a cheap GLM default (`glm-5.3-flash` when live, then `claude-sonnet-5-5`, `glm-5.3` and Kimi K3).
 
 ### Education
 

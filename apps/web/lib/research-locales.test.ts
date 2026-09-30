@@ -25,7 +25,7 @@ describe("research locale JSON", () => {
 
   it("keeps brand names untranslated in id", () => {
     const raw = readFileSync(resolve(localesDir, "id", "research.json"), "utf8");
-    expect(raw).toContain("DPSBuddy");
+    expect(raw).toContain("Nultron");
     expect(raw).toContain("Toko Token");
     expect(raw).not.toMatch(/TokenKu/);
   });

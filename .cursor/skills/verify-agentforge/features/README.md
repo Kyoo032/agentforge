@@ -1,16 +1,16 @@
-# DPSBuddy verification map
+# Nultron verification map
 
 Agent-facing map (where to press). Not product. Pair with pstack `how` for how a subsystem works; keep this directory honest with `/maintain-verification-skill`.
 
-This directory is the maintained source for verifying user-facing DPSBuddy behavior. Read this index before driving, then use the matching feature file as the recipe.
+This directory is the maintained source for verifying user-facing Nultron behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meeting, Presentation, Edit, and Education are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here. Education is the teaching desk: a lesson deck, an exam, a local page reader, and a presenter plan.
+Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meeting, Presentation, Edit, and Education are product modes. **A desk that was created before 2026-09-29 (the operator's `:3000` one) has all of them; the first desk of a fresh Personal install has only Research, Images, Videos and Presentation plus Chat,** and its owner turns the rest on from Workspaces. The hosted app's first desk keeps every mode. A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here. Education is the teaching desk: a lesson deck, an exam, a local page reader, and a presenter plan.
 
 ## Baseline preconditions
 
 - **Webdev:** the operator's instance answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args. An isolated instance you started yourself on another port is doctored with `--base http://127.0.0.1:<port>`.
 - **Packaged desktop:** Electron window; doctor `--desktop` reads `host-status.json` (`transport: "ipc"`). No HTTP port.
-- SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\DPSBuddy`, `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, `~/Library/Application Support/DPSBuddy`).
+- SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\Nultron`, `$XDG_CONFIG_HOME/Nultron` or `~/.config/Nultron`, `~/Library/Application Support/Nultron`).
 - **No product login on webdev or the desktop.** A gateway key is optional; stub Chat works without one. The hosted deployment is different: since Phase 9 it has a sign-in, and it is the portal door — an e-mail and a six-digit code, never a password field, and never an e-mail domain used to pick a tenant. Drive it with [login.md](./login.md) on the review instance, never on `:3000`.
 - The **gateway gate** decides whether a desk opens at all: `allowed: false` puts the whole app on onboarding and answers `403 gateway_blocked` on every gateway-calling route. See [gateway-gate.md](./gateway-gate.md).
 - Windows: drive webdev with the IDE browser where you have one. A Claude Code session has no IDE browser — it drives `:3000` (the isolated webdev) with a short scratch Playwright script (see SKILL.md **Drive**) and never runs `pnpm test:e2e`. `:3000` may hold a real, billed key: read doctor's `runtime` first and keep model calls to what the owner asked for.
@@ -21,7 +21,7 @@ Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meetin
 
 - Start from the feature file's preconditions.
 - Use `data-testid` handles. Treat testid strings as literal.
-- Rail tabs are the current workspace `productModes`. Default has every work mode. `mode-agents` count is 0.
+- Rail tabs are the current workspace `productModes`. The operator's existing Default has every work mode; a fresh Personal desk has five (Chat, Research, Images, Videos, Presentation). `mode-agents` count is 0.
 - Restore nothing on the operator's Windows SQLite. Cloud isolation is the VM.
 - Keep proof artifacts under `evidence/<feature>/<run-id>/`.
 - Testids are locale-invariant. Every recipe here holds on an `id` desk; only the visible strings change. See [locale.md](./locale.md).
@@ -38,19 +38,20 @@ Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meetin
 
 ## Feature entry contract
 
-Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to get to it (user POV)`, `Driving it with the DPSBuddy harness`, `Gotchas`.
+Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to get to it (user POV)`, `Driving it with the Nultron harness`, `Gotchas`.
 
 ## Features
 
-- [Chat](./chat.md) — empty state with four intent cards that fill the composer, composer send, Thinking disclosure holding the tool rows, new thread, switch sessions in the rail. Default rail shows every work mode.
-- [Mascot](./mascot.md) — placeholder character on every job desk: home pose per mode, empty vs beside a running job, phase mapping, wave then sleep, reduced motion.
+- [Chat](./chat.md) — empty state with four intent cards that fill the composer, composer send, Thinking disclosure holding the tool rows, new thread, switch sessions in the rail. The operator's Default rail shows every work mode; a fresh Personal desk shows five.
+- [Mascot](./mascot.md) — the Nultron character (`NultronMascot`) on Chat and every job desk: 21 states from `?mascot=`, light and dark, the 3D renders as images (a still per state, a one-shot clip for six, a four-frame loop for thirteen), head below 64px and body from 64px, busy loops only under `data-busy`, the trigger states (charging, surprised, love, lets-go), reduced motion. The logo (rail mark, favicon, splash, icons) is [Desktop brands](./desktop-brands.md).
 - [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, gateway status row, language row, compact this-key + Open Usage. Sign out and delete sit behind `settings-reset-danger`. No Advanced tab. On a closed gate (`allowed: false`) the Chat empty state makes Settings the primary action; a stub desk (`allowed: true`) keeps Send enabled and that link is a plain button.
 - [Gateway gate](./gateway-gate.md) — the host's open/closed decision: onboarding reasons, `settings-gateway-status` + re-check, 7-day grace, `403 gateway_blocked`, Start over. Advisory, fails open, never an entitlement check.
+- [Guide](./guide.md) — the first-run tour (offer, five stops, Skip / close / Esc, Replay in Settings) and the narrow first desk it points at (Research, Images, Videos, Presentation). Driven on `:3000` with the host faked in the browser; the host half is a test on a real empty data dir.
 - [Onboarding](./onboarding.md) — first-run hello, key paste, then four examples only after the host reports `allowed`. `component-setup` sits on the key step, above the form.
 - [Login](./login.md) — **Enterprise lane (hosted only).** The one door: `auth-signin` → the portal's e-mail and six-digit-code forms → `/auth/callback` → signed in. Needs the review instance, a seeded tenant and a **real browser**; on webdev and the desktop every testid has count 0. No password, ever.
 - [Plans](./plans.md) — **Enterprise lane (hosted only)**; owned by the Phase 9 pull request, not the 0.15.0 Personal cut. `/pricing` and its `pricing-*` cards, `account-plan` on Settings, and the blocked screens. Every number is a placeholder. `?preview=` reaches the blocked screens on a local build only.
 - [Locale](./locale.md) — the Settings language select, the restart banner, and an `id` walk of the rail, Chat and one job mode. Testids do not move.
-- [Rail](./rail.md) — the left column: header, Converse, Make (`Buat` in `id`), Account, and a footer. Fourteen modes on Default, including Education. Finance / Market submenu chevrons show a short word and stay closed until pressed. Row labels stay down to 480px; at 480px or narrower the rail starts collapsed. Webdev and the hosted web hide the updates icon. No `New` badge. Collapse/expand, resize, light-by-default theme, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
+- [Rail](./rail.md) — the left column: header, Converse, Make (`Buat` in `id`), Account, and a footer. Fourteen modes on the operator's Default, including Education (a fresh Personal desk has Chat, Research, Images, Videos and Presentation). Finance / Market submenu chevrons show a short word and stay closed until pressed. Row labels stay down to 480px; at 480px or narrower the rail starts collapsed. Webdev and the hosted web hide the updates icon. No `New` badge. Collapse/expand, resize, light-by-default theme, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
 - [Shell scroll](./shell-scroll.md) — one scroller per desk pane, Chat and Edit scroll inside the pane, scroll position survives a rail click, Chat follows a stream, wide lanes at 1920 / 2560 / 3440. The 480px rail collapse stays in [rail.md](./rail.md). Presentation preview is two columns from 1600px.
 - [Channels](./channels.md) — account-rail `/channels`: connect a Telegram bot to the desk, add a group or channel, send, and poll for replies. Not a product mode; drive it against `scripts/telegram-sandbox.ts` rather than a real bot.
 - [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
@@ -78,7 +79,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Presentation](./presentations.md) — slide stage: filmstrip, nine shapes, nudge / duplicate / delete, title / heading / bullets on the slide, PPTX from a starter. Regen is 503 without a key.
 - [Education](./education.md) — lesson on that stage, an exam sheet, and a presenter stage. Local page reading. No gateway key.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.
-- [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public DPSBuddy. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover DPSBuddy copy.
+- [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public Nultron. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover Nultron copy.
 - [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.
 - [Build](./build.md) — **parked / verified-unreachable.** `/studio` redirects to Chat.
 - [Studio advanced](./studio-advanced.md) — **parked / verified-unreachable.** Same redirect.

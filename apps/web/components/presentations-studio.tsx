@@ -640,7 +640,7 @@ export function PresentationsStudio() {
             </button>
           )}
         </div>
-        {busy === "generate" ? <MascotSlot mode="presentations" placement="beside" busy /> : null}
+        {busy === "generate" ? <MascotSlot mode="presentations" placement="beside" busy decorative /> : null}
       </form>
 
       <div className="mt-8">

@@ -5,12 +5,13 @@ import { useRouter } from "@/lib/nav";
 import { ChatAccountChip } from "@/components/chat-account-chip";
 import { ChatComposer } from "@/components/chat-composer";
 import { ChatContextChip } from "@/components/chat-context-chip";
+import { ChatHeader } from "@/components/chat-header";
 import { ChatLauncher } from "@/components/chat-launcher";
 import { ChatUsageChip } from "@/components/chat-usage-chip";
 import { estimateContextParts, estimateConversationTokens, textFromMessageContent } from "@/lib/estimate-tokens";
 import type { ContextPart } from "@/components/chat-context-chip";
 import { ChatTurn, messageHasDisplayableContent, type LiveTool } from "@/components/chat-turn";
-import { PlaceholderMascot } from "@/components/placeholder-mascot";
+import { NultronMascot } from "@/components/nultron/nultron-mascot";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { apiFetch } from "@/lib/api-client";
@@ -21,7 +22,8 @@ import {
   writeLastChatModel,
   writeThreadChatModel,
 } from "@/lib/chat-model-pref";
-import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import type { ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { DEFAULT_THINKING_PREF, readStoredThinkingPref, writeThinkingPref } from "@/lib/chat-thinking";
 import { t } from "@/lib/i18n";
 import { isPinnedToEnd } from "@/lib/stick-to-bottom";
 
@@ -63,7 +65,12 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   /** A refused send. The sentence lives on `composer-error`; this only holds the error mascot. */
   const [sendFailed, setSendFailed] = useState(false);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
-  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>(DEFAULT_THINKING_PREF.effort);
+  /**
+   * Did the person pick the level the picker shows? Until they do, a send carries no level and the host
+   * treats Thinking as defaulted, so a model the policy table does not know is not sent Normal.
+   */
+  const [reasoningChosen, setReasoningChosen] = useState(DEFAULT_THINKING_PREF.chosen);
   const [knowledgeParts, setKnowledgeParts] = useState<ContextPart[]>([]);
   /** A prompt picked from the empty screen's suggestions; handed down once, then cleared. */
   const [composerDraft, setComposerDraft] = useState<string | null>(null);
@@ -136,29 +143,25 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const sessionKey = sessionEpochRef.current;
 
   useEffect(() => {
+    // A stored level is a real pick (only the picker writes it), so it is sent from the first message.
+    let storage: Storage | undefined;
     try {
-      const storedEffort = window.localStorage.getItem("agentforge-chat-reasoning-effort");
-      if (isReasoningEffort(storedEffort) && storedEffort !== "minimal") {
-        setReasoningEffort(storedEffort);
-        setThinkingEnabled(storedEffort !== "none");
-      } else {
-        const stored = window.localStorage.getItem("agentforge-chat-thinking");
-        if (stored === "off") {
-          setThinkingEnabled(false);
-          setReasoningEffort("none");
-        }
-      }
+      storage = window.localStorage;
     } catch {
-      // private mode
+      storage = undefined; // private mode
     }
+    const stored = readStoredThinkingPref(storage);
+    setReasoningEffort(stored.effort);
+    setThinkingEnabled(stored.effort !== "none");
+    setReasoningChosen(stored.chosen);
   }, []);
 
   function setReasoningPref(next: ReasoningEffort) {
     setReasoningEffort(next);
+    setReasoningChosen(true);
     setThinkingEnabled(next !== "none");
     try {
-      window.localStorage.setItem("agentforge-chat-reasoning-effort", next);
-      window.localStorage.setItem("agentforge-chat-thinking", next === "none" ? "off" : "on");
+      writeThinkingPref(next, window.localStorage);
     } catch {
       // private mode
     }
@@ -395,29 +398,17 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
 
   return (
     <main className="flex h-full min-h-0 flex-col" data-testid="chat-home">
-      <div
-        className="flex h-14 w-full shrink-0 items-center justify-between gap-4 px-6"
-        data-testid="chat-header"
-      >
-        <h1 className={`${empty ? "text-sm" : "text-2xl"} font-medium tracking-[var(--track)] text-[var(--text)]`}>
-          {isDefaultChat ? t("chat.title") : agentName}
-        </h1>
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 text-xs">
-          {hasReply ? (
-            <ChatContextChip
-              usedTokens={contextTokens}
-              contextLength={selectedModel?.contextLength}
-              parts={contextParts}
-            />
-          ) : null}
-          {hasReply ? <ChatUsageChip /> : null}
-          <ChatAccountChip />
-        </div>
-      </div>
+      <ChatHeader title={isDefaultChat ? t("chat.title") : agentName} compact={empty}>
+        {hasReply ? (
+          <ChatContextChip usedTokens={contextTokens} contextLength={selectedModel?.contextLength} parts={contextParts} />
+        ) : null}
+        {hasReply ? <ChatUsageChip /> : null}
+        <ChatAccountChip />
+      </ChatHeader>
 
       {error ? (
-        <div className="flex w-full items-start gap-3 px-6">
-          {running || thinking || tools.length > 0 || streaming ? null : <PlaceholderMascot state="error" />}
+        <div className="flex w-full items-start gap-3 px-[var(--chat-gutter)]">
+          {running || thinking || tools.length > 0 || streaming ? null : <NultronMascot state="error" decorative />}
           <p className="text-sm text-[var(--danger)]" data-testid="chat-error" role="alert">
             {error}
           </p>
@@ -434,7 +425,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           }
           pinRef.current = isPinnedToEnd(el.scrollTop, el.scrollHeight, el.clientHeight);
         }}
-        className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain px-6 ${empty ? "" : "space-y-4 py-4"}`}
+        className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain px-[var(--chat-gutter)] ${empty ? "" : "space-y-4 py-4"}`}
         data-testid="message-list"
       >
         {empty && !error ? <ChatLauncher onSuggest={setComposerDraft} /> : null}
@@ -447,7 +438,15 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           <div data-testid="assistant-live">
             <ChatTurn
               role="assistant"
-              live={{ thinking, tools, streaming, running, thinkingEnabled, failed: sendFailed }}
+              live={{
+                thinking,
+                tools,
+                streaming,
+                running,
+                thinkingEnabled,
+                failed: sendFailed,
+                firstTurn: messages.every((message) => message.role !== "assistant"),
+              }}
             />
           </div>
         ) : null}
@@ -463,6 +462,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           onModelChange={handleModelChange}
           thinkingEnabled={thinkingEnabled}
           reasoningEffort={reasoningEffort}
+          reasoningEffortChosen={reasoningChosen}
           onReasoningEffortChange={setReasoningPref}
           draft={composerDraft}
           onDraftApplied={() => setComposerDraft(null)}

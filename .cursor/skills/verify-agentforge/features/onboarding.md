@@ -1,12 +1,12 @@
 # Onboarding
 
-The first-run screen, in three steps. A fresh desk says hello, then asks for a key, then offers four examples. The examples render only after the host reports `allowed`. The renderer displays that decision and does not decide it. The in-app name is `{productName}` (DPSBuddy). There is no password and no sign-in form, and the gateway address is not on the screen. How the gate is derived is [gateway-gate.md](./gateway-gate.md); the document-reader panel is [components.md](./components.md). The gate map is [`docs/internal/maps/settings-and-gateway-gate.md`](../../../../docs/internal/maps/settings-and-gateway-gate.md).
+The first-run screen, in three steps. A fresh desk says hello, then asks for a key, then offers four examples, the four the first desk has (Chat, Research, Images, Presentation), and a line that a quick tour comes next. The examples render only after the host reports `allowed`. The renderer displays that decision and does not decide it. The in-app name is `{productName}` (Nultron). There is no password and no sign-in form, and the gateway address is not on the screen. How the gate is derived is [gateway-gate.md](./gateway-gate.md); the document-reader panel is [components.md](./components.md). The gate map is [`docs/internal/maps/settings-and-gateway-gate.md`](../../../../docs/internal/maps/settings-and-gateway-gate.md).
 
 ## Sub-features
 
 - `onboarding-hello` is a fresh desk: `onboarding-welcome` (gradient hello in the in-app name, one short sentence) and `onboarding-next`. `onboarding-form` has count 0 on this step.
 - `onboarding-key` is the paste: `onboarding-form`, `onboarding-key`, `onboarding-continue` ("Check this key"), and `onboarding-back`. A desk the host already closed (`invalid_key`, `unreachable`, `error`) skips the hello and opens here, with `onboarding-gate-reason` and `onboarding-recheck`. A fresh `needs_key` desk has neither.
-- `onboarding-examples` is `onboarding-try`: `onboarding-key-success`, four `onboarding-example` cards (`data-example` `chat` / `document` / `finance` / `images`), and `onboarding-start`, which opens Chat (`chat-empty`). This step exists only after `resolveGate` says `"app"`.
+- `onboarding-examples` is `onboarding-try`: `onboarding-key-success`, four `onboarding-example` cards (`data-example` `chat` / `research` / `images` / `presentation`), `onboarding-tour-hint` (absent once the host says the guide was seen), and `onboarding-start`, which opens Chat (`chat-empty`) with the quick tour on top of it ([guide.md](./guide.md)). This step exists only after `resolveGate` says `"app"`.
 - `onboarding-setup` is `component-setup` inside `onboarding-setup-check`, on the key step, above the key form. It does not block the form. When the reader shipped inside the app the section is absent. Drive the install itself in [components.md](./components.md).
 
 ## How to get to it (user POV)
@@ -15,7 +15,7 @@ The first-run screen, in three steps. A fresh desk says hello, then asks for a k
 - Continue, paste a Toko Token key, and press Check this key. A key the gateway accepts moves to the examples. A key it rejects stays on the form and says so in plain words.
 - Pick an example, or Start in Chat. Chat opens.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 
@@ -23,12 +23,13 @@ Preconditions:
 - `AGENTFORGE_RUNTIME=stub` reports `allowed: true` before it looks at the key, so this screen never appears. Start with the runtime unset, or `AGENTFORGE_RUNTIME=ai` and no key saved. `GET /api/v1/settings` must report `gateway.status: "needs_key"` and `allowed: false` before the first screenshot.
 - Never paste a real key, and never drive this on a desk you do not own.
 
-- **Hello.** Open `/chat`. `onboarding-welcome` is visible and reads "Welcome to DPSBuddy". `onboarding-next` is visible. `onboarding-form`, `onboarding-try`, `onboarding-gateway-host` and `onboarding-endpoint` have count 0. No text on the screen contains `tokotokenai` or `Nultron`.
+- **Hello.** Open `/chat`. `onboarding-welcome` is visible and reads "Welcome to Nultron". `onboarding-next` is visible. `onboarding-form`, `onboarding-try`, `onboarding-gateway-host` and `onboarding-endpoint` have count 0. No text on the screen contains `tokotokenai` or `DPSBuddy`.
 - **Key.** Click `onboarding-next`. `onboarding-form` and `onboarding-key` are visible. `onboarding-continue` is disabled until the field has text. The step list marks `onboarding-step-key` with `aria-current="step"`.
 - **Rejected key.** On your own desk, paste a bogus string and click `onboarding-continue`. `onboarding-gate-reason` reads "That key didn't work. Check it at Toko Token and paste it again." `onboarding-recheck` is visible. `onboarding-try` still has count 0. The host's technical `message` (HTTP status, URL) is not on the screen.
-- **Examples only after `allowed`.** When the host next reports `allowed: true` (a key it accepts, or opening another desk whose verdict is allowed), `onboarding-try` appears and the four `onboarding-example` values are `chat`, `document`, `finance`, `images`. Do not record this step against a payload that still says `allowed: false`.
+- **Examples only after `allowed`.** When the host next reports `allowed: true` (a key it accepts, or opening another desk whose verdict is allowed), `onboarding-try` appears and the four `onboarding-example` values are `chat`, `research`, `images`, `presentation`, and none names a tool the first desk lacks. Do not record this step against a payload that still says `allowed: false`.
 - **Start.** Click `onboarding-start` (or any `onboarding-example`). The desk is Chat: `chat-empty` reads "Work starts here."
 - **Setup panel.** On the key step, `component-setup` is inside `onboarding-setup-check` and above `onboarding-form`. With `anydoc` `state: "ready"` and `source: "bundled"`, both have count 0. That absence is the pass.
+- **Hero shapes stay off the character and the text.** Only the browser needs the closed gate: with Playwright, answer `GET /api/v1/settings` from `route.fetch()` with `gateway` replaced by a `needs_key` gate (`allowed: false`) and `route.abort()` every other method on that path, so nothing reaches the real desk (never press Start over, never post a key). At 375 x 812, 320 x 700 and 1280 x 800, on the hello and the key step (`onboarding-next`), finish the entrance animations (`document.getAnimations().forEach((a) => a.finish())`) and compare the box of every visible `.onboarding-hero .float-shape` (`display` not `none`) with the mascot's box, the `h1`'s and the intro paragraph's line rectangles (`Range.getClientRects()` over its contents). Pass: 2 shapes at 375 and 320 (tier 1), 4 at 1280 (the hero is about 42rem wide there), 0 overlaps, no horizontal overflow. Driven 2026-09-29: before the fix 7 shapes at every width with 8 overlaps at 375 and 320 (the squiggle on the character, a square and a dot on the intro text) and 4 on the text at 1280; after, 2 / 2 / 4 shapes and 0 overlaps on both steps (`lib/onboarding-hero-shapes.test.tsx` holds the geometry).
 - **Evidence.** Screenshots of the hello, the key step, a rejected key, the examples, and Chat, under `evidence/onboarding/<run-id>/`, plus the settings JSON that showed `allowed` before the examples shot.
 
 ## Gotchas

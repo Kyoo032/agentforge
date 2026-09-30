@@ -9,6 +9,7 @@ import {
   MUSIC_STYLE_MAX,
   MUSIC_TITLE_MAX,
 } from "@agentforge/core/audio-capabilities";
+import { GalleryAudio } from "@/components/gallery-media";
 import { ModeHeader } from "@/components/mode-header";
 import { MascotSlot } from "@/components/mascot-slot";
 import { ModelSelect } from "@/components/model-select";
@@ -42,6 +43,8 @@ type LibraryItem = {
   style?: string;
   instrumental?: boolean;
   durationSeconds?: number;
+  /** The host's word that the file is gone from the store: the row lists, the player does not load. */
+  fileMissing?: boolean;
 };
 
 /**
@@ -360,7 +363,7 @@ export function MusicStudio() {
             disabled={busy}
             data-testid="music-studio-prompt"
           />
-          {generating ? <MascotSlot mode="music" placement="beside" busy /> : null}
+          {generating ? <MascotSlot mode="music" placement="beside" busy decorative /> : null}
           <button
             type="submit"
             className={
@@ -419,14 +422,16 @@ export function MusicStudio() {
                   <p className="min-w-0 truncate text-sm font-medium text-[var(--text)]">
                     {item.title?.trim() || t("music.untitled")}
                   </p>
-                  <a
-                    href={mediaSrc(item.url)}
-                    download={`agentforge-track-${item.id}.mp3`}
-                    className="shrink-0 text-xs underline text-[var(--text-2)]"
-                    data-testid="music-studio-download"
-                  >
-                    {t("music.download")}
-                  </a>
+                  {item.fileMissing ? null : (
+                    <a
+                      href={mediaSrc(item.url)}
+                      download={`agentforge-track-${item.id}.mp3`}
+                      className="shrink-0 text-xs underline text-[var(--text-2)]"
+                      data-testid="music-studio-download"
+                    >
+                      {t("music.download")}
+                    </a>
+                  )}
                 </div>
                 {item.style || item.durationSeconds ? (
                   <p className="mt-0.5 truncate text-xs text-[var(--text-3)]">
@@ -438,8 +443,7 @@ export function MusicStudio() {
                       .join(" · ")}
                   </p>
                 ) : null}
-                {/* eslint-disable-next-line jsx-a11y/media-has-caption -- a generated song has no transcript */}
-                <audio src={mediaSrc(item.url)} controls className="mt-2 w-full" />
+                <GalleryAudio src={mediaSrc(item.url)} missing={item.fileMissing === true} />
                 {item.prompt ? (
                   <p className="mt-2 line-clamp-3 whitespace-pre-line text-xs text-[var(--text-2)]">{item.prompt}</p>
                 ) : null}

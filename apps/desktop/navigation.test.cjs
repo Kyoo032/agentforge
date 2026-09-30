@@ -11,26 +11,26 @@ const {
 
 const packaged = rendererOrigin({
   packaged: true,
-  rendererIndex: "C:\\Program Files\\DPSBuddy\\resources\\renderer\\index.html",
+  rendererIndex: "C:\\Program Files\\Nultron\\resources\\renderer\\index.html",
 });
 
 assert.equal(
-  navigationDecision("file:///C:/Program%20Files/DPSBuddy/resources/renderer/index.html", packaged),
+  navigationDecision("file:///C:/Program%20Files/Nultron/resources/renderer/index.html", packaged),
   "allow",
   "packaged: reloading the renderer itself",
 );
 assert.equal(
-  navigationDecision("file:///C:/Program Files/DPSBuddy/resources/renderer/index.html#/chat", packaged),
+  navigationDecision("file:///C:/Program Files/Nultron/resources/renderer/index.html#/chat", packaged),
   "allow",
   "packaged: a HashRouter route is the same document",
 );
 assert.equal(
-  navigationDecision("file:///C:/Program Files/DPSBuddy/resources/renderer/index.html?x=1", packaged),
+  navigationDecision("file:///C:/Program Files/Nultron/resources/renderer/index.html?x=1", packaged),
   "allow",
   "packaged: a query string is the same document",
 );
 assert.equal(
-  navigationDecision("file:///C:/Users/rizky/AppData/Roaming/DPSBuddy/settings.enc", packaged),
+  navigationDecision("file:///C:/Users/rizky/AppData/Roaming/Nultron/settings.enc", packaged),
   "block",
   "packaged: never navigate to another local file",
 );

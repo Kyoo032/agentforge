@@ -692,7 +692,7 @@ export function EditStudio() {
       </div>
       {exporting || exportBusy ? (
         <p className="flex items-center gap-2 px-4" data-testid="edit-export-progress">
-          <MascotSlot mode="edit" placement="beside" busy />
+          <MascotSlot mode="edit" placement="beside" busy decorative />
           <WorkingStatus label={t("edit.exporting")} />
         </p>
       ) : null}
@@ -737,6 +737,7 @@ export function EditStudio() {
                   className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"
                   value={projectName}
                   onChange={(event) => setProjectName(event.target.value)}
+                  aria-label={t("edit.projectNameLabel")}
                   data-testid="edit-project-name"
                 />
                 <button

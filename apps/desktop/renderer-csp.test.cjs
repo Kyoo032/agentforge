@@ -37,7 +37,7 @@ const INDEX = [
   '<html lang="en">',
   "  <head>",
   '    <meta charset="UTF-8" />',
-  "    <title>DPSBuddy</title>",
+  "    <title>Nultron</title>",
   '    <script type="module" crossorigin src="./assets/index-abc.js"></script>',
   "  </head>",
   '  <body class="min-h-screen">',

@@ -98,7 +98,7 @@ describe("channels: the bot", () => {
   it("connects a token only after Telegram identifies it, and never reports it back", async () => {
     const connected = await connectBot();
     expect(connected.status).toBe(200);
-    expect(connected.body).toMatchObject({ connected: true, username: "dpsbuddy_sandbox_bot" });
+    expect(connected.body).toMatchObject({ connected: true, username: "nultron_sandbox_bot" });
     expect(connected.body.fingerprint).toMatch(/^sha256:/);
     expect(JSON.stringify(connected.body)).not.toContain(SANDBOX_TOKEN);
     expect(sandbox.calls).toContain("getMe");
@@ -176,7 +176,7 @@ describe("channels: send and receive", () => {
 
     const stored = await json("GET", `/api/v1/channels/${channelId}/messages`);
     expect(stored.body.messages).toEqual([
-      expect.objectContaining({ direction: "out", text: "IHSG opened flat", author: "@dpsbuddy_sandbox_bot" }),
+      expect.objectContaining({ direction: "out", text: "IHSG opened flat", author: "@nultron_sandbox_bot" }),
     ]);
   });
 

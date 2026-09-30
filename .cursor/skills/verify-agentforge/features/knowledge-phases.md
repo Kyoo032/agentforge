@@ -17,7 +17,7 @@ Builtin-only Knowledge Base. WeKnora sidecar was stripped 2026-09-12 (binary nev
 - Webdev: `pnpm dev` → `http://127.0.0.1:3000/knowledge` (`mode-knowledge`). Doctor with no args; skip the Knowledge drive if `knowledge` is false.
 - Packaged desktop is Windows-only proof (`doctor --desktop`). Cloud cannot pack or drive the installed app.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

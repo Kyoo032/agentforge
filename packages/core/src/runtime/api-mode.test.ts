@@ -132,4 +132,14 @@ describe("openaiCompatProviderOptions", () => {
       openai: { reasoningEffort: "none" },
     });
   });
+
+  it("sends no reasoning option at all when told to omit it, on either wire", () => {
+    expect(openaiCompatProviderOptions({ omitReasoning: true })).toBeUndefined();
+    expect(openaiCompatProviderOptions({ omitReasoning: true, reasoningEffort: "high" })).toBeUndefined();
+    expect(openaiCompatProviderOptions({ omitReasoning: true, forceReasoningNone: true })).toBeUndefined();
+    // Responses still needs its non-strict tool schemas; only the reasoning block goes.
+    expect(openaiCompatProviderOptions({ omitReasoning: true, responses: true, reasoningEffort: "high" })).toEqual({
+      openai: { strictSchemas: false },
+    });
+  });
 });

@@ -16,7 +16,7 @@ let store: PortalStore;
 let fixture: Fixture;
 const clock = fixedClock();
 
-const CLIENT_ID = "dpsbuddy-web";
+const CLIENT_ID = "nultron-web";
 const REDIRECT = "https://localhost:3443/auth/callback";
 
 beforeAll(async () => {
@@ -27,7 +27,7 @@ beforeAll(async () => {
     ops.oauthClients.create({
       clientId: CLIENT_ID,
       tenantId: fixture.tenant.id,
-      name: "DPSBuddy web",
+      name: "Nultron web",
       secret: "s3cret-value-for-the-test",
       redirectUris: [REDIRECT, "https://localhost:3443/auth/callback/alt"],
     }),

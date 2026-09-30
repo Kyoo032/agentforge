@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gatewayErrorKind, gatewayHttpFailure } from "./gateway-http-copy";
+import { GatewayHttpError, gatewayErrorKind, gatewayFailureOf, gatewayHttpFailure } from "./gateway-http-copy";
 import { isRetryableModelFailure } from "./runtime/retry";
 
 // Exactly what the gateway answered a Finance call on 2026-09-15, on a desk running in English.
@@ -55,5 +55,33 @@ describe("gatewayHttpFailure", () => {
     expect(isRetryableModelFailure(gatewayHttpFailure(429, "", "en").message)).toBe(true);
     expect(isRetryableModelFailure(gatewayHttpFailure(500, "", "en").message)).toBe(true);
     expect(isRetryableModelFailure(gatewayHttpFailure(500, "", "id").message)).toBe(true);
+  });
+});
+
+describe("GatewayHttpError", () => {
+  const error = new GatewayHttpError("The gateway rejected this request (status_code=400).", 400, '{"error":{"message":"secret body"}}');
+
+  it("is an Error whose message is the person's sentence, and carries the status", () => {
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toBe("The gateway rejected this request (status_code=400).");
+    expect(error.status).toBe(400);
+  });
+
+  it("keeps the raw body off anything that prints or serialises the error", () => {
+    expect(JSON.stringify(error)).not.toContain("secret body");
+    expect(Object.keys(error)).not.toContain("body");
+    expect(String(error)).not.toContain("secret body");
+    expect(error.body).toContain("secret body");
+  });
+
+  it("is found again by gatewayFailureOf, also through a wrapper's cause", () => {
+    expect(gatewayFailureOf(error)).toEqual({ status: 400, body: '{"error":{"message":"secret body"}}' });
+    expect(gatewayFailureOf(new Error("wrapped", { cause: error }))).toEqual({
+      status: 400,
+      body: '{"error":{"message":"secret body"}}',
+    });
+    expect(gatewayFailureOf(new Error("plain"))).toBeUndefined();
+    expect(gatewayFailureOf("text")).toBeUndefined();
+    expect(gatewayFailureOf(undefined)).toBeUndefined();
   });
 });

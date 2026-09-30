@@ -40,12 +40,12 @@ describe("onboarding screen", () => {
     const markup = render(null);
     expect(markup).toContain('data-testid="onboarding-welcome"');
     expect(markup).toContain(`Welcome to ${DEFAULT_PRODUCT_NAME}`);
-    expect(markup).toContain("Ask a question, write a document, look at numbers, or make a picture.");
+    expect(markup).toContain("Ask a question, research a topic, make a picture or a video, or build a presentation.");
     expect(markup).toContain("text-gradient");
     expect(markup).toContain("hero-aurora");
     expect(markup).toContain('data-testid="onboarding-next"');
     expect(markup).not.toContain('data-testid="onboarding-form"');
-    expect(markup).not.toContain("Nultron");
+    expect(markup).not.toContain("DPSBuddy");
     expect(markup).not.toMatch(/tokotokenai|https?:\/\//);
   });
 
@@ -68,6 +68,6 @@ describe("onboarding screen", () => {
     const markup = render(null);
     expect(markup).toContain(`Selamat datang di ${DEFAULT_PRODUCT_NAME}`);
     expect(markup).toContain(t("onboarding.intro", { productName: DEFAULT_PRODUCT_NAME }));
-    expect(markup).not.toContain("Nultron");
+    expect(markup).not.toContain("DPSBuddy");
   });
 });

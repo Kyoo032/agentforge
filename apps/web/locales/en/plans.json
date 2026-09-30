@@ -1,7 +1,7 @@
 {
   "kicker": "Plans",
   "title": "Choose a plan",
-  "intro": "Personal is the Mac and Windows DPSBuddy app, a complement from DPS when you are buying a lot of tokens. Enterprise is the web-based DPSBuddy.",
+  "intro": "Personal is the Mac and Windows Nultron app, a complement from DPS when you are buying a lot of tokens. Enterprise is the web-based Nultron.",
   "placeholderNotice": "Indicative pricing — not final.",
   "period": {
     "month": "/ month"
@@ -14,17 +14,17 @@
   "tier": {
     "personal": {
       "name": "Personal",
-      "description": "The Mac and Windows DPSBuddy app. A complement from DPS when you are buying a lot of tokens."
+      "description": "The Mac and Windows Nultron app. A complement from DPS when you are buying a lot of tokens."
     },
     "enterprise": {
       "name": "Enterprise",
-      "description": "The web-based DPSBuddy. Subscribe per user by contacting DPS. There is no checkout."
+      "description": "The web-based Nultron. Subscribe per user by contacting DPS. There is no checkout."
     }
   },
   "feature": {
-    "macWindowsApp": "DPSBuddy for Mac and Windows",
+    "macWindowsApp": "Nultron for Mac and Windows",
     "tokenComplement": "A complement from DPS when you are buying a lot of tokens",
-    "webProduct": "DPSBuddy on the web",
+    "webProduct": "Nultron on the web",
     "contactDps": "Contact DPS to activate. There is no checkout.",
     "knowledgeStorage": "A seat covers storage for the unified knowledge base",
     "agentTraffic": "A seat covers the traffic of their users to use the agents",

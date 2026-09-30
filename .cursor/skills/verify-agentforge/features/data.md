@@ -18,11 +18,11 @@ Data is a table analyst job: upload or paste a table → it is parsed, profiled 
 
 ## How to get to it (user POV)
 
-- Choose Data on the left rail (`mode-data`). Default already has the tab.
+- Choose Data on the left rail (`mode-data`). A desk that already has it shows the tab. A fresh first-run desk starts with Research, Images, Videos and Presentation only, so turn this one on first (Workspaces, Edit on the desk).
 - Open `http://127.0.0.1:3000/data` when the tab is unlocked.
 - Legal / Marketing / Students presets do not add this tab unless the owner checks it.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

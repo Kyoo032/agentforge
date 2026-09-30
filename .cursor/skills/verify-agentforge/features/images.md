@@ -6,17 +6,17 @@ Images is a generate studio (prompt → gallery), not a canvas editor. It lists 
 
 - `images-header` (0.15.0) — title plus one outcome line in `expected-inputs`: "You get: a generated image, saved to the gallery below." No disclosure on this studio; the rail row reads `Images`. Driven 2026-09-23 on a live desk: `images-studio-needs-key` count 0, `images-studio-estimate` starts with `≈ $`, submit not pressed.
 - `images-rail` reaches `/images` from `mode-images` on Default.
-- `images-shell` shows `images-studio` (heading Images, prompt bar, gallery).
+- `images-shell` shows `images-studio` (heading Images, prompt bar, gallery). Each gallery picture is a `GalleryImage` (`apps/web/components/gallery-media.tsx`): `loading="lazy"`, and a row whose file is gone (host `fileMissing`, or a failed load) shows `media-missing` ("File missing" / "Berkas hilang") instead of a broken-image icon. Same tile as Videos and Music; details in [videos.md](./videos.md).
 - `images-needs-key` shows `images-studio-needs-key` only when the host set `allowed` false (`useDeskNeedsKey`). On a stub desk the note is absent and `images-studio-submit` stays enabled once the prompt is non-empty. While `allowed` is true the button does not protect you: a keyless click is a real POST. On a closed gate the button is quiet. A live click bills.
 - `images-empty` does not show `images-studio-empty`. A gallery with no items stays blank. The example/template list (`example-gallery`) comes first; the prompt bar sits under it in normal flow until an image exists.
 - `images-estimate` shows the pre-generate cost line `images-studio-estimate` under the controls row (provider list price per image, source + checked date, a cheap/mid/premium word) with `images-studio-estimate-compare` beneath it; an id with no transcribed price omits the price line (count 0). There is no `images-studio-estimate-unknown` testid. Each `images-studio-model` option ends with its own `$x.xx/img` tag. Table: [`docs/internal/research/media-pricing.md`](../../../../docs/internal/research/media-pricing.md). Maps: [`generate-studios.md`](../../../../docs/internal/maps/generate-studios.md) (prompt bar → picker → generate helper → gallery), [`media-cost-estimate.md`](../../../../docs/internal/maps/media-cost-estimate.md) (the price line), [`renderer-media.md`](../../../../docs/internal/maps/renderer-media.md) (why the gallery `src` is always host-served).
 
 ## How to get to it (user POV)
 
-- Choose Images on the left rail (`mode-images`). Default already has the tab.
+- Choose Images on the left rail (`mode-images`). Default has the tab on a fresh first-run desk and on every older desk.
 - Open `http://127.0.0.1:3000/images` when the tab is unlocked. A hidden generate URL redirects to the first visible mode.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

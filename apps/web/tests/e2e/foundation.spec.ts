@@ -1,8 +1,14 @@
 import { expect, test } from "@playwright/test";
+import { showEveryMode } from "./every-mode";
 
 test.describe.configure({ retries: 0 });
 
 test.setTimeout(180_000);
+
+// A fresh desk starts with Research, Images, Videos and Presentation only; this spec drives the rest.
+test.beforeEach(async ({ request }) => {
+  await showEveryMode(request);
+});
 
 test("chat and workspaces work without an account", async ({ page }) => {
   const runId = Date.now().toString(36);

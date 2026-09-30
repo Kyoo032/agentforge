@@ -118,7 +118,10 @@ export function RatiosResult({ result, disabled }: FinanceResultPanelProps) {
         <section key={note.heading}>
           <h3 className="text-sm font-semibold text-[var(--text)]">{note.heading}</h3>
           {note.body.split("\n\n").map((paragraph) => (
-            <p key={paragraph.slice(0, 40)} className="mt-1.5 whitespace-pre-wrap text-sm text-[var(--text-2)]">
+            <p
+              key={paragraph.slice(0, 40)}
+              className="mt-1.5 whitespace-pre-wrap text-sm text-[var(--text-2)] [overflow-wrap:anywhere]"
+            >
               {paragraph}
             </p>
           ))}

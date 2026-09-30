@@ -17,7 +17,7 @@ Chat (and other model runs) keep the prompt the owner typed. Before that text be
 - Type a prompt that includes an email (or phone). Send as usual.
 - Your bubble still has the email. The model only sees `[email]`. The stub assistant line does not show that token: with no calculator or clock in the prompt it is the need-key sentence ("I need a Toko Token gateway key in Settings to answer that."), which never quotes the prompt.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 

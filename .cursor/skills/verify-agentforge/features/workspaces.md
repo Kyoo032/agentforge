@@ -1,6 +1,6 @@
 # Workspaces
 
-Workspaces is the owner's local desk switcher: dropdown under the brand on the rail, a list of desks on disk, and create/edit from a template or mode checkboxes. The left-rail Workspaces control must be reachable from both collapsed and expanded rail states via `workspaces-link`. `workspaces-switcher` lists desks and opens one. Each desk keeps its own gateway key, Settings, and Knowledge Base; a new desk starts with a copy of the key of the desk it was created from. Creating no longer seeds a starter agent. Open/Create navigates to Chat. Map: [`docs/internal/maps/shell-rail-and-workspaces.md`](../../../../docs/internal/maps/shell-rail-and-workspaces.md).
+Workspaces is the owner's local desk switcher: dropdown under the brand on the rail, a list of desks on disk, and create/edit from a template or mode checkboxes. The left-rail Workspaces control must be reachable from both collapsed and expanded rail states via `workspaces-link`. `workspaces-switcher` lists desks and opens one. Each desk keeps its own gateway key, Settings, and Knowledge Base; a new desk starts with a copy of the key of the desk it was created from. Creating no longer seeds a starter agent. Open/Create navigates to Chat. The first desk of a fresh Personal install is written with Chat, Research, Images, Videos and Presentation only (2026-09-29); `workspaces-edit` on it is how the owner adds the rest, and the first-run tour points here ([guide.md](./guide.md)). Map: [`docs/internal/maps/shell-rail-and-workspaces.md`](../../../../docs/internal/maps/shell-rail-and-workspaces.md).
 
 ## Sub-features
 
@@ -22,7 +22,7 @@ Workspaces is the owner's local desk switcher: dropdown under the brand on the r
 - Collapse or expand the rail first if you need to prove both chrome states.
 - After Create or Open the app goes to `/chat` for that desk.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 
@@ -48,7 +48,7 @@ Preconditions:
 - Create/Open navigate to `/chat`, not `/agents`.
 - Kernel forbids `student` / `course` nouns in core schema. The Students chip is a pack id (`students`), not a kernel table.
 - Do not create throwaway desks on the operator's Windows SQLite without asking.
-- Default with null `productModes` after migrate is all work modes — not Chat-only.
+- Default with null `productModes` after migrate is all work modes — not Chat-only. That is a read rule for an old row; a fresh Personal desk stores five modes, and a fresh hosted desk stores every mode.
 - **A keyless desk shows the key screen, with the other desks under it.** Fixed 2026-09-23 (finding 1 of the 0.15.0 verify pass): creating a desk used to leave the new desk keyless, and since the selected desk is process-global the whole app, the operator's window included, rendered only `onboarding-form` with no rail and no switcher. Now a new desk inherits the key (host, needs a `:3000` restart to be live), and any desk that still has no key — one made before the fix, or one whose own key was cleared — shows `onboarding-desks` under the form. **Drive on a keyed install:** create `verify-desk` → `/chat` with `mode-chat` visible and `onboarding-form` count 0; `GET /api/v1/settings` reports `hasOpenai: true`, `gateway.allowed: true`; delete the desk. **Drive the guard:** on a desk with no key, reload any route → `onboarding-open-desk` for Default → click it → `onboarding-form` count 0, `mode-chat` count 1. Driven 2026-09-23 on `:3000` against the pre-restart host (evidence `workspaces/2026-09-23-keyless-desk-guard`). API-only recovery still works: `POST /api/v1/workspaces/<defaultId>/select` (Origin `http://127.0.0.1:3000`).
 - **Delete.** On `/workspaces` click the desk row's `delete-workspace`; `delete-workspace-confirm` opens with `delete-workspace-confirm-submit` disabled; type the exact desk name into `delete-workspace-confirm-name` (it enables); click submit. The API refuses a bare `DELETE /api/v1/workspaces/:id` with `400 confirm_required`. Default is `protected` and has no delete.
 - Isolation: Settings keys and extras are per desk. Knowledge soul/memory/sources were already per `workspaceId`. A new desk starts with a copy of the creating desk's gateway key and nothing else — extras (Tavily, Brave, FAL, native provider keys) stay empty; saving a different key on it changes that desk only, and Start over `scope: "key"` still clears every desk. The pre-isolation machine-wide key is claimed onto Default only.

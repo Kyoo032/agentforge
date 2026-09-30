@@ -26,9 +26,9 @@ function completeEnv(overrides: Record<string, string | undefined> = {}): EnvLik
     AGENTFORGE_SERVER: "1",
     NODE_ENV: "production",
     AGENTFORGE_SECRETS_KEY: GOOD_KEY,
-    AGENTFORGE_TRUSTED_ORIGINS: "https://dpsbuddy.example.com",
+    AGENTFORGE_TRUSTED_ORIGINS: "https://nultron.example.com",
     AGENTFORGE_PORTAL_URL: "https://portal.example.com/api",
-    AGENTFORGE_PORTAL_CLIENT_ID: "dpsbuddy-web",
+    AGENTFORGE_PORTAL_CLIENT_ID: "nultron-web",
     AGENTFORGE_PORTAL_CLIENT_SECRET: "client-secret-value",
     AGENTFORGE_BILLING_WEBHOOK_SECRET: GOOD_SECRET,
     ...overrides,
@@ -146,12 +146,12 @@ describe("each variable, one at a time", () => {
     },
     {
       name: "trusted origins are all cleartext, so server mode drops every one",
-      env: { AGENTFORGE_TRUSTED_ORIGINS: "http://dpsbuddy.example.com,http://localhost:3000" },
+      env: { AGENTFORGE_TRUSTED_ORIGINS: "http://nultron.example.com,http://localhost:3000" },
       expect: ["AGENTFORGE_TRUSTED_ORIGINS"],
     },
     {
       name: "trusted origins are not origins at all",
-      env: { AGENTFORGE_TRUSTED_ORIGINS: "dpsbuddy.example.com, ftp://x" },
+      env: { AGENTFORGE_TRUSTED_ORIGINS: "nultron.example.com, ftp://x" },
       expect: ["AGENTFORGE_TRUSTED_ORIGINS"],
     },
     { name: "portal url absent", env: { AGENTFORGE_PORTAL_URL: undefined }, expect: ["AGENTFORGE_PORTAL_URL"] },
@@ -187,7 +187,7 @@ describe("each variable, one at a time", () => {
     },
     {
       name: "an explicit public url that is not an origin the browser could reach",
-      env: { AGENTFORGE_PUBLIC_URL: "http://dpsbuddy.example.com" },
+      env: { AGENTFORGE_PUBLIC_URL: "http://nultron.example.com" },
       expect: ["AGENTFORGE_PUBLIC_URL"],
     },
   ];
@@ -202,7 +202,7 @@ describe("each variable, one at a time", () => {
 describe("the refusal is one message that names every broken variable", () => {
   const broken = completeEnv({
     AGENTFORGE_SECRETS_KEY: undefined,
-    AGENTFORGE_TRUSTED_ORIGINS: "http://dpsbuddy.example.com",
+    AGENTFORGE_TRUSTED_ORIGINS: "http://nultron.example.com",
     AGENTFORGE_PORTAL_URL: undefined,
     AGENTFORGE_PORTAL_CLIENT_ID: "",
     AGENTFORGE_PORTAL_CLIENT_SECRET: "",

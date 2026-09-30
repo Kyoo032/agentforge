@@ -97,7 +97,7 @@ describe("no source reads a provider credential straight off process.env", () =>
    */
   const DYNAMIC_ALLOWED = new Map([
     ["gateway.ts", "envTrim(name), called only with AGENTFORGE_* branding and the dev-only URL hook"],
-    [path.join("edit", "ffmpeg-binary.ts"), "resolveNamed(kind), a ternary over two AGENTFORGE_*_PATH literals"],
+    [path.join("edit", "ffmpeg-binary.ts"), "directCandidate(kind), a ternary over two AGENTFORGE_*_PATH literals"],
   ]);
 
   const DYNAMIC = /process\.env\[\s*(?!"|'|`)/g;

@@ -12,9 +12,9 @@ import {
 } from "./app-updates-copy";
 import { freezeLocale, resetLocaleForTests, t } from "./i18n";
 
-const SUPPORTED_IDLE_STATUS_LINE = "New GitHub releases download here, then DPSBuddy restarts.";
+const SUPPORTED_IDLE_STATUS_LINE = "New GitHub releases download here, then Nultron restarts.";
 const UNSUPPORTED_STATUS_LINE =
-  "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.";
+  "Available in the installed Nultron app. New GitHub releases download and restart the app.";
 
 const ELECTRON_UPDATER_DUMP = [
   "404 Not Found",
@@ -106,7 +106,7 @@ describe("updateStatusLine", () => {
   });
 
   it("describes current", () => {
-    expect(updateStatusLine(state({ status: "current" }), true)).toBe("You are on the latest DPSBuddy.");
+    expect(updateStatusLine(state({ status: "current" }), true)).toBe("You are on the latest Nultron.");
   });
 
   it("describes available with and without a version", () => {
@@ -135,13 +135,13 @@ describe("updateStatusLine", () => {
 
   it("describes idle and unavailable based on support", () => {
     expect(updateStatusLine(state({ status: "idle" }), true)).toBe(
-      "New GitHub releases download here, then DPSBuddy restarts.",
+      "New GitHub releases download here, then Nultron restarts.",
     );
     expect(updateStatusLine(state({ status: "idle" }), false)).toBe(
-      "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.",
+      "Available in the installed Nultron app. New GitHub releases download and restart the app.",
     );
     expect(updateStatusLine(state({ status: "unavailable" }), false)).toBe(
-      "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.",
+      "Available in the installed Nultron app. New GitHub releases download and restart the app.",
     );
   });
 
@@ -149,10 +149,10 @@ describe("updateStatusLine", () => {
     const macReason = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
     expect(updateStatusLine(state({ status: "unavailable", message: macReason }), false)).toBe(macReason);
     expect(updateStatusLine(state({ status: "unavailable", message: "   " }), false)).toBe(
-      "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.",
+      "Available in the installed Nultron app. New GitHub releases download and restart the app.",
     );
     expect(updateStatusLine(state({ status: "idle", message: macReason }), true)).toBe(
-      "New GitHub releases download here, then DPSBuddy restarts.",
+      "New GitHub releases download here, then Nultron restarts.",
     );
   });
 

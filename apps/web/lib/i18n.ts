@@ -8,6 +8,7 @@ import enDocuments from "../locales/en/documents.json";
 import enEdit from "../locales/en/edit.json";
 import enEducation from "../locales/en/education.json";
 import enFinance from "../locales/en/finance.json";
+import enGuide from "../locales/en/guide.json";
 import enImages from "../locales/en/images.json";
 import enKnowledge from "../locales/en/knowledge.json";
 import enLegal from "../locales/en/legal.json";
@@ -32,6 +33,7 @@ import idDocuments from "../locales/id/documents.json";
 import idEdit from "../locales/id/edit.json";
 import idEducation from "../locales/id/education.json";
 import idFinance from "../locales/id/finance.json";
+import idGuide from "../locales/id/guide.json";
 import idImages from "../locales/id/images.json";
 import idKnowledge from "../locales/id/knowledge.json";
 import idLegal from "../locales/id/legal.json";
@@ -73,6 +75,7 @@ const NAMESPACES = [
   "education",
   "meeting",
   "auth",
+  "guide",
 ] as const;
 type Namespace = (typeof NAMESPACES)[number];
 type MessageTree = { [key: string]: string | MessageTree };
@@ -103,6 +106,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     education: enEducation,
     meeting: enMeeting,
     auth: enAuth,
+    guide: enGuide,
   },
   id: {
     common: idCommon,
@@ -129,6 +133,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     education: idEducation,
     meeting: idMeeting,
     auth: idAuth,
+    guide: idGuide,
   },
 };
 

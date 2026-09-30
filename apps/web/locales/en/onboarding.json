@@ -1,6 +1,6 @@
 {
   "welcome": "Welcome to {productName}",
-  "intro": "Ask a question, write a document, look at numbers, or make a picture.",
+  "intro": "Ask a question, research a topic, make a picture or a video, or build a presentation.",
   "next": "Continue",
   "back": "Back",
   "stepsLabel": "Setup steps",
@@ -21,22 +21,23 @@
   "tryTitle": "Try one of these",
   "tryIntro": "Start in Chat. The others stay in the menu.",
   "tryStart": "Start in Chat",
+  "tourNext": "A quick tour comes next. You can skip it.",
   "examples": {
     "chat": {
       "title": "Ask something",
       "hint": "A plan, a question, or a reply you need to send."
     },
-    "document": {
-      "title": "Write a document",
-      "hint": "Turn notes into a page you can keep."
-    },
-    "finance": {
-      "title": "Look at numbers",
-      "hint": "A budget, cash flow, or a short brief."
+    "research": {
+      "title": "Research a topic",
+      "hint": "Notes with sources, for any question."
     },
     "images": {
       "title": "Make a picture",
       "hint": "Describe what you want to see."
+    },
+    "presentation": {
+      "title": "Build a presentation",
+      "hint": "Turn a topic into slides you can edit."
     }
   },
   "gate": {

@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "full": {
+    "size": 512,
+    "states": {
+      "idle": "full/idle.webp",
+      "wave": "full/wave.webp",
+      "thinking": "full/thinking.webp",
+      "writing": "full/writing.webp",
+      "answering": "full/answering.webp",
+      "searching": "full/searching.webp",
+      "calculating": "full/calculating.webp",
+      "charting": "full/charting.webp",
+      "reviewing": "full/reviewing.webp",
+      "listening": "full/listening.webp",
+      "painting": "full/painting.webp",
+      "filming": "full/filming.webp",
+      "editing": "full/editing.webp",
+      "presenting": "full/presenting.webp",
+      "celebrating": "full/celebrating.webp",
+      "error": "full/error.webp",
+      "sleep": "full/sleep.webp",
+      "surprised": "full/surprised.webp",
+      "love": "full/love.webp",
+      "charging": "full/charging.webp",
+      "lets-go": "full/lets-go.webp"
+    }
+  },
+  "head": {
+    "size": 256,
+    "states": {
+      "idle": "head/idle.webp",
+      "wave": "head/wave.webp",
+      "thinking": "head/thinking.webp",
+      "writing": "head/writing.webp",
+      "answering": "head/answering.webp",
+      "searching": "head/searching.webp",
+      "calculating": "head/calculating.webp",
+      "charting": "head/charting.webp",
+      "reviewing": "head/reviewing.webp",
+      "listening": "head/listening.webp",
+      "painting": "head/painting.webp",
+      "filming": "head/filming.webp",
+      "editing": "head/editing.webp",
+      "presenting": "head/presenting.webp",
+      "celebrating": "head/celebrating.webp",
+      "error": "head/error.webp",
+      "sleep": "head/sleep.webp",
+      "surprised": "head/surprised.webp",
+      "love": "head/love.webp",
+      "charging": "head/charging.webp",
+      "lets-go": "head/lets-go.webp"
+    }
+  },
+  "clips": {
+    "wave": {
+      "src": "clips/wave.webp",
+      "frames": 14,
+      "fps": 12,
+      "size": 320
+    },
+    "celebrating": {
+      "src": "clips/celebrating.webp",
+      "frames": 13,
+      "fps": 12,
+      "size": 320
+    },
+    "error": {
+      "src": "clips/error.webp",
+      "frames": 12,
+      "fps": 12,
+      "size": 320
+    },
+    "surprised": {
+      "src": "clips/surprised.webp",
+      "frames": 10,
+      "fps": 12,
+      "size": 320
+    },
+    "love": {
+      "src": "clips/love.webp",
+      "frames": 11,
+      "fps": 12,
+      "size": 320
+    },
+    "lets-go": {
+      "src": "clips/lets-go.webp",
+      "frames": 12,
+      "fps": 12,
+      "size": 320
+    }
+  },
+  "loops": {
+    "thinking": {
+      "src": "loops/thinking.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "writing": {
+      "src": "loops/writing.webp",
+      "frames": 4,
+      "fps": 6,
+      "size": 320
+    },
+    "answering": {
+      "src": "loops/answering.webp",
+      "frames": 4,
+      "fps": 6,
+      "size": 320
+    },
+    "searching": {
+      "src": "loops/searching.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "calculating": {
+      "src": "loops/calculating.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "charting": {
+      "src": "loops/charting.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "reviewing": {
+      "src": "loops/reviewing.webp",
+      "frames": 4,
+      "fps": 3,
+      "size": 320
+    },
+    "listening": {
+      "src": "loops/listening.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "painting": {
+      "src": "loops/painting.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "filming": {
+      "src": "loops/filming.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "editing": {
+      "src": "loops/editing.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "presenting": {
+      "src": "loops/presenting.webp",
+      "frames": 4,
+      "fps": 4,
+      "size": 320
+    },
+    "charging": {
+      "src": "loops/charging.webp",
+      "frames": 4,
+      "fps": 3,
+      "size": 320
+    }
+  },
+  "bytes": 1993520
+}

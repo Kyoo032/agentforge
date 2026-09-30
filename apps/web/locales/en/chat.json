@@ -42,7 +42,11 @@
         "prompt": "Help me decide between these options. Lay out the trade-offs, then recommend one:\n\n"
       }
     },
-    "recheck": "Check again"
+    "recheck": "Check again",
+    "mascotHello": "Say hello"
+  },
+  "header": {
+    "menu": "Chat details"
   },
   "account": {
     "label": "Account"
@@ -164,7 +168,9 @@
     "think": "Think",
     "fallback": "Model",
     "groups": {
-      "recommended": "Recommended"
+      "recommended": "Recommended",
+      "other": "Other",
+      "embeddings": "Embeddings"
     },
     "noMatch": "No models matching “{query}”",
     "noMatchEmpty": "No models matching your search"

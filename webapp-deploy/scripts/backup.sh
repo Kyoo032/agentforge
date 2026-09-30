@@ -24,7 +24,7 @@ set -eu
 OUT_DIR="${1:-$DEPLOY_DIR/backups}"
 mkdir -p "$OUT_DIR"
 STAMP="$(date -u '+%Y%m%dT%H%M%SZ')"
-OUT="$OUT_DIR/dpsbuddy-data-$STAMP.tar.gz.enc"
+OUT="$OUT_DIR/nultron-data-$STAMP.tar.gz.enc"
 
 BACKUP_KEY="$(setting BACKUP_KEY)"
 if [ -z "$BACKUP_KEY" ]; then
@@ -135,7 +135,7 @@ fi
 
 RETAIN="$(setting BACKUP_RETAIN_DAYS 7)"
 if [ "$RETAIN" -gt 0 ] 2>/dev/null; then
-	find "$OUT_DIR" -maxdepth 1 -name 'dpsbuddy-data-*.tar.gz.enc' -mtime "+$RETAIN" -delete 2>/dev/null || true
+	find "$OUT_DIR" -maxdepth 1 -name 'nultron-data-*.tar.gz.enc' -mtime "+$RETAIN" -delete 2>/dev/null || true
 fi
 
 echo

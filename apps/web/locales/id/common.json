@@ -3,9 +3,13 @@
   "language": "Bahasa",
   "english": "English",
   "bahasa": "Bahasa Indonesia",
-  "restartApp": "Mulai ulang DPSBuddy",
-  "restartHint": "Mulai ulang DPSBuddy untuk menerapkan bahasa ini.",
+  "restartApp": "Mulai ulang Nultron",
+  "restartHint": "Mulai ulang Nultron untuk menerapkan bahasa ini.",
   "loading": "Memuat…",
+  "mediaMissing": {
+    "title": "Berkas hilang",
+    "hint": "Berkas ini sudah tidak tersedia."
+  },
   "enhance": {
     "failedShort": "Peningkatan gagal",
     "failed": "Prompt tidak dapat ditingkatkan. Teks Anda tidak berubah.",
@@ -55,7 +59,11 @@
     "editing": "Sedang menyunting",
     "presenting": "Sedang mempresentasikan",
     "celebrating": "Selesai",
-    "error": "Ada yang perlu dilihat"
+    "error": "Ada yang perlu dilihat",
+    "surprised": "Terkejut",
+    "love": "Senang membantu",
+    "charging": "Sedang mengisi daya",
+    "lets-go": "Ayo berangkat"
   },
   "modeHandoff": {
     "fallbackSubject": "materi sumber",

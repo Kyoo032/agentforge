@@ -51,6 +51,7 @@ __pycache__/
 # untracked one is a `git add -A` away from a committed wrap key. `.webdev-data*` also covers the
 # dated backups (`.webdev-data.bak-20260921/`). See docs/internal/security-register.md, SR-02.
 .webdev-data*/
+.nultron-review/
 .dpsbuddy-review/
 
 # Review-harness secrets and TLS material. `scripts/review-instance.ps1` writes review.env under
@@ -61,3 +62,8 @@ review.env
 
 # Local CI logs (scripts/ci-local.mjs). Per-run step logs and summary.md; never committed.
 .ci-local/
+
+# tools/nultron-3d is outside the pnpm workspace: its own npm install, the render output, and scratch (previews, logs, look renders).
+tools/nultron-3d/node_modules/
+tools/nultron-3d/out/
+tools/nultron-3d/work/

@@ -91,12 +91,12 @@ describe("reasoning never reaches the reply", () => {
     const { text, thinking } = replay([
       { type: "reasoning-start", id: "rs_1" },
       { type: "reasoning-delta", text: SUMMARY_HEAD },
-      { type: "text-delta", text: "DPSBuddy" },
+      { type: "text-delta", text: "Nultron" },
       { type: "reasoning-delta", text: "\n\nThe user asks what the product is." },
       { type: "text-delta", text: " is a local desk." },
       { type: "reasoning-end", id: "rs_1" },
     ]);
-    expect(text).toBe("DPSBuddy is a local desk.");
+    expect(text).toBe("Nultron is a local desk.");
     expect(thinking).toBe(`${SUMMARY_HEAD}\n\nThe user asks what the product is.`);
   });
 

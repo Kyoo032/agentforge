@@ -1,4 +1,4 @@
-# DPSBuddy hosted web app.
+# Nultron hosted web app.
 #
 # Run from THIS folder:  docker compose -f compose.yml up -d
 # (the build context is the repo root, one level up)
@@ -12,14 +12,14 @@
 # Hardening here covers security spec H2 (read-only root, /data the only writable mount,
 # no-new-privileges, non-root user) and L2 (bounded, rotated logs).
 
-name: dpsbuddy-web
+name: nultron-web
 
 services:
   app:
     build:
       context: ..
       dockerfile: webapp-deploy/Dockerfile
-    image: dpsbuddy-web:local
+    image: nultron-web:local
     env_file:
       # Non-secret settings only. deploy.sh refuses to run without this file; it is
       # optional here so `docker compose config` parses on a fresh checkout.
@@ -62,21 +62,21 @@ services:
       - /tmp:mode=1777,size=512m,nosuid,nodev,noexec
 
     volumes:
-      - dpsbuddy-data:/data
+      - nultron-data:/data
       # Executable content, so this one may never be mounted noexec - which is exactly why it is a
       # separate volume from the tenant data above rather than a directory inside it.
-      - dpsbuddy-components:/opt/agentforge/components
+      - nultron-components:/opt/agentforge/components
       # Production alternative (placement doc section 4): a dedicated 200 GB CBS Premium
       # SSD, separate from the system disk, mounted on the CVM and bind-mounted here.
       # Replace the named volume above with:
       #
       #   - type: bind
-      #     source: /srv/dpsbuddy-data
+      #     source: /srv/nultron-data
       #     target: /data
       #
       # and mount the disk on the host with nodev AND noexec, in /etc/fstab:
       #
-      #   /dev/vdb  /srv/dpsbuddy-data  ext4  defaults,nodev,noexec,noatime  0  2
+      #   /dev/vdb  /srv/nultron-data  ext4  defaults,nodev,noexec,noatime  0  2
       #
       # noexec is correct as of Phase 7 and was not before it. The app used to install native
       # modules into /data/components and load them from there; it now refuses to load one out of
@@ -117,7 +117,7 @@ services:
     network_mode: "service:app"
     depends_on:
       - app
-    # The Caddyfile reads one variable, {$DPSBUDDY_DOMAIN}, so that is the only one this container
+    # The Caddyfile reads one variable, {$NULTRON_DOMAIN}, so that is the only one this container
     # gets. No env_file: .env also holds the wrap key, the portal client secret and the billing
     # webhook secret, and a proxy has no use for any of them. Compose still fills the value in from
     # the .env next to this file. `:-` rather than `:?` because .env is optional above, so that
@@ -125,7 +125,7 @@ services:
     # value Caddy refuses to start instead of serving anything. Keep this block in step with
     # composeFile() in scripts/release-web.mjs.
     environment:
-      DPSBUDDY_DOMAIN: ${DPSBUDDY_DOMAIN:-}
+      NULTRON_DOMAIN: ${NULTRON_DOMAIN:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data # ACME account + issued certificates (separate container from app's /data)
@@ -157,7 +157,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  dpsbuddy-data:
-  dpsbuddy-components:
+  nultron-data:
+  nultron-components:
   caddy-data:
   caddy-config:

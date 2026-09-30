@@ -40,7 +40,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 /** Where the generated key pair lives by default. Never inside a checkout. */
-const DEFAULT_CERT_DIR = path.join(os.homedir(), ".dpsbuddy-review", "tls");
+const DEFAULT_CERT_DIR = path.join(os.homedir(), ".nultron-review", "tls");
 const KEY_FILE = "review-key.pem";
 const CERT_FILE = "review-cert.pem";
 

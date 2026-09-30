@@ -1,8 +1,8 @@
 {
   "id": "agentforge",
-  "productName": "DPSBuddy",
+  "productName": "Nultron",
   "appId": "com.tokotoken.agentforge",
-  "artifactName": "DPSBuddy Setup ${version}.exe",
+  "artifactName": "Nultron Setup ${version}.exe",
   "gatewayName": "Toko Token",
   "gatewayBaseUrl": "https://api.tokotokenai.com/v1",
   "splashBlurb": "Starting the local app. Paste your Toko Token gateway key in Settings, then Chat is ready.",

@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * `pnpm portal:seed -- --email <address> [--tenant dpsbuddy] [--org Kyo] [--seat-cap N]
+ * `pnpm portal:seed -- --email <address> [--tenant nultron] [--org Kyo] [--seat-cap N]
  *                      [--redirect <uri> ...] [--rotate-secret]`
  *
  * A thin shell around `runSeed`: parse, migrate as the owner, open the server's connection, seed,

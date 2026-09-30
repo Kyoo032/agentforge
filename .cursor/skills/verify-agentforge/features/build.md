@@ -10,7 +10,7 @@
 
 - You cannot. There is no Agents tab and no Build link in Settings.
 
-## Driving it with the DPSBuddy harness
+## Driving it with the Nultron harness
 
 Preconditions:
 
@@ -24,5 +24,5 @@ Preconditions:
 
 - The redirect is React Router client-side (`apps/web/src/App.tsx:171-172`) and sits next to a catch-all `*` → `/chat` at `:170`. Landing on Chat therefore proves the route is unhandled, not that a dedicated park rule fired — pair the URL assert with `create-agent` count 0.
 - Playwright `/studio/**` matching `/studio/new` is irrelevant while the layout redirects.
-- Default already has job modes. Missing Images on Default is a fail, not a reason to open Studio.
+- Default already has the job modes a first desk starts with (Research, Images, Videos, Presentation). Missing Images on Default is a fail, not a reason to open Studio.
 - A later “show Build again” pass should un-park this file instead of inventing a new feature id.

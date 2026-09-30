@@ -12,7 +12,7 @@ const SHAPE = `{
   "openQuestions": [string]
 }`;
 
-export const MEETING_MINUTES_SYSTEM = `You write minutes of meeting for DPSBuddy from a transcript.
+export const MEETING_MINUTES_SYSTEM = `You write minutes of meeting for Nultron from a transcript.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 ${SHAPE}
 Rules:
@@ -26,7 +26,7 @@ Rules:
 - A transcript is speech: fix obvious mis-hearings of a word only when the meaning is unambiguous, and never "fix" a name or a figure.
 - No filler. No "the team will follow up". No campus / student / course nouns unless the meeting itself used them.`;
 
-export const MEETING_TRANSLATE_SYSTEM = `You translate minutes of meeting for DPSBuddy.
+export const MEETING_TRANSLATE_SYSTEM = `You translate minutes of meeting for Nultron.
 Return ONLY valid JSON (no markdown fences, no commentary) with the exact same shape you were given:
 ${SHAPE}
 Rules:

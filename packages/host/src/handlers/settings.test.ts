@@ -196,6 +196,21 @@ describe("host-side gateway enforcement", () => {
 describe("the job-model breaker follows the key", () => {
   const DOWN = "gpt-5.6-sol";
 
+  it("also forgets the Thinking levels the runtime learned a model refuses", async () => {
+    const core = await import("@agentforge/core");
+    delete process.env.AGENTFORGE_RUNTIME;
+    stubFetch(200);
+
+    core.rememberEffortLimit(DOWN, { kind: "ceiling", level: "high" });
+    expect(core.learnedEffortLimit(DOWN)).toEqual({ drop: false, ceiling: "high", replace: {} });
+    expect((await json("POST", "/api/v1/settings", { openaiApiKey: KEY })).status).toBe(200);
+    expect(core.learnedEffortLimit(DOWN)).toBeUndefined();
+
+    core.rememberEffortLimit(DOWN, { kind: "drop" });
+    expect((await json("POST", "/api/v1/settings/reset", { scope: "key" })).status).toBe(200);
+    expect(core.learnedEffortLimit(DOWN)).toBeUndefined();
+  });
+
   it("is cleared by a settings save and by a key reset, like the embeddings breaker", async () => {
     const circuit = await import("../job-model-fallback");
     delete process.env.AGENTFORGE_RUNTIME;
@@ -465,6 +480,7 @@ describe("POST /api/v1/settings/reset", () => {
       "channels",
       "models-cache.json",
       "models-dev-cache.json",
+      "models-dev-cache.meta.json",
       // Downloaded native components and the installer's log: host-written and re-downloadable,
       // so a full "Start over" takes them too.
       "components",

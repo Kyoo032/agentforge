@@ -2,6 +2,7 @@ import {
   isGatewayUnavailableFailure,
   modelFallbackNotice,
   nextJobFallbackModel,
+  resetLearnedEffortLimits,
   type JobMode,
   type JobModelFallbackNotice,
 } from "@agentforge/core";
@@ -50,9 +51,21 @@ export function isJobModelDown(model: string, now: number = Date.now()): boolean
   return true;
 }
 
-/** Test hook, and what Settings calls when the key or the gateway changes. */
+/** Test hook for the down circuit alone. Production code calls `resetModelReliabilityState`. */
 export function resetJobModelCircuit(): void {
   downUntil.clear();
+}
+
+/**
+ * Everything this process has learned about which models misbehave, forgotten: the models a job
+ * skips because they were unreachable, and the Thinking levels the runtime learned a model refuses
+ * (`resetLearnedEffortLimits`, core). Saving Settings, forgetting the key and resetting a tenant
+ * call this, because a new key or endpoint may sit in front of a different upstream and none of it
+ * is known to hold there.
+ */
+export function resetModelReliabilityState(): void {
+  resetJobModelCircuit();
+  resetLearnedEffortLimits();
 }
 
 /** One attempt's outcome. The original error is carried, never wrapped: its ApiError status matters. */

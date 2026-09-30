@@ -9,7 +9,10 @@
     "./hosted-env": "./src/hosted-env.ts"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:models:diff": "tsx eval/models/catalog-diff.ts",
+    "eval:models:probe": "tsx eval/models/probe.ts",
+    "eval:models:test": "vitest run --root eval/models"
   },
   "dependencies": {
     "@agentforge/core": "workspace:*",

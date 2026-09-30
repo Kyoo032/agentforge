@@ -142,7 +142,20 @@ export function shouldRetryWithoutTools(options: {
   return /function tools|reasoning_effort/i.test(options.failed);
 }
 
-/** Empty assistant reply is only a hard failure when no tools ran (e.g. image_generate with no prose). */
+/**
+ * True when `text` holds something a person can read. Whitespace alone is not a reply: gpt-6-sol
+ * answered HTTP 200 with a single space on 2026-09-30, and every "did the model say anything" check
+ * (the runtime's `text` flag, the empty-reply failure, the tool-less retry, a job's "has it started
+ * answering") reads it through this, so a blank counts as no text everywhere at once.
+ */
+export function hasVisibleText(text: string): boolean {
+  return text.trim().length > 0;
+}
+
+/**
+ * Empty assistant reply is only a hard failure when no tools ran (e.g. image_generate with no prose).
+ * `text` is "visible text came back" (see `hasVisibleText`): a reply of whitespace is an empty one.
+ */
 export function shouldFailEmptyAssistant(options: {
   text: boolean;
   thinking: boolean;

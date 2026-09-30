@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Publish the packed DPSBuddy Setup exe, its blockmap and latest.yml to the public
+ * Publish the packed Nultron Setup exe, its blockmap and latest.yml to the public
  * releases repo named in branding/agentforge/brand.json "updates". Run after
  * `pnpm desktop:build`. Uploaded asset names are hyphenated (what electron-updater's
  * GitHub provider requests); the local files keep the spaced artifactName.
  *
- * macOS artifacts (`DPSBuddy-<version>-mac-<arch>.dmg|zip`, built on a Mac with
+ * macOS artifacts (`Nultron-<version>-mac-<arch>.dmg|zip`, built on a Mac with
  * `pnpm desktop:build:mac` and copied into dist/) are attached to the same release when
  * present. `latest-mac.yml` and mac blockmaps are never uploaded: the mac app is unsigned
  * and its updater is off. `--require-mac` fails when either arch is missing.
@@ -42,7 +42,7 @@ import { describeMacCoverage, selectMacArtifacts } from "./release-artifacts.mjs
 
 const desktopRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = join(desktopRoot, "..", "..");
-const ARTIFACT_PREFIX = "DPSBuddy Setup";
+const ARTIFACT_PREFIX = "Nultron Setup";
 const SETUP_EXE = /Setup.*\.exe$/i;
 
 function fail(reason) {
@@ -164,7 +164,7 @@ function checkMacArtifacts(distDir, version, flags) {
     ok(`${selection.forbidden.join(", ")} present but never uploaded (mac updater is off)`);
   }
   if (flags.requireMac && selection.missingArches.length > 0) {
-    fail(`--require-mac: missing mac artifacts for ${selection.missingArches.join(", ")} (expected DPSBuddy-${version}-mac-<arch>.dmg)`);
+    fail(`--require-mac: missing mac artifacts for ${selection.missingArches.join(", ")} (expected Nultron-${version}-mac-<arch>.dmg)`);
   }
   ok(describeMacCoverage(selection));
   return selection;
@@ -214,7 +214,7 @@ function notesArgs(version, flags) {
   if (flags.notes) return ["--notes-file", checkedNotesFile(flags.notes)];
   const publicNotes = join(repoRoot, "docs", "public", `${version}-notes.md`);
   if (existsSync(publicNotes)) return ["--notes-file", checkedNotesFile(publicNotes)];
-  return ["--notes", `DPSBuddy ${version}`];
+  return ["--notes", `Nultron ${version}`];
 }
 
 /**

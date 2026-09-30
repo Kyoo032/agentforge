@@ -1,11 +1,11 @@
 # Map — Meeting: recording → transcript → minutes → translation
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for every `packages/host/src/meeting/run.ts` and
+Last verified: 2026-09-30, working tree, not committed, for the minutes-model row in § 4 (the model lists of that day, [`model-policy.md`](model-policy.md) § 7: the head is `gpt-6-sol` now, probed, **not driven on a minutes job**). Before that: 2026-09-23 at d4561b8 + uncommitted tree for every `packages/host/src/meeting/run.ts` and
 `meeting-studio.tsx` citation, steps 4, 6 and 7, and the Recording section (the recording's target meeting, a
 desk switch, a recorder error). Not driven: the `:3000` host needs a restart for the `run.ts` changes, and the
 renderer changes were not walked in a browser. Earlier: 2026-09-21 at 4938747 — **driven end to end on webdev
 against the live gateway**: upload → transcript → minutes → translation, in both locale directions. Transcription
-runs on `gemini-3.5-flash` over the `chat_audio` wire; the minutes and the translation on `gpt-5.6-sol`. See
+runs on `gemini-3.5-flash` over the `chat_audio` wire; the minutes and the translation on `gpt-5.6-sol`, the head of the list then (`gpt-6-sol` since 2026-09-30). See
 [What was driven](#what-was-driven-2026-09-21).
 
 ## Overview
@@ -107,7 +107,7 @@ All seven by-id routes resolve through `meetingStore()`, which filters on `tenan
 | Leg | How it is picked |
 |---|---|
 | Transcription | `AGENTFORGE_MEETING_ASR_MODEL` if pinned — one id, no fallback — else `transcriptionCandidates(cachedModelIds())` over `TRANSCRIPTION_PREF` (`packages/core/src/meeting/asr-model.ts`), head `gemini-3.5-flash`. That is a **chain**, not a pick: a model that refuses, times out or answers with nothing is dropped and the next is asked, and the first that answers is preferred for every remaining chunk. Empty when the catalog lists nothing that can hear — the caller falls back to a pasted transcript rather than inventing an id. |
-| Minutes and translation | `JOB_MODE_PREFERENCES.meeting` (`packages/core/src/models/mode-defaults.ts`), head `gpt-5.6-sol`; the owner's `documentGenModel` setting overrides, and the picker overrides that (`resolveMeetingModel`, `packages/host/src/meeting/run.ts:70-74`). |
+| Minutes and translation | `JOB_MODE_PREFERENCES.meeting` (`packages/core/src/models/mode-defaults.ts`), head `gpt-6-sol` since 2026-09-30, then `claude-sonnet-5-5`, `gemini-3.5-flash`, `gpt-5.6-sol` (the head, `gpt-5.6-sol`, was the model of the two driven runs below); the owner's `documentGenModel` setting overrides, and the picker overrides that (`resolveMeetingModel`, `packages/host/src/meeting/run.ts:70-74`). |
 
 ## The ASR-probe fix that came with this
 
@@ -156,6 +156,8 @@ Refused: `qwen3-livetranslate-flash`, `qwen3.5-omni-flash`, `qwen3.5-omni-plus` 
 |---|---|---|---|---|
 | `en` | 65 s, three named speakers | `gemini-3.5-flash`, verbatim with `**Daniel Brooks**:`-style labels | `gpt-5.6-sol`, 3 attendees, 2 decisions, 3 action items with owners and dates, 1 risk, 1 open question, `unverifiedNames: []` | `id`, `gpt-5.6-sol` — "Rilis perbaikan latensi checkout ke produksi pada Jumat, 14." |
 | `id` | 73 s, three named speakers | `gemini-3.5-flash`, Indonesian | `gpt-5.6-sol`, Indonesian | `en`, `gpt-5.6-sol` |
+
+Those two runs are proof of the pipeline on `gpt-5.6-sol`, not of `gpt-6-sol`, which replaced it as the head on 2026-09-30 (probed at every Thinking level, first token 1.7 to 5 s; no minutes were generated on it).
 
 The translation target is `otherLocale(meeting.locale)` (`packages/host/src/meeting/run.ts`), so an `en` meeting is
 translated to Indonesian and an `id` meeting to English. Both directions fired, with no owner action.

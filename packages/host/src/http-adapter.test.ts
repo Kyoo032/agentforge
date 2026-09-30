@@ -178,8 +178,8 @@ const RESET_PATH = "/api/v1/settings/reset";
 const LOOPBACK_HOST = "127.0.0.1:3000";
 const TRANSPORT = { "x-agentforge-transport": "web" };
 
-const WEB_ORIGIN = "https://app.dpsbuddy.com";
-const WEB_HOST = "app.dpsbuddy.com";
+const WEB_ORIGIN = "https://app.nultron.com";
+const WEB_HOST = "app.nultron.com";
 const GATEWAY_CHECK_PATH = "/api/v1/settings/gateway/check";
 const SERVER_MODE_KEYS = ["AGENTFORGE_SERVER", "AGENTFORGE_TRUSTED_ORIGINS"] as const;
 const savedEnv = new Map<string, string | undefined>();
@@ -819,8 +819,8 @@ describe("handleNodeRequest path normalisation", () => {
 describe("handleNodeRequest behind a TLS-terminating proxy (server mode)", () => {
   // The deployment shape in webapp-deploy/Caddyfile: Caddy terminates TLS and forwards the ORIGINAL
   // Host. Rewriting it to 127.0.0.1 (what the old loopback rule needed) now fails the Host check.
-  const PUBLIC_ORIGIN = "https://dpsbuddy.example.com";
-  const PUBLIC_HOST = "dpsbuddy.example.com";
+  const PUBLIC_ORIGIN = "https://nultron.example.com";
+  const PUBLIC_HOST = "nultron.example.com";
   const token = mintCsrfToken();
   const proxied = {
     origin: PUBLIC_ORIGIN,

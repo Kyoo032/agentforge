@@ -3,6 +3,7 @@ import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createLocalWorkspace, db, editCards, editJobs, editUnplaced } from "@agentforge/db";
+import { assertThrowawayDesk } from "../__fixtures__/throwaway-desk";
 import { getTenant } from "../tenant";
 import { dispatch } from "../router";
 import { seedEditProject } from "./harness";
@@ -21,6 +22,8 @@ import { keepCard, undoCard } from "./undo";
 
 /** A second desk in the same organization, with a project of its own. */
 async function twoDesks() {
+  // Creates a desk and never deletes it: only ever in a throwaway data dir (see the guard's note).
+  assertThrowawayDesk();
   const a = await seedEditProject("desk-a");
   const other = await createLocalWorkspace(db, a.tenant.organizationId, `desk-b-${crypto.randomUUID().slice(0, 8)}`);
   const tenantB = await getTenant(other.id);

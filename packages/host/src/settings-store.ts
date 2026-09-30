@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, renameSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
-import type { AppLocale, SecretPatch, StoredSecrets, TenantContext } from "@agentforge/core";
+import type { AppLocale, GuideOutcome, GuideRecord, SecretPatch, StoredSecrets, TenantContext } from "@agentforge/core";
 import {
   ApiError,
   LOCAL_TENANT_ID,
@@ -15,6 +15,7 @@ import {
   knowledgeBackendSetting,
   mergeSecrets,
   parseAppLocale,
+  parseGuideRecord,
 } from "@agentforge/core";
 import { getLocalVaultKey } from "@agentforge/db/vault-key";
 import { readSelectedWorkspaceId } from "./workspace";
@@ -175,13 +176,16 @@ function tryDeleteLegacyPlaintext(tenantId: string): void {
 }
 
 /**
- * Per-user state inside a tenant's sealed payload. Only the UI locale today.
+ * Per-user state inside a tenant's sealed payload: the UI locale, and whether the person has been
+ * through the first-run guide (`guide`, see `@agentforge/core` `guide.ts`).
  *
  * It rides in the same envelope rather than in a table of its own because it is written by the
  * same save, read by the same read and thrown away by the same "start over" — and because a second
- * store would be a second thing to rotate, back up and keep in step.
+ * store would be a second thing to rotate, back up and keep in step. On a desk the one user is the
+ * local owner, so both are machine-wide there; the guide's record is why "Start over" shows the
+ * tour again on a fresh install: `settings.enc` is the first entry it removes.
  */
-type UserPrefs = { locale?: AppLocale };
+type UserPrefs = { locale?: AppLocale; guide?: GuideRecord };
 
 type SettingsFileV2 = {
   version: 2;
@@ -249,8 +253,9 @@ function usersMap(value: unknown): Record<string, UserPrefs> | undefined {
       continue;
     }
     const locale = readLocaleField((prefs as UserPrefs).locale);
-    if (locale) {
-      next[userId] = { locale };
+    const guide = parseGuideRecord((prefs as UserPrefs).guide);
+    if (locale || guide) {
+      next[userId] = { ...(locale ? { locale } : {}), ...(guide ? { guide } : {}) };
     }
   }
   return Object.keys(next).length > 0 ? next : undefined;
@@ -610,6 +615,40 @@ export function saveUserLocale(scope: UserScope, locale: AppLocale): AppLocale {
     users,
   });
   return locale;
+}
+
+/**
+ * Has this person been through the first-run guide, and how did it end?
+ *
+ * `null` is "never": a missing entry, an unreadable one, or a user this payload has never heard of.
+ * Nothing falls through to another user's record, because "was I shown the tour" is the one fact
+ * that must not be inherited.
+ */
+export function loadUserGuide(scope: UserScope): GuideRecord | null {
+  const { tenantId } = resolveSettingsScope(scope);
+  const userId = scope.userId?.trim();
+  if (!userId) {
+    return null;
+  }
+  return loadSettingsFile(tenantId).users?.[userId]?.guide ?? null;
+}
+
+/**
+ * Record how the guide ended. Written on finish, on Skip and on close, and never removed by anything
+ * but "Start over" (`settings.enc` is the first entry the fresh-install wipe deletes). Replaying the
+ * guide from Settings does not clear it: a replay is a choice, not a first run.
+ */
+export function saveUserGuide(scope: UserScope, outcome: GuideOutcome, now: number = Date.now()): GuideRecord {
+  const { tenantId } = resolveSettingsScope(scope);
+  const userId = scope.userId?.trim();
+  if (!userId) {
+    throw new ApiError("invalid_request", "The guide's outcome needs a signed-in user.", 400);
+  }
+  const record: GuideRecord = { outcome, at: now };
+  const file = loadSettingsFile(tenantId);
+  const users = { ...(file.users ?? {}), [userId]: { ...(file.users?.[userId] ?? {}), guide: record } };
+  persistEncrypted(tenantId, { ...file, version: 2, users });
+  return record;
 }
 
 /** Test seam: forget every decrypted payload so a suite can rewrite the store underneath. */

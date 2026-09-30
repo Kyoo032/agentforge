@@ -1,4 +1,4 @@
-import { resetFfmpegBinaryCache, resolveFfmpeg } from "./ffmpeg-binary";
+import { type BinaryStatus, resetFfmpegBinaryCache, resolveFfmpeg, resolveFfmpegAsync } from "./ffmpeg-binary";
 import { ffmpegSetupHint, type FfmpegSetupHint } from "./ffmpeg-setup";
 import { resolveAsrCapability } from "./asr";
 
@@ -43,7 +43,7 @@ export type EditDoctorOptions = {
   recheck?: boolean;
 };
 
-/** Minimum gap between forced re-probes; each probe runs ffmpeg synchronously, so this caps abuse from a local page. */
+/** Minimum gap between forced re-probes; each one re-walks PATH and runs ffmpeg, so this caps abuse from a local page. */
 export const RECHECK_MIN_INTERVAL_MS = 2_000;
 
 let lastRecheckAt = 0;
@@ -52,12 +52,14 @@ export function resetDoctorRecheckThrottle(): void {
   lastRecheckAt = 0;
 }
 
-export function getEditDoctor(options: EditDoctorOptions = {}, now: number = Date.now()): EditDoctorReport {
+function applyRecheck(options: EditDoctorOptions, now: number): void {
   if (options.recheck && now - lastRecheckAt >= RECHECK_MIN_INTERVAL_MS) {
     lastRecheckAt = now;
     resetFfmpegBinaryCache();
   }
-  const ffmpeg = resolveFfmpeg();
+}
+
+function reportFor(ffmpeg: BinaryStatus): EditDoctorReport {
   return {
     ffmpeg: {
       found: ffmpeg.found,
@@ -69,4 +71,23 @@ export function getEditDoctor(options: EditDoctorOptions = {}, now: number = Dat
     asr: resolveAsrCapability(),
     fonts: [],
   };
+}
+
+/**
+ * The report, probing synchronously when nothing is cached. For callers that cannot await (the Edit
+ * agent's prompt line reads it mid-turn) and that run after the cache is warm; anything on a request
+ * or boot path uses `getEditDoctorAsync`.
+ */
+export function getEditDoctor(options: EditDoctorOptions = {}, now: number = Date.now()): EditDoctorReport {
+  applyRecheck(options, now);
+  return reportFor(resolveFfmpeg());
+}
+
+/** The same report without blocking the event loop while a cold probe walks PATH and runs ffmpeg. */
+export async function getEditDoctorAsync(
+  options: EditDoctorOptions = {},
+  now: number = Date.now(),
+): Promise<EditDoctorReport> {
+  applyRecheck(options, now);
+  return reportFor(await resolveFfmpegAsync());
 }

@@ -252,7 +252,7 @@ Three properties of the script are load-bearing rather than convenience. **Defau
 
 With `-AppPublicUrl` / `-PortalPublicUrl` the same command serves a second topology: the four variables that have to agree with the public names — `AGENTFORGE_TRUSTED_ORIGINS`, `AGENTFORGE_PUBLIC_URL`, `AGENTFORGE_PORTAL_URL`, `PORTAL_PUBLIC_URL` — are derived from them rather than edited by hand in four places, and `PORTAL_TRUST_PROXY` switches on exactly when there really is a proxy in front. That is the shape the two Cloudflare quick tunnels of 2026-09-21 used ([SR-28](../security-register.md#sr-28)); they are ephemeral and must be closed after the review.
 
-Secrets and TLS material live under `$HOME\.dpsbuddy-review`, never in the checkout ([SR-11](../security-register.md#sr-11)). One gap is recorded there: `--upstream` is not loopback-checked the way `--listen` is. Neither script may be copied into `webapp-deploy/` — `webapp-deploy/Caddyfile` stays the only proxy the product ships behind. Proved by `node --test scripts/review-proxy.test.mjs scripts/review-instance.test.mjs`, 26 passed on 2026-09-21.
+Secrets and TLS material live under `$HOME\.nultron-review`, never in the checkout ([SR-11](../security-register.md#sr-11)). One gap is recorded there: `--upstream` is not loopback-checked the way `--listen` is. Neither script may be copied into `webapp-deploy/` — `webapp-deploy/Caddyfile` stays the only proxy the product ships behind. Proved by `node --test scripts/review-proxy.test.mjs scripts/review-instance.test.mjs`, 26 passed on 2026-09-21.
 
 What does prove it, and what a feature file would have to keep in step with:
 

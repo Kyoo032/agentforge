@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createLocalWorkspace, db } from "@agentforge/db";
+import { assertThrowawayDesk } from "../__fixtures__/throwaway-desk";
 import { dispatch } from "../router";
 import { getTenant } from "../tenant";
 import { createEditProject } from "./projects";
@@ -36,6 +37,11 @@ function expectNotFound(result: Awaited<ReturnType<typeof call>>): void {
 }
 
 describe("edit routes are scoped to the caller's desk", () => {
+  // This file creates a desk per test and never deletes it. Run from anywhere but packages/host it
+  // used to do that in the operator's own desk: 112 `edit-idor-<hex>` desks (14 runs x 8) sat in the
+  // dev desk's switcher until 2026-09-29. Now the wrong directory is a red test before any desk exists.
+  beforeAll(() => assertThrowawayDesk());
+
   afterEach(() => {
     resetEditJobsForTests();
     setEditJobRunnerForTests(null);

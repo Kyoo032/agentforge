@@ -1,6 +1,7 @@
 import {
   ApiError,
   type GatewayGatePayload,
+  guidePayload,
   hasLiveProvider,
   HOME_WORKSPACE_NAME,
   isAppLocale,
@@ -22,6 +23,7 @@ import { getTenant } from "../tenant";
 import {
   clearGatewayKeyEverywhere,
   loadSettings,
+  loadUserGuide,
   localDataDir,
   saveUserLocale,
   saveSettings,
@@ -41,7 +43,7 @@ import { probeSummary } from "../model-cache";
 import { db, hasPendingDataReset, listLocalWorkspaces, pendingResetPath, requestDataReset } from "@agentforge/db";
 import { rmSync } from "node:fs";
 import { resetEmbedCircuit } from "../knowledge-embed";
-import { resetJobModelCircuit } from "../job-model-fallback";
+import { resetModelReliabilityState } from "../job-model-fallback";
 import { revokeKnowledgeGatewayModel } from "../knowledge/backend-api";
 // Phase 8: the hosted "Start over". Everything policy-shaped is checked in there, not here.
 import { resetTenant } from "../tenant-reset";
@@ -94,6 +96,9 @@ async function settingsPayload(
   return {
     ...maskSecrets(settings),
     ...localePayload(tenant),
+    // Whether this person has been through the first-run guide, so the renderer never re-offers it.
+    // Stored beside the locale and erased by the same "Start over" (`settings-store.ts`).
+    guide: guidePayload(loadUserGuide(tenant)),
     workspaceId: tenant.workspaceId,
     workspaceName: current?.name ?? HOME_WORKSPACE_NAME,
     productName: resolvedProductName(),
@@ -107,7 +112,10 @@ async function settingsPayload(
     // True while a queued wipe is waiting for the next boot, so Settings can offer to call it off.
     resetPending: hasPendingDataReset(localDataDir()),
     probe: probeSummary(),
-    ...modeCatalogPayload(),
+    // Only the per-mode default ids. The model lists live on `GET /api/v1/models`, once: this answer
+    // used to carry them too, nine identical copies of the chat catalogue, which was 261 KB of a
+    // 274 KB read that the shell repeats on every cold load. No reader of this route used them.
+    defaults: modeCatalogPayload().defaults,
     toolCatalog: listToolCapabilities().map((capability) => ({
       id: capability.id,
       label: capability.label,
@@ -245,9 +253,10 @@ export async function handlePostSettings(request: HostRequest, deps: ServerModeD
     const saved = saveSettings(patch, tenant);
     clearThisKeyCache();
     // A fixed key / URL must take effect now, not after the 5-minute embeddings breaker expires —
-    // and the job-side breaker skips a model for the same five minutes, so it is cleared with it.
+    // and the job-side breaker skips a model for the same five minutes, so it is cleared with it, along
+    // with the Thinking levels the runtime learned a model refuses.
     resetEmbedCircuit();
-    resetJobModelCircuit();
+    resetModelReliabilityState();
     // The retrieval sidecar holds a *copy* of the gateway key, inside the model row it embeds with.
     // A key that has been changed here but left in that database has not been rotated, so the row
     // is revoked; the next knowledge call mints a fresh one against the new credentials.
@@ -271,13 +280,10 @@ export async function handlePostSettings(request: HostRequest, deps: ServerModeD
       const detail = error instanceof Error ? error.message : String(error);
       console.warn(`gateway verdict refresh failed after save: ${redactSecrets(detail)}`);
     }
-    const catalog = modeCatalogPayload();
     const payload = await settingsPayload(saved, tenant);
     return jsonOk({
       ...payload,
       gateway: gateVerdictFor(payload.gateway, freshGate, gateRefreshFailed),
-      modes: catalog.modes,
-      defaults: catalog.defaults,
     });
   } catch (error) {
     return jsonError(error);
@@ -373,6 +379,8 @@ export const HOST_RESET_ENTRIES = [
   "channels",
   "models-cache.json",
   "models-dev-cache.json",
+  // Its freshness sidecar (one timestamp), written beside it on every registry refresh.
+  "models-dev-cache.meta.json",
   // Downloaded native components (packages/host/src/components). Written by the host, inside the
   // data dir, and re-downloadable — so a full "Start over" drops it like everything else the host
   // wrote. The cost of being wrong here is one re-download, never data.
@@ -406,7 +414,7 @@ function resetGatewayKey(tenant: TenantContext): HostResult {
   clearGateState(tenant);
   clearThisKeyCache();
   resetEmbedCircuit();
-  resetJobModelCircuit();
+  resetModelReliabilityState();
   return jsonOk({
     ok: true,
     scope: "key",

@@ -1,9 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { ChatKeyStatus } from "@/components/chat-key-status";
-import { FloatingShapes } from "@/components/floating-shapes";
-import { PlaceholderMascot } from "@/components/placeholder-mascot";
+import { ChatHero } from "@/components/chat-hero";
 import { t } from "@/lib/i18n";
 import { useDeskNeedsKey } from "@/lib/use-desk-needs-key";
 
@@ -88,27 +86,14 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
   return (
     /* `min-h-full` + safe center: short desks sit in the middle. A short window
        (900px) must not push the hero above the pane — `safe center` falls back
-       to the start when the block is taller than the scroller. */
+       to the start when the block is taller than the scroller. The column is also the
+       size container the hero's type, spacing and shapes are measured against. */
     <div
       className="chat-empty-fit flex min-h-full w-full flex-col py-6"
       data-testid="chat-empty"
       data-needs-key={needsKey ? "true" : "false"}
     >
-      <div className="hero-aurora enter-rise relative flex flex-col items-center px-6 py-8 text-center" data-mode="chat">
-        <FloatingShapes layout="hero" />
-        <span className="icon-orb icon-orb-lg icon-orb-solid tile-bounce relative" style={{ "--i": 1 } as CSSProperties}>
-          <PlaceholderMascot state="idle" />
-        </span>
-        <h2
-          className="enter-rise relative mt-4 font-heading text-[34px] font-bold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]"
-          style={{ "--i": 2 } as CSSProperties}
-        >
-          <span className="text-gradient">{t("chat.empty.headline")}</span>
-        </h2>
-        <div className="enter-fade relative" style={{ "--i": 3 } as CSSProperties}>
-          <ChatKeyStatus />
-        </div>
-      </div>
+      <ChatHero />
 
       <p className="mt-6 text-center text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-3)]">
         {t("chat.empty.ideas.title")}
@@ -116,7 +101,8 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
       <p className="mt-1 text-center text-xs text-[var(--text-3)]" data-testid="chat-ideas-hint">
         {t("chat.empty.ideas.fillsComposer")}
       </p>
-      <div className="mx-auto mt-3 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2" data-testid="chat-suggestions">
+      {/* Columns come from the room the grid has (`.chat-ideas-grid`), not from the viewport. */}
+      <div className="chat-ideas-grid mx-auto mt-3 w-full max-w-3xl" data-testid="chat-suggestions">
         {IDEAS.map((id, index) => (
           <button
             key={id}
@@ -135,9 +121,7 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
               <span className="block text-sm font-semibold text-[var(--text)]">
                 {t(`chat.empty.ideas.${id}.label`)}
               </span>
-              <span className="mt-0.5 block text-xs text-[var(--text-3)]">
-                {t(`chat.empty.ideas.${id}.hint`)}
-              </span>
+              <span className="mt-0.5 block text-xs text-[var(--text-3)]">{t(`chat.empty.ideas.${id}.hint`)}</span>
             </span>
           </button>
         ))}

@@ -26,14 +26,16 @@ export function modelFallbackNotice(from: string, to: string): JobModelFallbackN
  * gateway (`resolveModeDefaults`), and reordering its head would move every desk's default. This
  * list only ever runs when the first choice could not be reached.
  *
- * The order is what the gateway actually answered on 2026-09-17: `gpt-5.6-luna` and
- * `claude-sonnet-5` returned briefs, while `deepseek-v4-flash`, `gpt-5.6-terra` and `glm-5.2` all
- * came back 503. Both leaders hold long numeric tables and strict JSON well, which is what a
- * Finance or Data job asks for; `gpt-5.6-sol` and `kimi-k3` follow as the larger everyday models
- * Legal already ranks for the same reason. Nothing here is assumed live — every id is intersected
- * with the workspace catalog before it is offered.
+ * The order is what the gateway actually answered. On 2026-09-17
+ * `gpt-5.6-luna` and `claude-sonnet-5` returned briefs while `deepseek-v4-flash`, `gpt-5.6-terra` and
+ * `glm-5.2` all came back 503. On 2026-09-30 the probe (packages/host/eval/models) had `gpt-6-luna`
+ * ($0.10 / $0.50 per 1M, first token about 2 s), `claude-sonnet-5-5` (2 to 4 s) and
+ * `deepseek-v4-1-flash` (1.3 to 1.9 s) answer HTTP 200 at every level it tried. `gpt-5.6-luna`, the
+ * 2026-09-17 survivor, is third and the DeepSeek id last, so the first two stand-ins come from two
+ * different vendors. A stand-in only has to answer; the mode's own list carries the quality choice.
+ * Nothing here is assumed live — every id is intersected with the workspace catalog before it is offered.
  */
-export const JOB_FALLBACK_TAIL = ["gpt-5.6-luna", "claude-sonnet-5", "gpt-5.6-sol", "kimi-k3"];
+export const JOB_FALLBACK_TAIL = ["gpt-6-luna", "claude-sonnet-5-5", "gpt-5.6-luna", "deepseek-v4-1-flash"];
 
 /**
  * The gateway could not answer at all, so the same prompt on another model is worth one try.

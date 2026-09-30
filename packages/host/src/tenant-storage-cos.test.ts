@@ -38,9 +38,9 @@ const B = "tenant-beta";
 const KEY_A = `tenants/${A}/org-1/file.png`;
 
 const CONFIG: CosConfig = {
-  bucket: "dpsbuddy-media-1300000000",
+  bucket: "nultron-media-1300000000",
   region: "ap-jakarta",
-  endpoint: "https://dpsbuddy-media-1300000000.cos.ap-jakarta.myqcloud.com",
+  endpoint: "https://nultron-media-1300000000.cos.ap-jakarta.myqcloud.com",
   camRole: null,
   metadataBase: "http://metadata.tencentyunapi.com",
 };
@@ -356,7 +356,7 @@ describe("credentials", () => {
   });
 
   it("reads the CVM instance role, and sends its token on every request", async () => {
-    const role = { ...CONFIG, camRole: "dpsbuddy-app" };
+    const role = { ...CONFIG, camRole: "nultron-app" };
     const { fetchImpl, calls } = stubFetch([
       {
         status: 200,
@@ -374,14 +374,14 @@ describe("credentials", () => {
     await store.put(A, KEY_A, new Uint8Array(1), "image/png");
 
     expect(calls[0]?.url).toBe(
-      "http://metadata.tencentyunapi.com/latest/meta-data/cam/security-credentials/dpsbuddy-app",
+      "http://metadata.tencentyunapi.com/latest/meta-data/cam/security-credentials/nultron-app",
     );
     expect(calls[1]?.headers["x-cos-security-token"]).toBe("session-token");
     expect(authOf(calls[1] as Call)["q-ak"]).toBe("AKIDtmp");
   });
 
   it("asks the metadata service once for a burst, not once per upload", async () => {
-    const role = { ...CONFIG, camRole: "dpsbuddy-app" };
+    const role = { ...CONFIG, camRole: "nultron-app" };
     const { fetchImpl, calls } = stubFetch([
       {
         status: 200,
@@ -408,7 +408,7 @@ describe("credentials", () => {
   });
 
   it("refuses to sign anything when the role hands back a failure", async () => {
-    const role = { ...CONFIG, camRole: "dpsbuddy-app" };
+    const role = { ...CONFIG, camRole: "nultron-app" };
     const { fetchImpl } = stubFetch([{ status: 200, body: JSON.stringify({ Code: "Failed" }) }]);
     const store = createCosObjectStore({ config: role, env: {}, fetchImpl, now: () => 1 });
     await expect(store.read(A, KEY_A)).rejects.toMatchObject({ code: "storage_credentials_unavailable" });

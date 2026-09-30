@@ -305,8 +305,13 @@ export function WorkspacesPage() {
           const dirty = editName.trim() !== workspace.name || !sameModes(withChat(editModes), withChat(modes));
           return (
             <li key={workspace.id} className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
+              {/*
+                Wraps: at 375 px the three actions (Edit, Delete, Open) used to take 160 px of a 250 px
+                card, and a name like "edit-idor-cd22b72e" broke into three hyphenated lines beside
+                them. The name now keeps a readable line and the actions drop under it when it cannot.
+              */}
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                <div className="min-w-0 flex-1 basis-44 break-words">
                   <p className="font-medium text-[var(--text)]">
                     {workspace.name}
                     {packLabel ? <span className="ml-2 text-xs font-normal text-[var(--text-3)]">{packLabel}</span> : null}
@@ -316,7 +321,7 @@ export function WorkspacesPage() {
                     {modes.map((id) => labeled(`workspaces.mode.${id}`, PRODUCT_MODES.find((mode) => mode.id === id)?.label ?? id)).join(", ")}
                   </p>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="ml-auto flex shrink-0 gap-2">
                   <button
                     type="button"
                     className="rounded-md px-2 py-1 text-sm text-[var(--accent)] underline"

@@ -27,13 +27,7 @@ function execFailure(over: { code?: number | string; message?: string; stderr?: 
 }
 
 /** The argv a real recipe runs: absolute paths, a tenant prefix, a filename the caller chose. */
-const ARGV = [
-  "-i",
-  "C:\\Users\\operator\\.dpsbuddy\\media\\org_7\\tnt_42\\quarterly-board-call.mp4",
-  "-f",
-  "null",
-  "-",
-];
+const ARGV = ["-i", "C:\\Users\\operator\\.nultron\\media\\org_7\\tnt_42\\quarterly-board-call.mp4", "-f", "null", "-"];
 
 /** Everything a message must never contain, whatever else it says. */
 function assertNothingLeaked(message: string): void {
@@ -78,7 +72,7 @@ describe("a failing ffmpeg run", () => {
       code: 1,
       stderr:
         "[mp4 @ 0000021f] moov atom not found\n" +
-        "C:\\Users\\operator\\.dpsbuddy\\media\\org_7\\tnt_42\\quarterly-board-call.mp4: Invalid data found when processing input",
+        "C:\\Users\\operator\\.nultron\\media\\org_7\\tnt_42\\quarterly-board-call.mp4: Invalid data found when processing input",
     });
     assertNothingLeaked(error.message);
   });
