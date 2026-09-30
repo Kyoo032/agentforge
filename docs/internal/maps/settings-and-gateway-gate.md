@@ -4,7 +4,7 @@
 > The host-decides/renderer-displays rule below is unchanged and applies to both; the Electron-only transport and wipe details are the Personal app's.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-29, working tree, not committed, for the first-run guide's record (a `guide` field on `settingsPayload`, `POST /api/v1/settings/guide`, the record inside the sealed payload beside the language, erased by Start over): see "The first-run guide's record" below and [`first-run-desk-and-guide.md`](first-run-desk-and-guide.md); every other line of this page is as verified next. Also 2026-09-29, working tree, not committed, for `settingsPayload` (no `modes`; the range is re-anchored) and the shared settings read, both stated under "Settings per desk". Also 2026-09-29, for the reset wipe list (it gains `models-dev-cache.meta.json`) and every
+Last verified: 2026-09-30, working tree over bcf14f7, not committed (the second time that day), for the `defaults` sentence in the `settingsPayload()` paragraph: the per-mode default ids it carries resolve from the model lists of that day ([`model-policy.md`](model-policy.md) § 7), the Chat default is `gpt-6-luna` now. Before that, the same day, for "What a save does besides saving" and the sign-out paragraph under Start over: a save, a key reset and a tenant reset now call `resetModelReliabilityState`, which clears the learned Thinking-level limits along with the job-model breaker ([`model-policy.md`](model-policy.md) § 4); the citations in that table were re-read and re-anchored the same day. Every other line is as verified next. Before that: 2026-09-29, working tree, not committed, for the first-run guide's record (a `guide` field on `settingsPayload`, `POST /api/v1/settings/guide`, the record inside the sealed payload beside the language, erased by Start over): see "The first-run guide's record" below and [`first-run-desk-and-guide.md`](first-run-desk-and-guide.md); every other line of this page is as verified next. Also 2026-09-29, working tree, not committed, for `settingsPayload` (no `modes`; the range is re-anchored) and the shared settings read, both stated under "Settings per desk". Also 2026-09-29, for the reset wipe list (it gains `models-dev-cache.meta.json`) and every
 `apps/desktop/main.cjs` and `settings.test.ts` citation in this page's Start over section, re-anchored in the working
 tree, not committed, after the ffmpeg probe moved behind the first paint. Not driven. Before that: 2026-09-26 for the onboarding screen, restyled onto the current desk (gradient hello,
 `hero-aurora`, `card-live` example tiles). A fresh desk is a short hello, then the key, then four
@@ -98,7 +98,7 @@ named exceptions (`studio-generate.ts`, `handlers/jobs.ts`, listed at `:22-23`).
 
 **`settingsPayload()`** (`packages/host/src/handlers/settings.ts:88-128`) is what the renderer sees. **It does not
 carry the model catalogue** (2026-09-29): `modes` left it, and only `defaults` (the per-mode default ids, `:113`)
-stayed. It used to spread `modeCatalogPayload()`, which put the chat list under nine mode names, 261 KB of a
+stayed (they resolve from the lists in [`model-policy.md`](model-policy.md) § 7: on a catalogue that lists them, chat `gpt-6-luna`, documents, finance and market `hy3`, legal and meeting `gpt-6-sol`, presentations `glm-5.3-flash`). It used to spread `modeCatalogPayload()`, which put the chat list under nine mode names, 261 KB of a
 274 KB answer that the shell reads on every cold load; no reader of this route used a list. The catalogue is
 `GET /api/v1/models`, sent once (`modelCatalogBody`, `packages/host/src/selectable-models.ts:229-249`); the
 tests are `packages/host/src/handlers/models.test.ts`. On the renderer side the shell's gate read and the
@@ -173,18 +173,18 @@ from the renderer, together with the `settings.endpointLabel` / `settings.endpoi
 
 Host and core logic are unchanged. This is a fourth, presentation-only layer on top of the three real pins.
 
-**What a save does besides saving.** `handlePostSettings` (`packages/host/src/handlers/settings.ts:207-281`)
+**What a save does besides saving.** `handlePostSettings` (`packages/host/src/handlers/settings.ts:217`)
 runs `saveSettings(patch, tenant)` and then four side effects, in order, so a corrected key or URL
 takes effect on the next request instead of after a breaker expires:
 
 | Call | Why |
 |---|---|
-| `clearThisKeyCache()` (`:244`) | the per-key usage strip is keyed on the old credential |
-| `resetEmbedCircuit()` (`:247`) | the embeddings breaker holds a workspace down for five minutes |
-| `resetJobModelCircuit()` (`:248`) | **added 2026-09-17** — the job-model fallback breaker skips a model for the same five minutes (`JOB_MODEL_DOWN_MS`, `packages/host/src/job-model-fallback.ts:25`), so a save that fixes the key must clear it too or the desk keeps routing around a model that now works |
-| `revokeKnowledgeGatewayModel(...)` (`:252`) | the retrieval sidecar holds a *copy* of the key inside the model row it embeds with; a key changed here but left in that row has not been rotated |
+| `clearThisKeyCache()` (`:254`) | the per-key usage strip is keyed on the old credential |
+| `resetEmbedCircuit()` (`:258`) | the embeddings breaker holds a workspace down for five minutes |
+| `resetModelReliabilityState()` (`:259`) | **added 2026-09-17 as `resetJobModelCircuit()`, widened 2026-09-30** — the job-model fallback breaker skips a model for the same five minutes (`JOB_MODEL_DOWN_MS`, `packages/host/src/job-model-fallback.ts:26`), so a save that fixes the key must clear it too or the desk keeps routing around a model that now works. It also forgets the Thinking levels the runtime learned a model refuses (`resetLearnedEffortLimits`, `packages/core/src/runtime/effort-selfheal.ts:254`; they also expire on their own after 30 minutes and are kept per tenant): a new key or endpoint may sit in front of a different upstream, so nothing learned about a model holds (`resetModelReliabilityState`, `packages/host/src/job-model-fallback.ts:66`) |
+| `revokeKnowledgeGatewayModel(...)` (`:263`) | the retrieval sidecar holds a *copy* of the key inside the model row it embeds with; a key changed here but left in that row has not been rotated |
 
-`resetGatewayKey` runs the same two breaker resets on sign-out — see **Start over** below.
+`resetGatewayKey` runs the same two breaker resets (the embeddings one and the reliability state) on sign-out — see **Start over** below.
 
 ### The gateway gate
 
@@ -312,11 +312,11 @@ Card `settings-reset` (`apps/web/components/settings-reset-card.tsx:159`), mount
 `apps/web/components/settings-page.tsx:535`, fed by `resetPending` on the settings payload.
 
 **Sign out (`scope: "key"`)** — no typed confirmation, fully synchronous. `resetGatewayKey`
-(`packages/host/src/handlers/settings.ts:400-415`) calls `clearGatewayKeyEverywhere(tenant)`
+(`packages/host/src/handlers/settings.ts:410-425`) calls `clearGatewayKeyEverywhere(tenant)`
 (`packages/host/src/settings-store.ts:522-538` — **every desk of the caller's tenant**, because "a key left on
 a second desk would keep the gate open after 'forget my key'"; Phase 3 lane D narrowed it from the whole
 install), then `clearGateState(tenant)`, `clearThisKeyCache()`, `resetEmbedCircuit()` and — added 2026-09-17 —
-`resetJobModelCircuit()` (`:405-407`). Returns `relaunch: false`. Threads, desks and media are untouched. The
+`resetModelReliabilityState()` (`:417`; the job-model breaker and the learned Thinking-level limits). Returns `relaunch: false`. Threads, desks and media are untouched. The
 card navigates to `/chat` and calls `announceGate(result.gateway)`, which dispatches `GATE_EVENT` and drops the
 shell to onboarding.
 

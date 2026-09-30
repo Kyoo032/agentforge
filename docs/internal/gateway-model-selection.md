@@ -4,6 +4,8 @@
 
 This document replaces the keyword heuristic ("if id contains `flash` → Fast drafts", etc.). Keywords misroute: `pro` puts `gpt-5.5-pro` (a slow, $30/$180 deep-reasoning tier) into "Long documents"; `flash` hides `gemini-3.5-flash` (a frontier-class model) in "Fast drafts"; `MiniMax-M3` is a cheap fast agentic model, not a deep-reasoning flagship; `Doubao Seed 1.6 Thinking` is not even in the catalog. Every claim below comes from vendor docs/pricing pages or reputable trackers (Artificial Analysis, OpenRouter) checked on the research date; anything not verifiable is marked **[unverified]**. Full per-model records with source URLs live in the companion `tokenku-models-catalog.json`.
 
+**Update 2026-09-30:** the gateway's catalogue moved (GPT 6 Luna and Sol, Claude 5.5, DeepSeek V4.1 Flash, `hy3`) and the product's recommendations moved with it. Sections 1 to 9 below are the 2026-09-13 research, kept as history; the live list, the gateway's prices, the probe verdicts and the new recommendation lists are in **Section 10**, at the end.
+
 ## 0. How to use this document
 
 1. Identify the **task class** (Section 1). Take the **primary** pick; fall back in order if it errors, is rate-limited, or is too slow/expensive for the job.
@@ -696,3 +698,91 @@ Primary documentation consulted (per-model URLs are in `tokenku-models-catalog.j
 - xAI: docs.x.ai (Grok Imagine image/video, deprecations).
 - Midjourney / Suno: github.com/QuantumNous/new-api (Midjourney and Suno relay action maps), docs.midjourney.com (V8.2, video), suno.com help.
 - Cross-vendor: artificialanalysis.ai (intelligence index, tok/s, TTFT), openrouter.ai model pages (latency medians, context), lmarena.ai.
+
+---
+
+## 10. Update 2026-09-30 — the gateway's new models, and what the product recommends now
+
+Sections 1 to 9 are the 2026-09-13 research and stay as written: they are the record of what was known then. This section is what changed. It rests on four things measured on 2026-09-30 on Rizky's key, cited elsewhere as "probe 2026-09-30":
+
+- the live catalogue, `GET /v1/models` read by `pnpm --filter @agentforge/host eval:models:diff --refresh` (a free read, nothing written to the desk);
+- the gateway's public price list, `GET /api/pricing`, the same one the usage panel reads, at group ratio 1;
+- the probe, `packages/host/eval/models/results/probe-2026-09-30T08-42-17-578Z.json`: 35 raw requests (a baseline and four Thinking levels for each of seven models), no retries, 32 output tokens each (`pnpm --filter @agentforge/host eval:models:probe`, map [`model-policy.md`](maps/model-policy.md) section 6);
+- calls through the real app on `:3000`.
+
+### 10.1 What the catalogue lists now
+
+**149 ids** (the 2026-09-13 snapshot had 170), of which **121 are chat** ids. Of those chat ids the policy table knew 99 before this change and knows 100 now (`hy3` joined it); 21 are still unknown, all `grok-*`, `gpt-realtime*`, `gpt-audio`, `gpt-chat-latest` and `typesafe/jev`.
+
+- **New or newly relevant chat ids:** `gpt-6-luna`, `gpt-6-sol`, `gpt-6-astra`; `claude-sonnet-5-5`, `claude-opus-5-5` (with `claude-sonnet-5`, `claude-opus-5`, `claude-fable-5`, `claude-fable-5-1`); `deepseek-v4-1-flash` (and a dated twin, `-260910`), `deepseek-v4-flash` (`-0731`), `deepseek-v4-pro` (`-0813`); `hy3`; `gemini-3.5-flash`, `-3.6-flash`, `-3.7-flash`, `-3.8-flash`; `glm-5.3`, `glm-5.3-flash`; `kimi-k3`; `MiniMax-M3`; the Qwen 3.7 family.
+- **Video: only `seedance-2.0` and `seedance-2.5`.** None of `veo_3_1-fast`, `grok-imagine-video`, `omni-fast-v2v`, `grok-imagine-video-1.5-preview` is listed. **Image:** `gpt-image-2` is live; `seedream-5.0-pro` and `doubao-seedream-5-0-pro-260628` are not.
+- **Not listed:** `doubao-seed-2-1-turbo-260628`, `glm-5.3-flash-preview`, the `hy-3` / `hunyuan-3` / `hunyuan3` spellings (the id is `hy3`), `text-embedding-3-*`. `suno_music` and `suno_lyrics` are relay-only and never listed, by design (`RELAY_ONLY_MUSIC_MODEL_IDS`).
+- After the change every id in every chat preference list is live: 0 missing.
+
+### 10.2 What the new models cost
+
+USD per 1M tokens, input / output, as the gateway bills them (`/api/pricing`, group ratio 1). These are the gateway's prices, not the vendors' list prices Section 1 quotes, and they differ (`glm-5.3-flash` is $0.075 / $0.25 here against $0.15 / $0.50 there).
+
+| Model | In / out | Model | In / out |
+|---|---|---|---|
+| `gpt-6-luna` | $0.10 / $0.50 | `gemini-3.5-flash` | $1.50 / $9.00 |
+| `gpt-6-sol` | $2 / $10 | `minimax-m3` | $0.60 / $2.40 |
+| `gpt-6-astra` | $10 / $50 | `glm-5.3-flash` | $0.075 / $0.25 |
+| `claude-sonnet-5-5` | $2 / $10 | `glm-5.3` | $1.40 / $4.40 |
+| `claude-opus-5-5` | $4 / $20 | `kimi-k3` | $2.86 / $14.29 |
+| `claude-sonnet-5` | $2 / $10 | `deepseek-v4-pro` | $1.71 / $3.43 |
+| `claude-opus-5` | $5 / $25 | `gpt-5.6-luna` | $0.20 / $1.20 |
+| `gpt-5.6-terra` | $2 / $12 | `gpt-5.6-sol` | $4 / $20 |
+
+`deepseek-v4-flash`, `deepseek-v4-1-flash`, `qwen3.7-plus` and both Seedance ids are tiered (no flat price); `hy3` is not in the price list at all. `gemini-3.7-flash` ($0.75 / $3.75) and `gemini-3.8-flash` ($0.50 / $3.00) are listed and cheaper than `gemini-3.5-flash`; neither was probed, and the recommendation keeps 3.5.
+
+### 10.3 What the probe found
+
+Each cell is the HTTP status of one raw request carrying that Thinking level on the wire the policy table picks. First token in seconds, over the four levels (baseline call included).
+
+| Model | Wire | Off (`none`) | Light | Normal | Deep | First token |
+|---|---|---|---|---|---|---|
+| `gpt-6-luna` | Responses | 200 | 200 | 200 | 200 | 1.9 to 2.3 s |
+| `gpt-6-sol` | Responses | 200 | 200 | 200 | 200 | 1.7 to 5.0 s (Off was the slow one) |
+| `gpt-6-astra` | Responses | **400** `Unsupported value: 'none'` | 200 | 200 | 200 | 5.4 to 7.0 s |
+| `claude-sonnet-5-5` | Messages | 200 (`thinking` disabled) | 200 | 200 | 200 | 1.7 to 4.1 s |
+| `claude-opus-5-5` | Messages | **503** `supply pool unavailable` | 200 | 200 | 200 | 2.8 to 9.0 s (Deep was 9.0 s) |
+| `deepseek-v4-1-flash` | Completions | 200 | 200 | 200 | 200 | 1.3 to 1.9 s |
+| `hy3` | Completions | 200 | 200 | 200 | 200 | 2.1 to 2.8 s |
+
+- **Correction to Section 3.** "GPT-6 answers `none` with HTTP 400" was seen on `gpt-6-astra` and is true of it. **`gpt-6-luna` and `gpt-6-sol` take `none`**, so Off is sent as `none` for them and Astra alone floors Off to `low`.
+- **`claude-opus-5-5` Off is no verdict.** The 503 is capacity on the upstream, not a refusal of the parameter. The Claude 5 family's `thinking: {type: "disabled"}` stays.
+- `hy3` thinks a little by default (13 to 24 reasoning tokens on a one-word prompt, 0 at Off); `deepseek-v4-1-flash` the same (9 to 32, 0 at Off).
+- **Not tried, for any model:** Extra, Max and Ultra. The levels above Deep in the table are carried over from the family rules, marked so in each entry's `verified` note. `hy3` is the exception: the table stops at Deep for it, so those levels snap to Deep.
+- Driven through the real app on `:3000` the same day: `gpt-6-luna` at high, at Off and at the default, `gpt-6-astra` at Off, `claude-sonnet-5-5` at high. All answered 200 with no self-heal retry.
+
+### 10.4 What the product recommends now, and the code that says so
+
+Owner decision, 2026-09-30: cheapest and fastest first. Each list below is the before and the after; the code is the one place to read it (`packages/core/src/models/`).
+
+| List | Before | After |
+|---|---|---|
+| `CHAT_DEFAULT_PREFERENCES` (`preferred.ts`) | `gpt-5.6-luna`, `claude-sonnet-5`, `gemini-3.5-flash`, `qwen3.7-plus`, `MiniMax-M3`, `minimax-m3`, `doubao-seed-2-1-turbo-260628`, `gpt-5.6-terra`, `glm-5.3-flash`, `deepseek-v4-flash` | `gpt-6-luna`, `claude-sonnet-5-5`, `deepseek-v4-1-flash`, `gemini-3.5-flash`, `gpt-6-sol`, `glm-5.3-flash`, `qwen3.7-plus`, `gpt-5.6-luna`, `claude-sonnet-5`, `deepseek-v4-flash` |
+| `EVERYDAY_MODEL_IDS` (the Recommended group, `gateway-roles.ts`) | `gpt-5.6-terra`, `claude-sonnet-5`, `gemini-3.5-flash`, `qwen3.7-plus`, `minimax-m3`, `doubao-seed-2-1-turbo-260628`, `gpt-5.6-luna`, `glm-5.3-flash` | `gpt-6-luna`, `claude-sonnet-5-5`, `deepseek-v4-1-flash`, `gemini-3.5-flash`, `gpt-6-sol`, `glm-5.3-flash`, `qwen3.7-plus` |
+| `JOB_MODE_PREFERENCES.research`, `.data` (`mode-defaults.ts`) | `gpt-5.6-luna`, `MiniMax-M3`, `minimax-m3`, `gpt-5.6-terra` | `gpt-6-luna`, `gpt-6-sol`, `gpt-5.6-luna`, `MiniMax-M3`, `minimax-m3` |
+| `.documents` | `hy3`, `hy-3`, `hunyuan-3`, `hunyuan3`, `deepseek-v4-flash` | `hy3`, `deepseek-v4-1-flash`, `deepseek-v4-flash` |
+| `.finance`, `.market` | `hy3`, `hy-3`, `hunyuan-3`, `deepseek-v4-flash` | `hy3`, `deepseek-v4-1-flash`, `deepseek-v4-flash` |
+| `.legal` | `gpt-5.6-sol`, `gpt-5.6-luna`, `kimi-k3`, `deepseek-v4-flash` | `gpt-6-sol`, `claude-sonnet-5-5`, `gpt-5.6-sol`, `kimi-k3` |
+| `.meeting` | `gpt-5.6-sol`, `gpt-5.6-terra`, `gemini-3.5-flash`, `MiniMax-M3`, `deepseek-v4-flash` | `gpt-6-sol`, `claude-sonnet-5-5`, `gemini-3.5-flash`, `gpt-5.6-sol` |
+| `.presentations` | `glm-5.3-flash`, `glm-5.3-flash-preview`, `glm-5.2-fast-preview`, `glm-5.2`, `glm-5.3`, `kimi-k3` | `glm-5.3-flash`, `claude-sonnet-5-5`, `glm-5.3`, `kimi-k3` |
+| `JOB_FALLBACK_TAIL` (`job-fallback.ts`) | `gpt-5.6-luna`, `claude-sonnet-5`, `gpt-5.6-sol`, `kimi-k3` | `gpt-6-luna`, `claude-sonnet-5-5`, `gpt-5.6-luna`, `deepseek-v4-1-flash` |
+| `VIDEO_PREF` (`media-kind.ts`) | `veo_3_1-fast`, `grok-imagine-video`, `omni-fast-v2v`, `grok-imagine-video-1.5-preview` | `seedance-2.0`, `doubao-seedance-2-0-260128`, `seedance-2.5`, then the four before |
+| `EFFECTIVE_JOB_MODEL` (documentation only, nothing reads it) | `deepseek-v4-flash` | `hy3` |
+
+- **Best-for hints** (`GATEWAY_BEST_FOR`): `gpt-6-luna` Fast drafts, `gpt-6-sol` Everyday chat, `gpt-6-astra` Deep reasoning, `claude-sonnet-5-5` Everyday chat, `claude-opus-5-5` Deep reasoning, `deepseek-v4-1-flash` Fast drafts. No new hint word exists, so no new copy. An image, video or audio id with no line in that table now says Image, Video or Audio (`mediaKind`, in `modelPolicy`) where it used to say General chat.
+- **Consequence to know:** `gpt-5.6-luna`, `gpt-5.6-terra`, `claude-sonnet-5`, `MiniMax-M3` and `doubao-seed-2-1-turbo-260628` are no longer Recommended, so they sit in their brand groups (their hints are unchanged). `gpt-6-astra` and `claude-opus-5-5` were never Recommended: they are the deep-reasoning picks.
+- **Policy** (`model-policy.ts`): `gpt-6-luna` and `gpt-6-sol` get entries that allow `none` through `max` on Responses with Off sent as `none`; `gpt-6-astra` gets its own entry with the old rule (Low through Max, Off floors to Low); any other GPT-6 id keeps the conservative rule. `claude-sonnet-5-5`, `claude-opus-5-5` and `deepseek-v4-1-flash` get entries whose behaviour is their family's, so no request changes, with a `verified` note citing the probe. `hy3` is a new entry: Completions, Off through Deep.
+
+### 10.5 What this does not settle
+
+- Reachability and latency were measured; **answer quality on the new heads was not compared** for Documents, Finance, Market, Legal or the minutes. The lists follow the owner's call, prices and speed.
+- `seedance-2.5` was listed but not driven, and neither Seedance id has a flat price. It follows the proven `seedance-2.0`.
+- `hy3` has no job knob: it thinks a little by default, and a job that stalls on first token there is the case for adding one (`QUIET_JOB_KNOB`).
+- `deepseek-v4-flash` answered 503 on 2026-09-17 (the comment on `JOB_FALLBACK_TAIL` says so) and was not tried today; `deepseek-v4-1-flash` sits last in the outage tail and is a different id.
+- `claude-sonnet-5-5` with Off took 31 s to finish a 32-token answer (first token 4.1 s) in the probe. One sample, unexplained, and the other four calls finished in 2 to 3 s. It heads Legal's second place and the minutes' second place, so a repeat there would show.
+- The dated twin `deepseek-v4-1-flash-260910` has a six-digit date, so the picker and the role table do not fold it into its base id the way they do an eight-digit one.

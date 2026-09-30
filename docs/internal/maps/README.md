@@ -90,6 +90,7 @@ sha and a settled tree reports zero.
 |---|---|---|
 | [`channels.md`](channels.md) | Channels: Telegram bot token, desk channel store, send and poll, pinned egress | `features/channels.md` |
 | [`chat-send.md`](chat-send.md) | Chat send: composer → transport → run route → runtime → SSE → rendered message | `features/chat.md` |
+| [`model-policy.md`](model-policy.md) | How each gateway model is called: the policy table (wire, Thinking levels, Off, job knob, tier), the run's effort plan, and the one retry when a call's Thinking parameter is refused; since the second pass also the Responses `reasoning` block for GPT-6, Chat sending a level only once picked, and the dev-only `catalog-diff` and `probe` tools; since the third pass (2026-09-30) also the recommendation lists (Chat default `gpt-6-luna`, the Recommended set, per-mode and outage lists, the video order) | `features/models.md` |
 | [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md) | Per-desk settings, the host gateway gate, Start over, key pinning | `features/settings.md`, `features/gateway-gate.md` |
 | [`locale-boot-and-run-harness.md`](locale-boot-and-run-harness.md) | App locale freeze + restart, and how `id` reaches the model | `features/settings.md`, `features/locale.md` |
 | [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md) | Knowledge ingest, injection guard, embedding, retrieval, tenant scoping | `features/knowledge-ingest.md`, `features/knowledge.md` |

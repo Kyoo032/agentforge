@@ -2031,6 +2031,18 @@ Required action: the Personal release notes say the old folder is left in place 
 
 Gate: none for Personal, accepted by design. The Enterprise leftovers block calling the migration done, not a deploy. Not driven: no installer or server has run under the new names yet.
 
+### SR-84 {#sr-84}
+
+**New `brace-expansion` advisories reach the hosted image through `exceljs`.** Both products (the hosted image is what the gate measures). Raised 2026-09-30. Open.
+
+Evidence: `ci:local` on 2026-09-30 (`.ci-local/2026-09-30T09-28-58-348Z/audit_deployed.log`) fails `audit:deployed` with six HIGH findings, GHSA-qhr7-859c-m2p7 and GHSA-6j4f-fj2g-mc7p (recursion DoS). The 2026-09-29 run passed with the same lockfile: the advisories are new, not a dependency change. The path is `@agentforge/host > exceljs@4.4.0 > archiver@5.3.2 > archiver-utils / zip-stream / readdir-glob > minimatch@3.1.5 / 5.1.9 > brace-expansion@1.1.18 / 2.1.4`, plus a 5.0.9 copy. The fixed versions are `>=1.1.20`, `>=2.1.6` and `>=5.0.11`.
+
+What goes wrong if ignored: the recursion needs an attacker-controlled glob pattern. Here archiver builds its own patterns while the Finance export writes xlsx, so reachability looks low, but this is not proven. Meanwhile the required CI gate stays red.
+
+Required action: raise `brace-expansion` to the fixed versions with a `pnpm.overrides` entry, or move `exceljs` to a release that pulls them in. Then rerun `ci:local` and confirm the xlsx export still works.
+
+Gate: **blocks PR merge**, because `audit:deployed` is a required `ci:local` step.
+
 ## Low
 
 ### SR-01 {#sr-01}
