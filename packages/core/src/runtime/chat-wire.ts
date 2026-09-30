@@ -1,8 +1,9 @@
 import { ApiError } from "../errors";
 import { mediaKind } from "../models/media-kind";
+import { modelPolicy } from "../models/model-policy";
 import { bareModelId } from "../models/request-constraints";
 import type { ReasoningEffort } from "../models/reasoning-effort";
-import { usesResponsesApi } from "./api-mode";
+import { nameSuggestsResponsesApi } from "./api-mode";
 
 /**
  * Send-time Chat wire on the saved Endpoint URL. Probe stays GET /v1/models.
@@ -66,11 +67,8 @@ export function readOptionalChatWire(body: unknown): ChatWire {
   return normalized;
 }
 
-/**
- * Claude 5 family, Opus 4.7 / 4.8, and Sonnet 4.6 → Anthropic Messages.
- * Haiku 4.5 stays Completions.
- */
-export function usesAnthropicMessages(modelId: string): boolean {
+/** The name rule the code always had for Messages: Claude 5, Opus 4.7 / 4.8 and Sonnet 4.6. */
+function nameSuggestsAnthropicMessages(modelId: string): boolean {
   const id = bareModelId(modelId);
   if (/^claude-(?:opus|sonnet|haiku|fable)-5(?:$|[^0-9])/.test(id)) {
     return true;
@@ -81,8 +79,8 @@ export function usesAnthropicMessages(modelId: string): boolean {
   return /^claude-opus-4[.-][78](?:$|[^0-9])/.test(id);
 }
 
-/** Gemini chat ids → generateContent. Image/video Gemini stay job modes. */
-export function usesGeminiGenerateContent(modelId: string): boolean {
+/** The name rule the code always had for generateContent: a Gemini id that is a chat model. */
+function nameSuggestsGeminiGenerateContent(modelId: string): boolean {
   const id = bareModelId(modelId);
   if (!id.startsWith("gemini")) {
     return false;
@@ -91,19 +89,40 @@ export function usesGeminiGenerateContent(modelId: string): boolean {
 }
 
 /**
+ * Claude 5 family, Opus 4.7 / 4.8, and Sonnet 4.6 → Anthropic Messages.
+ * Haiku 4.5 stays Completions. The table in `models/model-policy.ts` decides; the name rule only
+ * answers for an id it does not know.
+ */
+export function usesAnthropicMessages(modelId: string): boolean {
+  const preferred = modelPolicy(modelId).wire;
+  return preferred === "auto" ? nameSuggestsAnthropicMessages(modelId) : preferred === "anthropic_messages";
+}
+
+/** Gemini chat ids → generateContent. Image/video Gemini stay job modes. */
+export function usesGeminiGenerateContent(modelId: string): boolean {
+  const preferred = modelPolicy(modelId).wire;
+  return preferred === "auto" ? nameSuggestsGeminiGenerateContent(modelId) : preferred === "google_generate_content";
+}
+
+/**
  * Product Chat always sends `auto`. GPT-5 / GPT-6 / o-series → Responses;
  * Claude 5 / Opus 4.7 / 4.8 / Sonnet 4.6 → Messages; Gemini chat → generateContent;
- * else Completions.
+ * else Completions. The model's own entry in `models/model-policy.ts` wins; an id the table does
+ * not know falls back to the name rules.
  */
 export function resolveChatWire(wire: ChatWire | undefined, modelId: string): ResolvedChatWire {
   if (!wire || wire === "auto") {
-    if (usesResponsesApi(modelId)) {
+    const preferred = modelPolicy(modelId).wire;
+    if (preferred !== "auto") {
+      return preferred;
+    }
+    if (nameSuggestsResponsesApi(modelId)) {
       return "responses";
     }
-    if (usesAnthropicMessages(modelId)) {
+    if (nameSuggestsAnthropicMessages(modelId)) {
       return "anthropic_messages";
     }
-    if (usesGeminiGenerateContent(modelId)) {
+    if (nameSuggestsGeminiGenerateContent(modelId)) {
       return "google_generate_content";
     }
     return "chat_completions";
@@ -185,8 +204,10 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
  * Claude 5 Messages body: adaptive thinking + `output_config.effort`.
  * Never `thinking: { type: "enabled", budget_tokens }`, never `reasoning_effort`, never `store`.
  * Omitting `thinking` turns adaptive on — none must send `disabled`.
+ * `effort: undefined` sends no thinking configuration at all (a model nobody chose a level for, or a
+ * parameter the gateway refused); the rest of the body is cleaned the same way.
  */
-export function applyAnthropicMessagesBody(body: unknown, effort: ReasoningEffort): unknown {
+export function applyAnthropicMessagesBody(body: unknown, effort: ReasoningEffort | undefined): unknown {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return body;
   }
@@ -196,6 +217,11 @@ export function applyAnthropicMessagesBody(body: unknown, effort: ReasoningEffor
   delete next.store;
   delete next.previous_response_id;
   delete next.provider;
+
+  if (effort === undefined) {
+    next.max_tokens = ANTHROPIC_MESSAGES_MAX_TOKENS;
+    return next;
+  }
 
   if (effort === "none") {
     next.thinking = { type: "disabled" };
@@ -229,15 +255,18 @@ export function applyAnthropicMessagesBody(body: unknown, effort: ReasoningEffor
 
 /**
  * Gemini generateContent: Off disables thinking; other levels set thinkingBudget + includeThoughts.
- * Never `reasoning_effort`.
+ * Never `reasoning_effort`. `effort: undefined` leaves `thinkingConfig` out.
  */
-export function applyGeminiGenerateContentBody(body: unknown, effort: ReasoningEffort): unknown {
+export function applyGeminiGenerateContentBody(body: unknown, effort: ReasoningEffort | undefined): unknown {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return body;
   }
   const next: Record<string, unknown> = { ...(body as Record<string, unknown>) };
   delete next.reasoning_effort;
   delete next.reasoningEffort;
+  if (effort === undefined) {
+    return next;
+  }
   const generation = asRecord(next.generationConfig) ?? asRecord(next.generation_config) ?? {};
   const thinkingConfig =
     effort === "none"

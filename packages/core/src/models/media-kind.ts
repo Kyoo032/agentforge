@@ -36,8 +36,35 @@ const LYRICS_PREF = ["suno_lyrics"];
 /** Non-realtime text-to-speech. Empty on this gateway today — see `speechModelRole` below. */
 const SPEECH_PREF = ["qwen-audio-3.0-tts", "tts-1-hd", "tts-1"];
 
-/** Veo fast completes reliably on the gateway (2026-09); cheap t2v ids follow as fallbacks. */
-const VIDEO_PREF = ["veo_3_1-fast", "grok-imagine-video", "omni-fast-v2v", "grok-imagine-video-1.5-preview"];
+/**
+ * Seedance leads (2026-09-30): the live catalogue lists `seedance-2.0` and `seedance-2.5` and none of
+ * the ids below it, and the app made its demo videos on `seedance-2.0` (its dated Doubao spelling
+ * follows for a catalogue that lists only that). Veo fast, which completed reliably earlier in
+ * 2026-09, and the cheap t2v ids stay after it as fallbacks for a gateway that lists them again.
+ * `seedance-2.5` is listed but was not driven, so it sits behind the proven 2.0.
+ */
+const VIDEO_PREF = [
+  "seedance-2.0",
+  "doubao-seedance-2-0-260128",
+  "seedance-2.5",
+  "veo_3_1-fast",
+  "grok-imagine-video",
+  "omni-fast-v2v",
+  "grok-imagine-video-1.5-preview",
+];
+
+/**
+ * The ranked hints each media picker uses, in one read-only object, so a tool that reports on the
+ * catalogue (`packages/host/eval/models`) reads the same lists the pickers rank by and cannot drift.
+ */
+export const MEDIA_MODEL_PREFERENCES = Object.freeze({
+  image: Object.freeze([...IMAGE_PREF]),
+  video: Object.freeze([...VIDEO_PREF]),
+  music: Object.freeze([...MUSIC_PREF]),
+  lyrics: Object.freeze([...LYRICS_PREF]),
+  speech: Object.freeze([...SPEECH_PREF]),
+  embedding: Object.freeze([...EMBEDDING_PREF]),
+});
 
 const OTHER =
   /(^|\/)(text-)?embedding|babbage|davinci|computer-use|omni-moderation|text-moderation|moderation/i;

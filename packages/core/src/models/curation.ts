@@ -1,6 +1,6 @@
-import { EVERYDAY_MODEL_IDS, GATEWAY_BEST_FOR } from "./gateway-roles";
+import { modelPolicy, type ModelTier } from "./model-policy";
 
-export type ModelTier = "everyday" | "advanced";
+export type { ModelTier };
 
 export type CuratedModelMeta = {
   friendlyLabel: string;
@@ -92,15 +92,6 @@ export function friendlyModelLabel(id: string): string {
   return parts.map(titleCaseToken).join(" ");
 }
 
-function catalogLeaf(id: string): string {
-  return leafId(id).toLowerCase();
-}
-
-function bestForFromId(id: string): string {
-  const n = catalogLeaf(id);
-  return GATEWAY_BEST_FOR[n] ?? GATEWAY_BEST_FOR[n.replace(DATED_SUFFIX, "")] ?? "General chat";
-}
-
 /** Models that stream a reasoning channel (o-series, R1, MiniMax think tags, *thinking* ids). */
 export function isThinkingModel(id: string): boolean {
   const n = leafId(id).toLowerCase();
@@ -112,17 +103,17 @@ export function isEverydayModel(id: string): boolean {
   if (!trimmed) {
     return false;
   }
-  const n = catalogLeaf(trimmed);
-  return EVERYDAY_MODEL_IDS.has(n) || EVERYDAY_MODEL_IDS.has(n.replace(DATED_SUFFIX, ""));
+  return modelPolicy(trimmed).tier === "everyday";
 }
 
+/** Tier and best-for come from the model's policy, so an unrecognised id is advanced, never Recommended. */
 export function curateModel(id: string): CuratedModelMeta {
   const trimmed = id.trim();
-  const everyday = isEverydayModel(trimmed);
+  const policy = modelPolicy(trimmed || id);
   return {
     friendlyLabel: friendlyModelLabel(trimmed || id),
-    bestFor: bestForFromId(trimmed || id),
-    tier: everyday ? "everyday" : "advanced",
+    bestFor: policy.bestFor,
+    tier: policy.tier,
   };
 }
 

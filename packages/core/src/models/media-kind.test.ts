@@ -12,6 +12,7 @@ import {
   DEFAULT_GATEWAY_VIDEO_MODEL,
   DEFAULT_GATEWAY_MUSIC_MODEL,
   DEFAULT_EMBEDDING_MODEL,
+  MEDIA_MODEL_PREFERENCES,
   RELAY_ONLY_MUSIC_MODEL_IDS,
 } from "./media-kind";
 
@@ -86,18 +87,30 @@ describe("pickPreferredImageModel", () => {
 });
 
 describe("pickPreferredVideoModel", () => {
-  it("prefers Veo fast, then cheap Grok Imagine, over Seedance quality ids", () => {
-    expect(
-      pickPreferredVideoModel(["mj_video", "seedance-2.5", "seedance-2.0-fast", "grok-imagine-video", "veo_3_1-fast"]),
-    ).toBe("veo_3_1-fast");
-    expect(pickPreferredVideoModel(["mj_video", "seedance-2.5", "seedance-2.0-fast", "grok-imagine-video"])).toBe(
-      "grok-imagine-video",
-    );
-    expect(pickPreferredVideoModel(["omni-fast-v2v", "seedance-2.5"])).toBe("omni-fast-v2v");
-    expect(pickPreferredVideoModel(["seedance-2.0-mini", "seedance-2.0-fast"])).toBe("seedance-2.0-mini");
+  it("leads with the Seedance ids the live catalogue lists (2026-09-30), the proven 2.0 before 2.5", () => {
+    // The live catalogue of 2026-09-30 lists exactly these two video ids.
+    expect(pickPreferredVideoModel(["seedance-2.5", "seedance-2.0"])).toBe("seedance-2.0");
+    expect(pickPreferredVideoModel(["seedance-2.5"])).toBe("seedance-2.5");
+    expect(MEDIA_MODEL_PREFERENCES.video.slice(0, 3)).toEqual([
+      "seedance-2.0",
+      "doubao-seedance-2-0-260128",
+      "seedance-2.5",
+    ]);
+  });
+
+  it("keeps the dated Doubao spelling for a catalogue that lists only that", () => {
     expect(pickPreferredVideoModel(["doubao-seedance-2-0-260128", "doubao-seedance-2-0-fast-260128"])).toBe(
       "doubao-seedance-2-0-260128",
     );
+  });
+
+  it("still prefers Veo fast, then cheap Grok Imagine, on a gateway that lists them and no Seedance 2.0", () => {
+    expect(
+      pickPreferredVideoModel(["mj_video", "seedance-2.0-fast", "grok-imagine-video", "veo_3_1-fast"]),
+    ).toBe("veo_3_1-fast");
+    expect(pickPreferredVideoModel(["mj_video", "seedance-2.0-fast", "grok-imagine-video"])).toBe("grok-imagine-video");
+    expect(pickPreferredVideoModel(["omni-fast-v2v", "seedance-2.0-mini"])).toBe("omni-fast-v2v");
+    expect(pickPreferredVideoModel(["seedance-2.0-mini", "seedance-2.0-fast"])).toBe("seedance-2.0-mini");
   });
 
   it("falls back to the kernel default", () => {
@@ -216,5 +229,26 @@ describe("pickPreferredEmbeddingModel", () => {
 
   it("falls back to the kernel default", () => {
     expect(pickPreferredEmbeddingModel([])).toBe(DEFAULT_EMBEDDING_MODEL);
+  });
+});
+
+describe("MEDIA_MODEL_PREFERENCES", () => {
+  it("names the ranked hints each media picker uses, so a report cannot drift from the picker", () => {
+    expect(MEDIA_MODEL_PREFERENCES.image).toContain(DEFAULT_GATEWAY_IMAGE_MODEL);
+    expect(MEDIA_MODEL_PREFERENCES.video).toContain(DEFAULT_GATEWAY_VIDEO_MODEL);
+    expect(MEDIA_MODEL_PREFERENCES.music).toContain(DEFAULT_GATEWAY_MUSIC_MODEL);
+    expect(MEDIA_MODEL_PREFERENCES.embedding).toContain(DEFAULT_EMBEDDING_MODEL);
+    expect(Object.keys(MEDIA_MODEL_PREFERENCES).sort()).toEqual(
+      ["embedding", "image", "lyrics", "music", "speech", "video"],
+    );
+  });
+
+  it("is what the pickers rank by: the first listed id wins when it is live", () => {
+    expect(pickPreferredImageModel([...MEDIA_MODEL_PREFERENCES.image].reverse())).toBe(MEDIA_MODEL_PREFERENCES.image[0]);
+  });
+
+  it("cannot be edited from outside", () => {
+    expect(Object.isFrozen(MEDIA_MODEL_PREFERENCES)).toBe(true);
+    expect(Object.isFrozen(MEDIA_MODEL_PREFERENCES.image)).toBe(true);
   });
 });

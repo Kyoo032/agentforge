@@ -14,6 +14,7 @@ import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
 import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
 import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { thinkingRequestFields } from "@/lib/chat-thinking";
 import { submitOnEnter } from "@/lib/composer-enter";
 import { getLocale, t } from "@/lib/i18n";
 import { readComposerDraft, writeComposerDraft } from "@/lib/composer-draft";
@@ -50,7 +51,14 @@ type Props = {
   sessionKey?: string | number;
   thinkingEnabled?: boolean;
   onThinkingChange?: (enabled: boolean) => void;
+  /** The level the Thinking picker shows. */
   reasoningEffort?: ReasoningEffort;
+  /**
+   * Did the person pick that level? Only a picked level is sent (`thinkingRequestFields`); an untouched
+   * picker sends none, so the host can tell a choice from a default. A parent that does not say is
+   * read as "yes", so a picker nobody wired this up for still sends what it shows.
+   */
+  reasoningEffortChosen?: boolean;
   onReasoningEffortChange?: (effort: ReasoningEffort) => void;
   /** A prompt seeded from outside (the empty screen's suggestions). Applied once, then cleared. */
   draft?: string | null;
@@ -190,6 +198,7 @@ export function ChatComposer({
   thinkingEnabled = true,
   onThinkingChange,
   reasoningEffort = "medium",
+  reasoningEffortChosen = true,
   onReasoningEffortChange,
   draft,
   onDraftApplied,
@@ -403,8 +412,7 @@ export function ChatComposer({
             body: JSON.stringify({
               content: outgoing,
               model,
-              thinking: reasoningEffort !== "none",
-              reasoningEffort,
+              ...thinkingRequestFields(reasoningEffort, reasoningEffortChosen),
             }),
             signal: abort.signal,
           });
@@ -470,8 +478,7 @@ export function ChatComposer({
           body: JSON.stringify({
             content: parts,
             model,
-            thinking: reasoningEffort !== "none",
-            reasoningEffort,
+            ...thinkingRequestFields(reasoningEffort, reasoningEffortChosen),
           }),
           signal: abort.signal,
         });

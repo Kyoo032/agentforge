@@ -43,7 +43,7 @@ import { probeSummary } from "../model-cache";
 import { db, hasPendingDataReset, listLocalWorkspaces, pendingResetPath, requestDataReset } from "@agentforge/db";
 import { rmSync } from "node:fs";
 import { resetEmbedCircuit } from "../knowledge-embed";
-import { resetJobModelCircuit } from "../job-model-fallback";
+import { resetModelReliabilityState } from "../job-model-fallback";
 import { revokeKnowledgeGatewayModel } from "../knowledge/backend-api";
 // Phase 8: the hosted "Start over". Everything policy-shaped is checked in there, not here.
 import { resetTenant } from "../tenant-reset";
@@ -253,9 +253,10 @@ export async function handlePostSettings(request: HostRequest, deps: ServerModeD
     const saved = saveSettings(patch, tenant);
     clearThisKeyCache();
     // A fixed key / URL must take effect now, not after the 5-minute embeddings breaker expires —
-    // and the job-side breaker skips a model for the same five minutes, so it is cleared with it.
+    // and the job-side breaker skips a model for the same five minutes, so it is cleared with it, along
+    // with the Thinking levels the runtime learned a model refuses.
     resetEmbedCircuit();
-    resetJobModelCircuit();
+    resetModelReliabilityState();
     // The retrieval sidecar holds a *copy* of the gateway key, inside the model row it embeds with.
     // A key that has been changed here but left in that database has not been rotated, so the row
     // is revoked; the next knowledge call mints a fresh one against the new credentials.
@@ -413,7 +414,7 @@ function resetGatewayKey(tenant: TenantContext): HostResult {
   clearGateState(tenant);
   clearThisKeyCache();
   resetEmbedCircuit();
-  resetJobModelCircuit();
+  resetModelReliabilityState();
   return jsonOk({
     ok: true,
     scope: "key",

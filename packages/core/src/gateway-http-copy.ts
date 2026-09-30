@@ -66,6 +66,36 @@ export function gatewayErrorKind(code: number): GatewayErrorKind | null {
 }
 
 /**
+ * A gateway HTTP failure as it travels through the AI SDK. The message is the sentence for the person
+ * (`gatewayHttpFailure`); the status and the raw upstream body ride along so the runtime can tell what
+ * the gateway refused. The body is a non-enumerable property: it never reaches a log line or a
+ * serialised error by accident, and it is only ever read for classification.
+ */
+export class GatewayHttpError extends Error {
+  readonly status: number;
+  declare readonly body: string;
+
+  constructor(message: string, status: number, body: string) {
+    super(message);
+    this.name = "GatewayHttpError";
+    this.status = status;
+    Object.defineProperty(this, "body", { value: body, enumerable: false });
+  }
+}
+
+/** The status and raw body behind `error`, or undefined when it was not a gateway HTTP failure. */
+export function gatewayFailureOf(error: unknown): { status: number; body: string } | undefined {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current instanceof Error; depth += 1) {
+    if (current instanceof GatewayHttpError) {
+      return { status: current.status, body: current.body };
+    }
+    current = current.cause;
+  }
+  return undefined;
+}
+
+/**
  * Headline for the person and `detail` for the log. The status code stays in the headline: it is
  * what a support thread is searched by, and `isRetryableModelFailure` classifies on it.
  */

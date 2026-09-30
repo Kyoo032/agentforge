@@ -48,30 +48,44 @@ describe("modeCatalogPayload", () => {
   });
 
   it("routes a mixed catalog into chat jobs and full media lists", () => {
+    // The chat and video ids the gateway listed on 2026-09-30, plus the media the pickers show in full.
     const payload = modeCatalogPayload([
       model("gpt-5.6-terra"),
       model("gpt-5.6-luna"),
       model("gpt-5.6-sol"),
+      model("gpt-6-luna"),
+      model("gpt-6-sol"),
       model("claude-sonnet-5"),
+      model("claude-sonnet-5-5"),
       model("deepseek-v4-flash"),
+      model("deepseek-v4-1-flash"),
+      model("hy3"),
       model("glm-5.2-fast-preview"),
+      model("glm-5.3-flash"),
       model("mj_imagine"),
       model("gpt-image-2"),
       model("mj_video"),
       model("grok-imagine-video"),
       model("seedance-2.5"),
+      model("seedance-2.0"),
       model("whisper-1"),
       model("text-embedding-3-small"),
       model("text-embedding-3-large"),
     ]);
 
     expect(payload.modes.chat.map((item) => item.id)).toEqual([
+      "gpt-6-luna",
       "gpt-5.6-luna",
       "gpt-5.6-terra",
+      "gpt-6-sol",
       "gpt-5.6-sol",
+      "claude-sonnet-5-5",
       "claude-sonnet-5",
+      "glm-5.3-flash",
       "glm-5.2-fast-preview",
+      "deepseek-v4-1-flash",
       "deepseek-v4-flash",
+      "hy3",
     ]);
     // Every chat-shaped mode offers this list, so the payload does not repeat it under eight more
     // names: `modelsForMode` reads them back from `modes.chat` (the wire's `models`).
@@ -85,26 +99,55 @@ describe("modeCatalogPayload", () => {
       }
     }
     expect(payload.modes.image.map((item) => item.id)).toEqual(["mj_imagine", "gpt-image-2"]);
-    expect(payload.modes.video.map((item) => item.id)).toEqual(["mj_video", "grok-imagine-video", "seedance-2.5"]);
+    expect(payload.modes.video.map((item) => item.id)).toEqual([
+      "mj_video",
+      "grok-imagine-video",
+      "seedance-2.5",
+      "seedance-2.0",
+    ]);
     expect(payload.modes.audio.map((item) => item.id)).toEqual(["whisper-1"]);
     expect(payload.modes.embedding.map((item) => item.id)).toEqual([
       "text-embedding-3-small",
       "text-embedding-3-large",
     ]);
 
+    expect(payload.defaults.chat).toBe("gpt-6-luna");
+    expect(payload.defaults.documents).toBe("hy3");
+    expect(payload.defaults.research).toBe("gpt-6-luna");
+    expect(payload.defaults.presentations).toBe("glm-5.3-flash");
+    expect(payload.defaults.finance).toBe("hy3");
+    expect(payload.defaults.data).toBe("gpt-6-luna");
+    expect(payload.defaults.market).toBe("hy3");
+    expect(payload.defaults.legal).toBe("gpt-6-sol");
+    expect(payload.defaults.meeting).toBe("gpt-6-sol");
+    expect(payload.defaults.image).toBe("gpt-image-2");
+    expect(payload.defaults.video).toBe("seedance-2.0");
+    expect(payload.defaults.embedding).toBe("text-embedding-3-small");
+    expect(payload.defaults.knowledgeBrain).toBe("gpt-6-luna");
+    expect(payload.defaults.knowledgeVerifier).toBe("gpt-6-luna");
+  });
+
+  it("keeps a catalogue without GPT 6 or hy3 on the stand-ins the lists name next", () => {
+    const payload = modeCatalogPayload([
+      model("gpt-5.6-terra"),
+      model("gpt-5.6-luna"),
+      model("gpt-5.6-sol"),
+      model("claude-sonnet-5"),
+      model("deepseek-v4-flash"),
+      model("glm-5.2-fast-preview"),
+      model("grok-imagine-video"),
+    ]);
     expect(payload.defaults.chat).toBe("gpt-5.6-luna");
     expect(payload.defaults.documents).toBe("deepseek-v4-flash");
-    expect(payload.defaults.research).toBe("gpt-5.6-luna");
-    expect(payload.defaults.presentations).toBe("glm-5.2-fast-preview");
     expect(payload.defaults.finance).toBe("deepseek-v4-flash");
-    expect(payload.defaults.data).toBe("gpt-5.6-luna");
     expect(payload.defaults.market).toBe("deepseek-v4-flash");
+    expect(payload.defaults.research).toBe("gpt-5.6-luna");
+    expect(payload.defaults.data).toBe("gpt-5.6-luna");
+    // Presentations and Legal lose their GLM 5.2 and 5.3 heads: the list is now GLM 5.3 Flash, Claude
+    // Sonnet 5.5, GLM 5.3, Kimi K3 and none is live here, so Presentations follows the Chat default.
+    expect(payload.defaults.presentations).toBe("gpt-5.6-luna");
     expect(payload.defaults.legal).toBe("gpt-5.6-sol");
-    expect(payload.defaults.image).toBe("gpt-image-2");
     expect(payload.defaults.video).toBe("grok-imagine-video");
-    expect(payload.defaults.embedding).toBe("text-embedding-3-small");
-    expect(payload.defaults.knowledgeBrain).toBe("gpt-5.6-luna");
-    expect(payload.defaults.knowledgeVerifier).toBe("gpt-5.6-luna");
   });
 
   /**

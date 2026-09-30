@@ -344,12 +344,14 @@ export {
   THINKING_LABELS,
   isReasoningEffort,
   readOptionalReasoningEffort,
+  readReasoningEffortChoice,
+  isReasoningEffortExplicit,
   resolveRequestReasoningEffort,
   closestReasoningEffort,
   coerceReasoningEffortForModel,
   toWireReasoningEffort,
 } from "./models/reasoning-effort";
-export type { ReasoningEffort, ChatReasoningEffort } from "./models/reasoning-effort";
+export type { ReasoningEffort, ChatReasoningEffort, ReasoningEffortChoice } from "./models/reasoning-effort";
 export {
   CHAT_WIRES,
   CHAT_WIRE_LABELS,
@@ -380,7 +382,33 @@ export {
   GPT_6_EFFORTS,
   ANTHROPIC_MESSAGES_EFFORTS,
   GEMINI_EFFORTS,
+  TOKO_RESPONSES_EFFORTS,
+  UNKNOWN_MODEL_EFFORTS,
 } from "./runtime/effort-allowlist";
+export {
+  MODEL_POLICY_TABLE,
+  modelPolicy,
+  allowedEffortsFor,
+  offFormatFor,
+  floorEffort,
+} from "./models/model-policy";
+export type {
+  EffortSlot,
+  ModelPolicy,
+  ModelPolicyEntry,
+  ModelWirePreference,
+  OffFormat,
+  ReasoningDefault,
+} from "./models/model-policy";
+export { bareModelId } from "./models/request-constraints";
+export {
+  learnedEffortLimit,
+  rememberEffortLimit,
+  resetLearnedEffortLimits,
+  classifyEffortRejection,
+} from "./runtime/effort-selfheal";
+export type { LearnedEffort, LearnedEffortLimit, EffortRejection } from "./runtime/effort-selfheal";
+export { GatewayHttpError, gatewayFailureOf } from "./gateway-http-copy";
 export {
   DEFAULT_FALLBACK_CONTEXT,
   extractContextLength,
@@ -424,8 +452,10 @@ export {
   DEFAULT_GATEWAY_MUSIC_MODEL,
   DEFAULT_GATEWAY_LYRICS_MODEL,
   DEFAULT_EMBEDDING_MODEL,
+  MEDIA_MODEL_PREFERENCES,
   RELAY_ONLY_MUSIC_MODEL_IDS,
 } from "./models/media-kind";
+export { EVERYDAY_MODEL_IDS } from "./models/gateway-roles";
 export type { AudioRole, MediaKind, RoutedModels } from "./models/media-kind";
 export {
   availableVideoDefault,
@@ -623,6 +653,7 @@ export {
   formatContactProbe,
   formatContactProbeButton,
   formatModelContactError,
+  hasVisibleText,
   isRetryableModelFailure,
   shouldFailEmptyAssistant,
   shouldKeepToolTurn,

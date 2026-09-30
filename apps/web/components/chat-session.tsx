@@ -22,7 +22,8 @@ import {
   writeLastChatModel,
   writeThreadChatModel,
 } from "@/lib/chat-model-pref";
-import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import type { ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { DEFAULT_THINKING_PREF, readStoredThinkingPref, writeThinkingPref } from "@/lib/chat-thinking";
 import { t } from "@/lib/i18n";
 import { isPinnedToEnd } from "@/lib/stick-to-bottom";
 
@@ -64,7 +65,12 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   /** A refused send. The sentence lives on `composer-error`; this only holds the error mascot. */
   const [sendFailed, setSendFailed] = useState(false);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
-  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>(DEFAULT_THINKING_PREF.effort);
+  /**
+   * Did the person pick the level the picker shows? Until they do, a send carries no level and the host
+   * treats Thinking as defaulted, so a model the policy table does not know is not sent Normal.
+   */
+  const [reasoningChosen, setReasoningChosen] = useState(DEFAULT_THINKING_PREF.chosen);
   const [knowledgeParts, setKnowledgeParts] = useState<ContextPart[]>([]);
   /** A prompt picked from the empty screen's suggestions; handed down once, then cleared. */
   const [composerDraft, setComposerDraft] = useState<string | null>(null);
@@ -137,29 +143,25 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const sessionKey = sessionEpochRef.current;
 
   useEffect(() => {
+    // A stored level is a real pick (only the picker writes it), so it is sent from the first message.
+    let storage: Storage | undefined;
     try {
-      const storedEffort = window.localStorage.getItem("agentforge-chat-reasoning-effort");
-      if (isReasoningEffort(storedEffort) && storedEffort !== "minimal") {
-        setReasoningEffort(storedEffort);
-        setThinkingEnabled(storedEffort !== "none");
-      } else {
-        const stored = window.localStorage.getItem("agentforge-chat-thinking");
-        if (stored === "off") {
-          setThinkingEnabled(false);
-          setReasoningEffort("none");
-        }
-      }
+      storage = window.localStorage;
     } catch {
-      // private mode
+      storage = undefined; // private mode
     }
+    const stored = readStoredThinkingPref(storage);
+    setReasoningEffort(stored.effort);
+    setThinkingEnabled(stored.effort !== "none");
+    setReasoningChosen(stored.chosen);
   }, []);
 
   function setReasoningPref(next: ReasoningEffort) {
     setReasoningEffort(next);
+    setReasoningChosen(true);
     setThinkingEnabled(next !== "none");
     try {
-      window.localStorage.setItem("agentforge-chat-reasoning-effort", next);
-      window.localStorage.setItem("agentforge-chat-thinking", next === "none" ? "off" : "on");
+      writeThinkingPref(next, window.localStorage);
     } catch {
       // private mode
     }
@@ -460,6 +462,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           onModelChange={handleModelChange}
           thinkingEnabled={thinkingEnabled}
           reasoningEffort={reasoningEffort}
+          reasoningEffortChosen={reasoningChosen}
           onReasoningEffortChange={setReasoningPref}
           draft={composerDraft}
           onDraftApplied={() => setComposerDraft(null)}

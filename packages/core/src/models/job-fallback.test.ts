@@ -7,15 +7,24 @@ import {
   nextJobFallbackModel,
 } from "./job-fallback";
 
-/** What the workspace actually offered on 2026-09-17, trimmed to the ids the tests care about. */
+/** What the workspace actually offered on 2026-09-30, trimmed to the ids the tests care about. */
 const LIVE = [
+  "gpt-6-luna",
+  "gpt-6-sol",
+  "gpt-6-astra",
   "gpt-5.6-sol",
   "gpt-5.6-luna",
   "gpt-5.6-terra",
+  "claude-sonnet-5-5",
   "claude-sonnet-5",
+  "deepseek-v4-1-flash",
   "deepseek-v4-flash",
-  "glm-5.2",
+  "hy3",
+  "gemini-3.5-flash",
+  "glm-5.3-flash",
+  "glm-5.3",
   "kimi-k3",
+  "MiniMax-M3",
 ];
 
 describe("isGatewayUnavailableFailure", () => {
@@ -93,19 +102,21 @@ describe("isGatewayUnavailableFailure", () => {
 
 describe("jobFallbackChain", () => {
   it("keeps the mode ranking first, then the shared tail, and never repeats an id", () => {
+    // The tail's own deepseek-v4-1-flash is already in the Finance ranking, so it is not offered twice.
     expect(jobFallbackChain("finance", LIVE)).toEqual([
+      "hy3",
+      "deepseek-v4-1-flash",
       "deepseek-v4-flash",
+      "gpt-6-luna",
+      "claude-sonnet-5-5",
       "gpt-5.6-luna",
-      "claude-sonnet-5",
-      "gpt-5.6-sol",
-      "kimi-k3",
     ]);
   });
 
   it("only offers ids the workspace actually lists", () => {
-    expect(jobFallbackChain("finance", ["deepseek-v4-flash", "gpt-5.6-luna"])).toEqual([
+    expect(jobFallbackChain("finance", ["deepseek-v4-flash", "gpt-6-luna"])).toEqual([
       "deepseek-v4-flash",
-      "gpt-5.6-luna",
+      "gpt-6-luna",
     ]);
   });
 
@@ -114,7 +125,12 @@ describe("jobFallbackChain", () => {
   });
 
   it("falls back to the shared tail alone when the mode is unknown", () => {
-    expect(jobFallbackChain(undefined, LIVE)).toEqual(["gpt-5.6-luna", "claude-sonnet-5", "gpt-5.6-sol", "kimi-k3"]);
+    expect(jobFallbackChain(undefined, LIVE)).toEqual([
+      "gpt-6-luna",
+      "claude-sonnet-5-5",
+      "gpt-5.6-luna",
+      "deepseek-v4-1-flash",
+    ]);
   });
 
   it("is empty when nothing in the ranking is live", () => {
@@ -122,7 +138,7 @@ describe("jobFallbackChain", () => {
   });
 
   it("gives every job mode somewhere to land on the live catalog", () => {
-    for (const mode of ["documents", "research", "presentations", "finance", "data", "market", "legal"] as const) {
+    for (const mode of ["documents", "research", "presentations", "finance", "data", "market", "legal", "meeting"] as const) {
       expect(jobFallbackChain(mode, LIVE).length, mode).toBeGreaterThan(1);
     }
   });
@@ -130,20 +146,26 @@ describe("jobFallbackChain", () => {
 
 describe("nextJobFallbackModel", () => {
   it("skips the model that just failed", () => {
-    expect(nextJobFallbackModel({ mode: "finance", current: "deepseek-v4-flash", availableIds: LIVE })).toBe(
-      "gpt-5.6-luna",
-    );
+    expect(nextJobFallbackModel({ mode: "finance", current: "hy3", availableIds: LIVE })).toBe("deepseek-v4-1-flash");
+    expect(nextJobFallbackModel({ mode: "research", current: "gpt-6-luna", availableIds: LIVE })).toBe("gpt-6-sol");
   });
 
   it("skips models the circuit marked down", () => {
     expect(
       nextJobFallbackModel({
         mode: "finance",
-        current: "deepseek-v4-flash",
+        current: "hy3",
         availableIds: LIVE,
-        isDown: (id) => id === "gpt-5.6-luna",
+        isDown: (id) => id === "deepseek-v4-1-flash",
       }),
-    ).toBe("claude-sonnet-5");
+    ).toBe("deepseek-v4-flash");
+  });
+
+  it("walks past the mode's own list into the shared tail when the whole list is down", () => {
+    const own = new Set(["hy3", "deepseek-v4-1-flash", "deepseek-v4-flash"]);
+    expect(
+      nextJobFallbackModel({ mode: "finance", current: "hy3", availableIds: LIVE, isDown: (id) => own.has(id) }),
+    ).toBe("gpt-6-luna");
   });
 
   it("compares the current model case-insensitively", () => {
@@ -156,7 +178,7 @@ describe("nextJobFallbackModel", () => {
     expect(
       nextJobFallbackModel({
         mode: "finance",
-        current: "deepseek-v4-flash",
+        current: "hy3",
         availableIds: LIVE,
         isDown: () => true,
       }),
@@ -164,9 +186,7 @@ describe("nextJobFallbackModel", () => {
   });
 
   it("offers the top of the chain when the current model is not ranked at all", () => {
-    expect(nextJobFallbackModel({ mode: "finance", current: "some-desk-default", availableIds: LIVE })).toBe(
-      "deepseek-v4-flash",
-    );
+    expect(nextJobFallbackModel({ mode: "finance", current: "some-desk-default", availableIds: LIVE })).toBe("hy3");
   });
 });
 
@@ -175,8 +195,7 @@ describe("notice contract", () => {
     expect(MODEL_FALLBACK_NOTICE).toBe("model_fallback");
   });
 
-  it("ranks the tail by what answered on the live gateway", () => {
-    expect(JOB_FALLBACK_TAIL[0]).toBe("gpt-5.6-luna");
-    expect(JOB_FALLBACK_TAIL).toContain("claude-sonnet-5");
+  it("ranks the tail by what answered on the live gateway (probe 2026-09-30)", () => {
+    expect(JOB_FALLBACK_TAIL).toEqual(["gpt-6-luna", "claude-sonnet-5-5", "gpt-5.6-luna", "deepseek-v4-1-flash"]);
   });
 });
